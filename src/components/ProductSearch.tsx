@@ -6,10 +6,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2, Search, ShoppingBag, ExternalLink } from "lucide-react";
+import { Loader2, Search, ShoppingBag, ExternalLink, Star, Store, ChevronLeft, ChevronRight } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 interface Product {
@@ -28,6 +26,7 @@ export const ProductSearch = () => {
 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,7 +36,6 @@ export const ProductSearch = () => {
     setProducts([]);
 
     try {
-      // Search for products using Firecrawl (without scraping to be faster)
       const { data, error } = await supabase.functions.invoke("firecrawl-search", {
         body: {
           query: `${query} 1688 wholesale china`,
@@ -107,6 +105,20 @@ export const ProductSearch = () => {
     [products]
   );
 
+  // Generate mock tiered pricing from base price
+  const getTieredPricing = (basePrice?: string) => {
+    const numMatch = basePrice?.match(/[\d,.]+/);
+    if (!numMatch) return null;
+    const base = parseFloat(numMatch[0].replace(',', ''));
+    if (isNaN(base)) return null;
+    
+    return [
+      { qty: "3+", price: Math.round(base * 12) }, // Convert to BDT approx
+      { qty: "100+", price: Math.round(base * 11.5) },
+      { qty: "500+", price: Math.round(base * 11) },
+    ];
+  };
+
   return (
     <div className="w-full">
       {/* Search Form */}
@@ -146,12 +158,14 @@ export const ProductSearch = () => {
               tabIndex={0}
               onClick={() => {
                 setSelectedProduct(product);
+                setCurrentImageIndex(0);
                 setIsDetailsOpen(true);
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
                   setSelectedProduct(product);
+                  setCurrentImageIndex(0);
                   setIsDetailsOpen(true);
                 }
               }}
@@ -196,7 +210,7 @@ export const ProductSearch = () => {
         </div>
       )}
 
-      {/* Details Modal (stay on your site) */}
+      {/* Product Detail Modal - ChinaOnlineBD Style */}
       <Dialog
         open={isDetailsOpen}
         onOpenChange={(open) => {
@@ -204,62 +218,226 @@ export const ProductSearch = () => {
           if (!open) setSelectedProduct(null);
         }}
       >
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="line-clamp-2">
-              {selectedProduct?.title || "Product"}
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="aspect-square bg-muted rounded-md overflow-hidden">
-              {selectedProduct?.image ? (
-                <img
-                  src={selectedProduct.image}
-                  alt={selectedProduct.title}
-                  loading="lazy"
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = "/placeholder.svg";
-                  }}
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <ShoppingBag className="h-12 w-12 text-muted-foreground" />
-                </div>
-              )}
+        <DialogContent className="max-w-5xl p-0 gap-0 overflow-hidden">
+          <div className="grid md:grid-cols-[1fr,1.2fr,auto] min-h-[500px]">
+            {/* Left: Product Image Gallery */}
+            <div className="bg-muted p-4">
+              <div className="relative aspect-square rounded-lg overflow-hidden bg-background mb-3">
+                {selectedProduct?.image ? (
+                  <>
+                    <img
+                      src={selectedProduct.image}
+                      alt={selectedProduct.title}
+                      className="w-full h-full object-contain"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = "/placeholder.svg";
+                      }}
+                    />
+                    {/* Image Navigation */}
+                    <button 
+                      className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full"
+                      onClick={() => setCurrentImageIndex(prev => Math.max(0, prev - 1))}
+                    >
+                      <ChevronLeft className="h-5 w-5" />
+                    </button>
+                    <button 
+                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full"
+                      onClick={() => setCurrentImageIndex(prev => prev + 1)}
+                    >
+                      <ChevronRight className="h-5 w-5" />
+                    </button>
+                    {/* Image Counter */}
+                    <div className="absolute bottom-3 right-3 bg-black/60 text-white text-sm px-2 py-1 rounded">
+                      1/5
+                    </div>
+                  </>
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <ShoppingBag className="h-16 w-16 text-muted-foreground" />
+                  </div>
+                )}
+              </div>
+              
+              {/* Thumbnail Gallery */}
+              <div className="flex gap-2 overflow-x-auto pb-2">
+                {[...Array(5)].map((_, i) => (
+                  <div 
+                    key={i}
+                    className={`w-16 h-16 rounded border-2 flex-shrink-0 overflow-hidden cursor-pointer ${
+                      i === currentImageIndex ? 'border-primary' : 'border-transparent'
+                    }`}
+                    onClick={() => setCurrentImageIndex(i)}
+                  >
+                    {selectedProduct?.image ? (
+                      <img
+                        src={selectedProduct.image}
+                        alt={`Variant ${i + 1}`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = "/placeholder.svg";
+                        }}
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-muted" />
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
 
-            <div className="flex flex-col gap-3">
-              {selectedProduct?.price && (
-                <div>
-                  <div className="text-sm text-muted-foreground">Price</div>
-                  <div className="text-xl font-semibold text-primary">{selectedProduct.price}</div>
-                </div>
-              )}
+            {/* Middle: Product Info */}
+            <div className="p-6 flex flex-col">
+              <h1 className="text-xl font-semibold mb-4 line-clamp-3">
+                {selectedProduct?.title}
+              </h1>
 
+              {/* Tiered Pricing */}
+              {(() => {
+                const tiers = getTieredPricing(selectedProduct?.price);
+                if (!tiers) return (
+                  <div className="bg-primary/10 rounded-lg p-4 mb-4">
+                    <span className="text-2xl font-bold text-primary">
+                      {selectedProduct?.price || "মূল্য জানতে যোগাযোগ করুন"}
+                    </span>
+                  </div>
+                );
+                return (
+                  <div className="grid grid-cols-3 gap-2 mb-4">
+                    {tiers.map((tier, i) => (
+                      <div 
+                        key={tier.qty}
+                        className={`rounded-lg p-3 text-center ${
+                          i === 0 ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                        }`}
+                      >
+                        <div className={`text-xl font-bold ${i === 0 ? '' : 'text-foreground'}`}>
+                          {tier.price} ৳
+                        </div>
+                        <div className={`text-sm ${i === 0 ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
+                          {tier.qty}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+
+              {/* Color Options */}
+              <div className="mb-4">
+                <div className="text-sm text-muted-foreground mb-2">
+                  Color: <span className="text-foreground">Default</span>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  {[...Array(6)].map((_, i) => (
+                    <div
+                      key={i}
+                      className={`w-14 h-14 rounded border-2 overflow-hidden cursor-pointer ${
+                        i === 0 ? 'border-primary' : 'border-muted hover:border-primary/50'
+                      }`}
+                    >
+                      {selectedProduct?.image ? (
+                        <img
+                          src={selectedProduct.image}
+                          alt={`Color ${i + 1}`}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = "/placeholder.svg";
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-muted" />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Size & Price Table */}
+              <div className="border rounded-lg overflow-hidden mb-4">
+                <div className="grid grid-cols-3 bg-muted font-medium text-sm">
+                  <div className="p-2 border-r">SIZE</div>
+                  <div className="p-2 border-r">PRICE</div>
+                  <div className="p-2">QUANTITY</div>
+                </div>
+                <div className="grid grid-cols-3 text-sm">
+                  <div className="p-2 border-r border-t">Standard</div>
+                  <div className="p-2 border-r border-t text-primary font-semibold">
+                    {getTieredPricing(selectedProduct?.price)?.[0]?.price || '---'} ৳
+                  </div>
+                  <div className="p-2 border-t">
+                    <Input type="number" defaultValue={1} min={1} className="h-8 w-20" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Description */}
               {selectedProduct?.description && (
-                <div>
-                  <div className="text-sm text-muted-foreground">Description</div>
-                  <p className="text-sm leading-6">{selectedProduct.description}</p>
-                </div>
+                <p className="text-sm text-muted-foreground mb-4 line-clamp-3">
+                  {selectedProduct.description}
+                </p>
               )}
 
-              <div className="mt-auto flex gap-2">
+              <div className="mt-auto">
                 <Button
-                  className="w-full"
+                  className="w-full h-12 text-lg"
                   onClick={() => {
                     if (!selectedProduct?.url) return;
                     window.open(selectedProduct.url, "_blank", "noopener,noreferrer");
                   }}
                 >
-                  1688 এ দেখুন <ExternalLink className="ml-2 h-4 w-4" />
+                  1688 এ দেখুন <ExternalLink className="ml-2 h-5 w-5" />
                 </Button>
               </div>
+            </div>
 
-              <p className="text-xs text-muted-foreground">
-                নোট: কিছু 1688 লিংক login/redirect করতে পারে—তবুও আপনার সাইটে product info দেখাচ্ছে।
-              </p>
+            {/* Right: Seller Info Sidebar */}
+            <div className="bg-muted/50 p-4 w-64 hidden lg:flex flex-col border-l">
+              {/* Seller Image */}
+              <div className="w-20 h-20 rounded-lg bg-muted mx-auto mb-3 overflow-hidden">
+                <img
+                  src={selectedProduct?.image || "/placeholder.svg"}
+                  alt="Store"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = "/placeholder.svg";
+                  }}
+                />
+              </div>
+
+              {/* Location */}
+              <p className="text-center text-sm font-medium mb-2">浙江省金华市</p>
+
+              {/* Rating Stars */}
+              <div className="flex justify-center gap-0.5 mb-3">
+                {[1, 2, 3, 4].map(i => (
+                  <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                ))}
+                <Star className="h-4 w-4 text-yellow-400" />
+              </div>
+
+              {/* Stats */}
+              <div className="grid grid-cols-2 gap-4 text-center mb-4">
+                <div>
+                  <div className="text-xl font-bold">32,064</div>
+                  <div className="text-xs text-muted-foreground">Total Sale</div>
+                </div>
+                <div>
+                  <div className="text-xl font-bold">4.0</div>
+                  <div className="text-xs text-muted-foreground">Positive Rating</div>
+                </div>
+              </div>
+
+              {/* Visit Store Button */}
+              <Button variant="outline" className="w-full mb-4">
+                <Store className="mr-2 h-4 w-4" />
+                Visit Store
+              </Button>
+
+              {/* Shipping Notice */}
+              <div className="bg-primary/10 rounded-lg p-3 text-xs text-center">
+                <p className="font-medium text-primary mb-1">ক্যাটাগরি ভিত্তিক শিপিং চার্জ</p>
+                <p className="text-muted-foreground">দেখতে এখানে ক্লিক করুন</p>
+              </div>
             </div>
           </div>
         </DialogContent>
