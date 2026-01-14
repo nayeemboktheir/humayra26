@@ -28,38 +28,41 @@ export const ProductSearch = () => {
     setProducts([]);
 
     try {
-      // Search 1688 for products
+      // Search for products using Firecrawl (without scraping to be faster)
       const { data, error } = await supabase.functions.invoke('firecrawl-search', {
         body: { 
-          query: `${query} site:1688.com`,
+          query: `${query} 1688 wholesale china`,
           options: {
-            limit: 12,
-            scrapeOptions: {
-              formats: ['markdown']
-            }
+            limit: 12
           }
         },
       });
 
       if (error) throw error;
 
+      console.log('Search response:', data);
+
       if (data?.success && data?.data) {
-        const searchResults = data.data.map((item: any) => ({
-          title: item.title || 'Product',
-          url: item.url,
-          image: item.metadata?.ogImage || item.metadata?.image || extractImageFromMarkdown(item.markdown),
-          price: extractPrice(item.markdown || item.description || ''),
-          description: item.description || extractDescription(item.markdown || ''),
-        }));
+        const searchResults = data.data
+          .filter((item: any) => item.url && !item.url.includes('login'))
+          .map((item: any) => ({
+            title: item.title || 'Product',
+            url: item.url,
+            image: item.metadata?.ogImage || item.metadata?.image || item.thumbnail,
+            price: extractPrice(item.description || item.title || ''),
+            description: item.description || '',
+          }));
         setProducts(searchResults);
         
         if (searchResults.length === 0) {
-          toast({ title: "No products found", description: "Try a different search term" });
+          toast({ title: "কোন পণ্য পাওয়া যায়নি", description: "অন্য keyword দিয়ে চেষ্টা করুন" });
+        } else {
+          toast({ title: `${searchResults.length}টি পণ্য পাওয়া গেছে` });
         }
       } else {
         toast({ 
-          title: "Search failed", 
-          description: data?.error || "Could not search products",
+          title: "সার্চ ব্যর্থ", 
+          description: data?.error || "পণ্য খুঁজতে সমস্যা হয়েছে",
           variant: "destructive" 
         });
       }
@@ -75,27 +78,10 @@ export const ProductSearch = () => {
     }
   };
 
-  const extractImageFromMarkdown = (markdown: string): string | undefined => {
-    if (!markdown) return undefined;
-    const imgMatch = markdown.match(/!\[.*?\]\((https?:\/\/[^\s)]+)\)/);
-    return imgMatch ? imgMatch[1] : undefined;
-  };
-
   const extractPrice = (text: string): string | undefined => {
     if (!text) return undefined;
-    const priceMatch = text.match(/¥\s*[\d,.]+|[\d,.]+\s*元/);
+    const priceMatch = text.match(/¥\s*[\d,.]+|[\d,.]+\s*元|\$[\d,.]+/);
     return priceMatch ? priceMatch[0] : undefined;
-  };
-
-  const extractDescription = (markdown: string): string => {
-    if (!markdown) return '';
-    // Remove images and links, get first 150 chars
-    const clean = markdown
-      .replace(/!\[.*?\]\(.*?\)/g, '')
-      .replace(/\[.*?\]\(.*?\)/g, '')
-      .replace(/[#*`]/g, '')
-      .trim();
-    return clean.substring(0, 150) + (clean.length > 150 ? '...' : '');
   };
 
   return (
@@ -108,7 +94,7 @@ export const ProductSearch = () => {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search products from 1688 (e.g., bags, electronics, clothing)"
+            placeholder="পণ্য খুঁজুন (যেমন: bag, electronics, clothing)"
             className="pl-10 h-12 text-lg"
             required
           />
@@ -126,7 +112,7 @@ export const ProductSearch = () => {
       {isLoading && (
         <div className="flex flex-col items-center justify-center py-16">
           <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-          <p className="text-muted-foreground">Searching 1688.com for products...</p>
+          <p className="text-muted-foreground">চায়না থেকে পণ্য খুঁজছি...</p>
         </div>
       )}
 
@@ -173,9 +159,9 @@ export const ProductSearch = () => {
       {!isLoading && products.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <ShoppingBag className="h-16 w-16 text-muted-foreground mb-4" />
-          <h3 className="text-xl font-semibold mb-2">Search Products from China</h3>
+          <h3 className="text-xl font-semibold mb-2">চায়না থেকে পণ্য অর্ডার করুন</h3>
           <p className="text-muted-foreground max-w-md">
-            Enter a product name to search from 1688.com - China's largest wholesale marketplace
+            পণ্যের নাম লিখে সার্চ করুন - সরাসরি চায়নার সবচেয়ে বড় হোলসেল মার্কেট থেকে
           </p>
         </div>
       )}
