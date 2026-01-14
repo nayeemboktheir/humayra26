@@ -1,1 +1,10 @@
 project_id = "kcihftfgmsrpcljsbjdj"
+
+[functions.firecrawl-scrape]
+verify_jwt = false
+
+[functions.firecrawl-search]
+verify_jwt = false
+
+[functions.firecrawl-map]
+verify_jwt = false
