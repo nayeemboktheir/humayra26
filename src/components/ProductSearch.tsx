@@ -7,7 +7,7 @@ import {
   Dialog,
   DialogContent,
 } from "@/components/ui/dialog";
-import { Loader2, Search, ShoppingBag, ExternalLink, Star, Store, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, Search, ShoppingBag, Star, Store, ChevronLeft, ChevronRight, ShoppingCart, MessageCircle } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 interface Product {
@@ -377,15 +377,31 @@ export const ProductSearch = () => {
                 </p>
               )}
 
-              <div className="mt-auto">
+              <div className="mt-auto space-y-2">
                 <Button
                   className="w-full h-12 text-lg"
                   onClick={() => {
-                    if (!selectedProduct?.url) return;
-                    window.open(selectedProduct.url, "_blank", "noopener,noreferrer");
+                    toast({
+                      title: "অর্ডার করতে যোগাযোগ করুন",
+                      description: "WhatsApp বা ফোনে যোগাযোগ করুন অর্ডার কনফার্ম করতে",
+                    });
                   }}
                 >
-                  1688 এ দেখুন <ExternalLink className="ml-2 h-5 w-5" />
+                  <ShoppingCart className="mr-2 h-5 w-5" />
+                  অর্ডার করুন
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full h-10"
+                  onClick={() => {
+                    toast({
+                      title: "যোগাযোগ করুন",
+                      description: "দাম ও স্টক জানতে আমাদের সাথে কথা বলুন",
+                    });
+                  }}
+                >
+                  <MessageCircle className="mr-2 h-4 w-4" />
+                  দাম জানতে চাই
                 </Button>
               </div>
             </div>
