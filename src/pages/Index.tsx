@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Search, Loader2, Camera } from "lucide-react";
+import { Search, Loader2, Camera, ImageIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -37,7 +37,9 @@ const Index = () => {
   const [hasSearched, setHasSearched] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<ProductDetail1688 | null>(null);
   const [isLoadingProduct, setIsLoadingProduct] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dragCounterRef = useRef(0);
 
   // Background translation effect
   useEffect(() => {
@@ -140,22 +142,85 @@ const Index = () => {
     fileInputRef.current?.click();
   };
 
+  const validateAndSearchImage = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      toast.error("Please select an image file");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be less than 5MB");
+      return;
+    }
+    handleImageSearch(file);
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (!file.type.startsWith('image/')) {
-        toast.error("Please select an image file");
-        return;
-      }
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error("Image must be less than 5MB");
-        return;
-      }
-      handleImageSearch(file);
+      validateAndSearchImage(file);
     }
     // Reset input so same file can be selected again
     e.target.value = '';
   };
+
+  // Drag and drop handlers
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current++;
+    if (e.dataTransfer.types.includes('Files')) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current--;
+    if (dragCounterRef.current === 0) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    dragCounterRef.current = 0;
+
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      const file = files[0];
+      validateAndSearchImage(file);
+    }
+  };
+
+  // Paste handler
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile();
+          if (file) {
+            e.preventDefault();
+            validateAndSearchImage(file);
+            break;
+          }
+        }
+      }
+    };
+
+    document.addEventListener('paste', handlePaste);
+    return () => document.removeEventListener('paste', handlePaste);
+  }, [isLoading]);
 
   const handleProductClick = async (product: Product1688) => {
     setIsLoadingProduct(true);
@@ -232,7 +297,24 @@ const Index = () => {
 
   // Show initial state or search results
   return (
-    <div className="min-h-screen bg-background">
+    <div 
+      className="min-h-screen bg-background relative"
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
+      {/* Drag overlay */}
+      {isDragging && (
+        <div className="fixed inset-0 z-[100] bg-primary/10 backdrop-blur-sm flex items-center justify-center pointer-events-none">
+          <div className="bg-background border-2 border-dashed border-primary rounded-xl p-12 text-center shadow-lg">
+            <ImageIcon className="h-16 w-16 text-primary mx-auto mb-4" />
+            <p className="text-xl font-semibold text-primary">Drop image to search</p>
+            <p className="text-sm text-muted-foreground mt-2">Find similar products on 1688</p>
+          </div>
+        </div>
+      )}
+
       {/* Search Header */}
       <div className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b">
         <div className="container mx-auto px-4 py-4 max-w-4xl">
@@ -254,7 +336,7 @@ const Index = () => {
                 className="pl-10"
               />
             </div>
-            <Button type="button" variant="outline" size="icon" title="Search by image" onClick={handleImageButtonClick} disabled={isLoading}>
+            <Button type="button" variant="outline" size="icon" title="Search by image (or paste/drop)" onClick={handleImageButtonClick} disabled={isLoading}>
               <Camera className="h-4 w-4" />
             </Button>
             <Button type="submit" disabled={isLoading}>
@@ -273,8 +355,11 @@ const Index = () => {
         {!hasSearched ? (
           <div className="text-center py-20">
             <h1 className="text-3xl font-bold mb-4">1688 Product Search</h1>
-            <p className="text-muted-foreground mb-8">
+            <p className="text-muted-foreground mb-4">
               Search and view products from 1688.com with prices in BDT
+            </p>
+            <p className="text-sm text-muted-foreground mb-8">
+              💡 Tip: Drag & drop an image or paste (Ctrl+V) to search by image
             </p>
             <div className="flex flex-wrap justify-center gap-2">
               <Badge variant="outline" className="cursor-pointer" onClick={() => setQuery("fog machine")}>fog machine</Badge>
