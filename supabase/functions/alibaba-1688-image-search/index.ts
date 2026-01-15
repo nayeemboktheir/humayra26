@@ -30,24 +30,31 @@ Deno.serve(async (req) => {
     console.log('Uploading image to 1688...');
 
     // Step 1: Upload image
-    // Some providers ignore query params on POST or fail parsing x-www-form-urlencoded for large payloads.
-    // Use multipart/form-data (FormData) so api_key + imgcode are reliably parsed.
+    // api.icom.la appears to NOT parse multipart/form-data for this endpoint (it reports imgcode missing).
+    // Send x-www-form-urlencoded and include api_key in BOTH URL and body for maximum compatibility.
     const uploadUrl = `https://api.icom.la/1688/api/call.php?api_key=${encodeURIComponent(apiKey)}&upload_img`;
 
-    const form = new FormData();
-    form.set('api_key', apiKey);
-    form.set('upload_img', '1');
-    form.set('imgcode', imageBase64);
+    const uploadBody = new URLSearchParams();
+    uploadBody.set('api_key', apiKey);
+    uploadBody.set('upload_img', '1');
+    uploadBody.set('imgcode', imageBase64);
 
     const uploadResponse = await fetch(uploadUrl, {
       method: 'POST',
       headers: {
+        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
         Accept: 'application/json',
       },
-      body: form,
+      body: uploadBody.toString(),
     });
 
-    const uploadData = await uploadResponse.json();
+    const uploadText = await uploadResponse.text();
+    let uploadData: any;
+    try {
+      uploadData = JSON.parse(uploadText);
+    } catch {
+      uploadData = { error: uploadText?.slice?.(0, 300) || 'Invalid response from upload API' };
+    }
     console.log('Upload response:', JSON.stringify(uploadData).substring(0, 500));
 
     if (!uploadResponse.ok || !uploadData?.item?.picUrl) {
@@ -62,7 +69,7 @@ Deno.serve(async (req) => {
     console.log('Image uploaded, searching with imgid:', imgid);
 
     // Step 2: Search by image
-    const searchUrl = `https://api.icom.la/1688/api/call.php?api_key=${apiKey}&item_search_img&imgid=${encodeURIComponent(imgid)}&page=${page}&page_size=${pageSize}`;
+    const searchUrl = `https://api.icom.la/1688/api/call.php?api_key=${encodeURIComponent(apiKey)}&item_search_img&imgid=${encodeURIComponent(imgid)}&page=${page}&page_size=${pageSize}`;
     
     const searchResponse = await fetch(searchUrl, {
       method: 'GET',
