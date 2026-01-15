@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, Loader2 } from "lucide-react";
+import { Search, Loader2, Camera } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -135,6 +135,9 @@ const Index = () => {
                   className="pl-10"
                 />
               </div>
+              <Button type="button" variant="outline" size="icon" title="Search by image">
+                <Camera className="h-4 w-4" />
+              </Button>
               <Button type="submit" disabled={isLoading}>
                 {isLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -172,6 +175,9 @@ const Index = () => {
                 className="pl-10"
               />
             </div>
+            <Button type="button" variant="outline" size="icon" title="Search by image">
+              <Camera className="h-4 w-4" />
+            </Button>
             <Button type="submit" disabled={isLoading}>
               {isLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
