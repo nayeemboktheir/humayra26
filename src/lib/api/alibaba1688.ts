@@ -45,6 +45,25 @@ type ApiResponse<T = any> = {
   data?: T;
 };
 
+// Translation helper
+async function translateTexts(texts: string[]): Promise<string[]> {
+  try {
+    const { data, error } = await supabase.functions.invoke('translate-text', {
+      body: { texts },
+    });
+    
+    if (error || !data?.translations) {
+      console.error('Translation error:', error);
+      return texts; // Return original texts on error
+    }
+    
+    return data.translations;
+  } catch (error) {
+    console.error('Translation failed:', error);
+    return texts; // Return original texts on error
+  }
+}
+
 export const alibaba1688Api = {
   // Search products on 1688
   async search(query: string, page = 1, pageSize = 40): Promise<ApiResponse<{ items: Product1688[]; total: number }>> {
@@ -65,12 +84,16 @@ export const alibaba1688Api = {
       const items = data.data?.item?.items?.item || [];
       const total = data.data?.item?.items?.total_results || 0;
 
+      // Extract titles for translation
+      const titles = items.map((item: any) => item.title);
+      const translatedTitles = await translateTexts(titles);
+
       return {
         success: true,
         data: {
-          items: items.map((item: any) => ({
+          items: items.map((item: any, index: number) => ({
             num_iid: item.num_iid,
-            title: item.title,
+            title: translatedTitles[index] || item.title,
             pic_url: item.pic_url,
             price: item.price,
             promotion_price: item.promotion_price,
@@ -109,11 +132,14 @@ export const alibaba1688Api = {
         return { success: false, error: 'Product not found' };
       }
 
+      // Translate title
+      const translatedTitles = await translateTexts([item.title]);
+
       return {
         success: true,
         data: {
           num_iid: item.num_iid,
-          title: item.title,
+          title: translatedTitles[0] || item.title,
           desc: item.desc,
           price: item.price,
           orginal_price: item.orginal_price,
