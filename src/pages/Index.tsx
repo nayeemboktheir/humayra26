@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -6,18 +6,58 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { alibaba1688Api, Product1688, ProductDetail1688 } from "@/lib/api/alibaba1688";
+import { supabase } from "@/integrations/supabase/client";
 import ProductDetail from "@/components/ProductDetail";
 
 const CNY_TO_BDT = 17.5;
 const convertToBDT = (cny: number) => Math.round(cny * CNY_TO_BDT);
 
+// Translate texts in background
+async function translateTextsBackground(texts: string[]): Promise<string[]> {
+  try {
+    const { data, error } = await supabase.functions.invoke('translate-text', {
+      body: { texts },
+    });
+    
+    if (error || !data?.translations) {
+      return texts;
+    }
+    
+    return data.translations;
+  } catch {
+    return texts;
+  }
+}
+
 const Index = () => {
   const [query, setQuery] = useState("");
   const [products, setProducts] = useState<Product1688[]>([]);
+  const [translatedTitles, setTranslatedTitles] = useState<Record<number, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<ProductDetail1688 | null>(null);
   const [isLoadingProduct, setIsLoadingProduct] = useState(false);
+
+  // Background translation effect
+  useEffect(() => {
+    if (products.length === 0) return;
+    
+    const translateInBackground = async () => {
+      const titles = products.map(p => p.title);
+      const translated = await translateTextsBackground(titles);
+      
+      const titleMap: Record<number, string> = {};
+      products.forEach((product, index) => {
+        if (translated[index] && translated[index] !== product.title) {
+          titleMap[product.num_iid] = translated[index];
+        }
+      });
+      
+      setTranslatedTitles(titleMap);
+    };
+    
+    translateInBackground();
+  }, [products]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,6 +69,7 @@ const Index = () => {
     setIsLoading(true);
     setHasSearched(true);
     setSelectedProduct(null);
+    setTranslatedTitles({});
 
     try {
       const result = await alibaba1688Api.search(query);
@@ -70,6 +111,10 @@ const Index = () => {
 
   const handleBackToSearch = () => {
     setSelectedProduct(null);
+  };
+
+  const getDisplayTitle = (product: Product1688) => {
+    return translatedTitles[product.num_iid] || product.title;
   };
 
   // Show product detail if selected
@@ -174,7 +219,7 @@ const Index = () => {
                   <div className="aspect-square overflow-hidden bg-muted">
                     <img
                       src={product.pic_url}
-                      alt={product.title}
+                      alt={getDisplayTitle(product)}
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                       onError={(e) => {
@@ -185,7 +230,7 @@ const Index = () => {
                   </div>
                   <CardContent className="p-3">
                     <h3 className="text-sm font-medium line-clamp-2 mb-2 min-h-[2.5rem]">
-                      {product.title}
+                      {getDisplayTitle(product)}
                     </h3>
                     <div className="flex items-baseline gap-1">
                       <span className="text-lg font-bold text-primary">
