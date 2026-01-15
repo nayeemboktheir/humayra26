@@ -65,7 +65,7 @@ async function translateTexts(texts: string[]): Promise<string[]> {
 }
 
 export const alibaba1688Api = {
-  // Search products on 1688
+  // Search products on 1688 (no translation for speed)
   async search(query: string, page = 1, pageSize = 40): Promise<ApiResponse<{ items: Product1688[]; total: number }>> {
     try {
       const { data, error } = await supabase.functions.invoke('alibaba-1688-search', {
@@ -84,16 +84,12 @@ export const alibaba1688Api = {
       const items = data.data?.item?.items?.item || [];
       const total = data.data?.item?.items?.total_results || 0;
 
-      // Extract titles for translation
-      const titles = items.map((item: any) => item.title);
-      const translatedTitles = await translateTexts(titles);
-
       return {
         success: true,
         data: {
-          items: items.map((item: any, index: number) => ({
+          items: items.map((item: any) => ({
             num_iid: item.num_iid,
-            title: translatedTitles[index] || item.title,
+            title: item.title,
             pic_url: item.pic_url,
             price: item.price,
             promotion_price: item.promotion_price,
