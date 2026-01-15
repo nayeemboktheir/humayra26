@@ -4,98 +4,84 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from "@/components/ui/carousel";
-import {
   MapPin,
   Package,
   Truck,
   Play,
-  ChevronLeft,
-  ChevronRight,
   ShoppingCart,
   MessageCircle,
-  Check,
   Box,
+  Weight,
+  Star,
+  ExternalLink,
 } from "lucide-react";
 
+// Static product data from 1688 API response
 const productData = {
-  id: 557059808553,
-  source: "1688",
-  title_cn: "52MM 2X 增倍镜 适用尼康口 佳能宾得",
-  title_en: "52mm 2X Telephoto Conversion Lens",
-  title_bn: "52mm 2X টেলিফটো কনভার্সন লেন্স",
-  price: {
-    currency: "CNY",
-    base_price: 33,
-    price_ranges: [
-      { min_qty: 2, price: 33 },
-      { min_qty: 10, price: 28 },
+  item: {
+    num_iid: 557059808553,
+    title: "52MM 2X 增倍镜 适用尼康口 佳能宾得  52MM 2倍增距镜头 18-55",
+    desc_short: "",
+    price: 33,
+    orginal_price: 33,
+    num: "200",
+    min_num: 1,
+    detail_url: "https://detail.1688.com/offer/557059808553.html",
+    pic_url: "https://cbu01.alicdn.com/img/ibank/O1CN01sjfi3N214RugTXhg1_!!3392826931-0-cib.jpg",
+    item_imgs: [
+      { url: "https://cbu01.alicdn.com/img/ibank/O1CN01sjfi3N214RugTXhg1_!!3392826931-0-cib.jpg" },
+      { url: "https://cbu01.alicdn.com/img/ibank/4555649732_1179535926.jpg" },
+      { url: "https://cbu01.alicdn.com/img/ibank/4555706669_1179535926.jpg" },
+      { url: "https://cbu01.alicdn.com/img/ibank/4555715067_1179535926.jpg" },
+      { url: "https://cbu01.alicdn.com/img/ibank/O1CN01FYKHG6214RpWmJRXg_!!3392826931-0-cib.jpg" }
     ],
-  },
-  stock: 200,
-  min_order: 1,
-  unit: "piece",
-  location: "Shenzhen, Guangdong, China",
-  images: {
-    thumbnail:
-      "https://cbu01.alicdn.com/img/ibank/O1CN01sjfi3N214RugTXhg1_!!3392826931-0-cib.jpg",
-    gallery: [
-      "https://cbu01.alicdn.com/img/ibank/O1CN01sjfi3N214RugTXhg1_!!3392826931-0-cib.jpg",
-      "https://cbu01.alicdn.com/img/ibank/4555649732_1179535926.jpg",
-      "https://cbu01.alicdn.com/img/ibank/4555706669_1179535926.jpg",
-      "https://cbu01.alicdn.com/img/ibank/4555715067_1179535926.jpg",
-    ],
-    description_images: [
+    desc_img: [
       "https://img.alicdn.com/imgextra/i3/383221451/TB2hoqbbXXXXXXhXXXXXXXXXXXX-383221451.gif",
       "https://cbu01.alicdn.com/img/ibank/2015/008/218/2482812800_266332664.jpg",
       "https://cbu01.alicdn.com/img/ibank/2015/877/760/2482067778_266332664.jpg",
-      "https://cbu01.alicdn.com/img/ibank/2015/800/399/2523993008_266332664.jpg",
+      "https://cbu01.alicdn.com/img/ibank/2015/800/399/2523993008_266332664.jpg"
     ],
-  },
-  video:
-    "https://cloud.video.taobao.com/play/u/3392826931/p/1/e/6/t/1/246523666024.mp4",
-  description: {
-    short_bn:
-      "এই 52mm 2X টেলিফটো লেন্সটি আপনার ক্যামেরার লেন্সের সামনে লাগিয়ে দূরের অবজেক্ট আরও কাছে এনে ছবি তুলতে সাহায্য করে।",
-    features: [
-      "2X অপটিক্যাল জুম",
-      "52mm ফিল্টার থ্রেড সাপোর্ট",
-      "ডিজিটাল ও ভিডিও ক্যামেরা compatible",
-      "মাল্টি-কোটেড গ্লাস",
-      "হালকা ও বহনযোগ্য ডিজাইন",
+    item_weight: 0.22,
+    location: "广东省深圳市",
+    video: "https://cloud.video.taobao.com/play/u/3392826931/p/1/e/6/t/1/246523666024.mp4",
+    props: [
+      { name: "品牌", value: "中性" },
+      { name: "型号", value: "52MM 增倍镜头" },
+      { name: "货号", value: "52MM 增倍镜头" },
+      { name: "产地", value: "CN" },
+      { name: "货源类别", value: "现货" },
+      { name: "镜头品种", value: "附加镜头" },
+      { name: "镜头类型", value: "增倍镜" },
+      { name: "类型", value: "光学镜头" },
+      { name: "滤镜口径", value: "62mm" },
+      { name: "镜头结构", value: "2片1组" },
+      { name: "镜头体积", value: "8.7 *7 *8.5厘米" },
+      { name: "镜头防抖类型", value: "不带防抖" },
+      { name: "镜头用途", value: "增距镜" },
+      { name: "颜色", value: "黑色" },
+      { name: "重量", value: "200G" },
+      { name: "尺寸（直径 x 长度）", value: "8.7 *7 *8.5厘米" },
+      { name: "是否支持一件代发", value: "支持" },
+      { name: "售后服务", value: "店铺三包" }
     ],
-  },
-  specifications: {
-    lens_type: "Telephoto Conversion Lens",
-    magnification: "2X",
-    mount_thread: "52mm",
-    front_diameter: "62mm",
-    material: "Aluminum Alloy + Optical Glass",
-    color: "Black",
-    weight: "200g",
-    use_case: "Photography, Videography",
-    stabilization: "No",
-  },
-  package_includes: [
-    "52mm Telephoto Lens",
-    "Lens Pouch",
-    "Front Lens Cap",
-    "Rear Lens Cap",
-  ],
-  dropshipping: {
-    supported: true,
-    one_piece_delivery: true,
-  },
-  meta: {
-    original_url: "https://detail.1688.com/offer/557059808553.html",
     total_sold: 24,
-    platforms: ["AliExpress", "Amazon", "eBay", "Lazada", "Independent Store"],
-  },
+    seller_info: {
+      nick: "_sopid@BBBLMcb845f9wYO9QFJpPnZBA",
+      item_score: "5.0",
+      score_p: "5.0",
+      delivery_score: "3.7",
+      composite_score: "4.0"
+    },
+    batch_price: "33.0",
+    unit: "件",
+    is_support_mix: true,
+    mix_amount: 100,
+    priceRange: [
+      [2, 33],
+      [10, 28]
+    ] as [number, number][],
+    volume: "180.0000000000"
+  }
 };
 
 // CNY to BDT conversion rate
@@ -103,70 +89,101 @@ const CNY_TO_BDT = 17.5;
 
 const convertToBDT = (cny: number) => Math.round(cny * CNY_TO_BDT);
 
+// Property name translations
+const propNameTranslations: Record<string, string> = {
+  "品牌": "ব্র্যান্ড",
+  "型号": "মডেল",
+  "货号": "আইটেম নং",
+  "产地": "উৎপাদন স্থান",
+  "货源类别": "স্টক টাইপ",
+  "镜头品种": "লেন্স ধরন",
+  "镜头类型": "লেন্স টাইপ",
+  "类型": "ক্যাটাগরি",
+  "滤镜口径": "ফিল্টার সাইজ",
+  "镜头结构": "লেন্স গঠন",
+  "镜头体积": "আকার",
+  "镜头防抖类型": "স্ট্যাবিলাইজেশন",
+  "镜头用途": "ব্যবহার",
+  "颜色": "রঙ",
+  "重量": "ওজন",
+  "尺寸（直径 x 长度）": "মাপ",
+  "是否支持一件代发": "১ পিস ডেলিভারি",
+  "售后服务": "ওয়ারেন্টি"
+};
+
+// Property value translations
+const propValueTranslations: Record<string, string> = {
+  "中性": "জেনেরিক",
+  "CN": "চীন",
+  "现货": "রেডি স্টক",
+  "附加镜头": "অ্যাড-অন লেন্স",
+  "增倍镜": "টেলি কনভার্টার",
+  "光学镜头": "অপটিক্যাল লেন্স",
+  "不带防抖": "নেই",
+  "增距镜": "জুম বাড়ানো",
+  "黑色": "কালো",
+  "支持": "সাপোর্ট করে",
+  "店铺三包": "শপ ওয়ারেন্টি"
+};
+
 export default function ProductDetail() {
   const [selectedImage, setSelectedImage] = useState(0);
   const [showVideo, setShowVideo] = useState(false);
 
-  const allImages = productData.images.gallery;
+  const { item } = productData;
+  const images = item.item_imgs.map((img) => img.url);
+
+  // Filter important props for display
+  const displayProps = item.props.filter((prop) =>
+    ["型号", "镜头类型", "滤镜口径", "颜色", "重量", "镜头用途", "是否支持一件代发", "货源类别"].includes(prop.name)
+  );
+
+  const getPriceRanges = () => {
+    return item.priceRange.map(([minQty, price]) => ({
+      minQty,
+      priceCNY: price,
+      priceBDT: convertToBDT(price)
+    }));
+  };
 
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-6 max-w-7xl">
-        {/* Header */}
-        <div className="mb-6">
-          <Badge variant="secondary" className="mb-2">
-            {productData.source}
-          </Badge>
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
-            {productData.title_bn}
-          </h1>
-          <p className="text-muted-foreground">{productData.title_en}</p>
-        </div>
-
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Left: Image Gallery */}
           <div className="space-y-4">
             {/* Main Image / Video */}
-            <div className="relative aspect-square rounded-xl overflow-hidden bg-muted">
+            <div className="relative aspect-square rounded-xl overflow-hidden bg-muted border">
               {showVideo ? (
                 <video
-                  src={productData.video}
+                  src={item.video}
                   controls
                   autoPlay
                   className="w-full h-full object-contain"
                 />
               ) : (
                 <img
-                  src={allImages[selectedImage]}
-                  alt={productData.title_en}
+                  src={images[selectedImage]}
+                  alt={item.title}
                   className="w-full h-full object-contain"
                 />
               )}
 
               {/* Video Toggle Button */}
-              {productData.video && !showVideo && (
+              {item.video && (
                 <button
-                  onClick={() => setShowVideo(true)}
-                  className="absolute bottom-4 right-4 bg-black/70 hover:bg-black/90 text-white px-4 py-2 rounded-full flex items-center gap-2 transition-colors"
+                  onClick={() => setShowVideo(!showVideo)}
+                  className="absolute bottom-4 right-4 bg-primary text-primary-foreground px-4 py-2 rounded-full flex items-center gap-2 shadow-lg hover:bg-primary/90 transition-all"
                 >
                   <Play className="w-4 h-4" />
-                  ভিডিও দেখুন
-                </button>
-              )}
-
-              {showVideo && (
-                <button
-                  onClick={() => setShowVideo(false)}
-                  className="absolute top-4 right-4 bg-black/70 hover:bg-black/90 text-white px-4 py-2 rounded-full transition-colors"
-                >
-                  ছবি দেখুন
+                  {showVideo ? "ছবি দেখুন" : "ভিডিও দেখুন"}
                 </button>
               )}
             </div>
 
             {/* Thumbnail Gallery */}
             <div className="flex gap-2 overflow-x-auto pb-2">
-              {allImages.map((img, idx) => (
+              {images.map((img, idx) => (
                 <button
                   key={idx}
                   onClick={() => {
@@ -186,94 +203,124 @@ export default function ProductDetail() {
                   />
                 </button>
               ))}
+              {item.video && (
+                <button
+                  onClick={() => setShowVideo(true)}
+                  className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all bg-muted flex items-center justify-center ${
+                    showVideo
+                      ? "border-primary ring-2 ring-primary/30"
+                      : "border-border hover:border-primary/50"
+                  }`}
+                >
+                  <Play className="h-8 w-8 text-primary" />
+                </button>
+              )}
             </div>
           </div>
 
           {/* Right: Product Info */}
           <div className="space-y-6">
+            {/* Title */}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Badge variant="secondary" className="bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+                  1688
+                </Badge>
+                <Badge variant="outline">বিক্রি: {item.total_sold}</Badge>
+              </div>
+              <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
+                52mm 2X টেলিফটো কনভার্সন লেন্স
+              </h1>
+              <p className="text-muted-foreground">
+                নিকন, ক্যানন, পেন্টাক্স 18-55mm লেন্স সাপোর্ট
+              </p>
+            </div>
+
             {/* Price Section */}
             <Card className="border-primary/20 bg-primary/5">
-              <CardContent className="p-6">
+              <CardContent className="p-4">
                 <div className="flex items-baseline gap-2 mb-4">
                   <span className="text-4xl font-bold text-primary">
-                    ৳{convertToBDT(productData.price.base_price)}
+                    ৳{convertToBDT(item.price)}
                   </span>
                   <span className="text-lg text-muted-foreground">
-                    / {productData.unit}
+                    (¥{item.price})
                   </span>
                 </div>
 
                 {/* Tiered Pricing */}
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-foreground">
-                    পাইকারি মূল্য:
+                    পরিমাণ অনুযায়ী দাম:
                   </p>
-                  <div className="flex flex-wrap gap-2">
-                    {productData.price.price_ranges.map((range, idx) => (
-                      <Badge
+                  <div className="grid grid-cols-2 gap-2">
+                    {getPriceRanges().map((range, idx) => (
+                      <div
                         key={idx}
-                        variant="outline"
-                        className="px-3 py-1.5"
+                        className="bg-background rounded-lg p-3 border text-center"
                       >
-                        {range.min_qty}+ পিস: ৳{convertToBDT(range.price)}
-                      </Badge>
+                        <div className="text-xs text-muted-foreground mb-1">
+                          ≥{range.minQty} {item.unit}
+                        </div>
+                        <div className="font-bold text-primary">
+                          ৳{range.priceBDT}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          ¥{range.priceCNY}
+                        </div>
+                      </div>
                     ))}
-                  </div>
-                </div>
-
-                <Separator className="my-4" />
-
-                {/* Stock & Location */}
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div className="flex items-center gap-2">
-                    <Package className="w-4 h-4 text-muted-foreground" />
-                    <span>স্টক: {productData.stock} পিস</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-muted-foreground" />
-                    <span className="truncate">{productData.location}</span>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Dropshipping Badge */}
-            {productData.dropshipping.supported && (
-              <div className="flex items-center gap-3 p-4 rounded-lg bg-green-500/10 border border-green-500/20">
-                <Truck className="w-5 h-5 text-green-600" />
+            {/* Quick Info Grid */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                <Package className="h-5 w-5 text-muted-foreground flex-shrink-0" />
                 <div>
-                  <p className="font-medium text-green-700">
+                  <div className="text-xs text-muted-foreground">স্টক</div>
+                  <div className="font-medium">{item.num} {item.unit}</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                <Box className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                <div>
+                  <div className="text-xs text-muted-foreground">ন্যূনতম অর্ডার</div>
+                  <div className="font-medium">{item.min_num} {item.unit}</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                <Weight className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                <div>
+                  <div className="text-xs text-muted-foreground">ওজন</div>
+                  <div className="font-medium">{item.item_weight} kg</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                <MapPin className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                <div>
+                  <div className="text-xs text-muted-foreground">লোকেশন</div>
+                  <div className="font-medium text-sm">শেনজেন, চীন</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Dropshipping Badge */}
+            {item.is_support_mix && (
+              <div className="flex items-center gap-3 p-4 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg">
+                <Truck className="h-5 w-5 text-green-600 flex-shrink-0" />
+                <div>
+                  <p className="font-medium text-green-700 dark:text-green-400">
                     ড্রপশিপিং সাপোর্টেড
                   </p>
-                  {productData.dropshipping.one_piece_delivery && (
-                    <p className="text-sm text-green-600">
-                      ১ পিস থেকেও ডেলিভারি সম্ভব
-                    </p>
-                  )}
+                  <p className="text-sm text-green-600 dark:text-green-500">
+                    ১ পিস থেকেও ডেলিভারি সম্ভব
+                  </p>
                 </div>
               </div>
             )}
-
-            {/* Description */}
-            <div>
-              <h3 className="text-lg font-semibold mb-3">বিবরণ</h3>
-              <p className="text-muted-foreground leading-relaxed">
-                {productData.description.short_bn}
-              </p>
-            </div>
-
-            {/* Features */}
-            <div>
-              <h3 className="text-lg font-semibold mb-3">বৈশিষ্ট্য</h3>
-              <ul className="space-y-2">
-                {productData.description.features.map((feature, idx) => (
-                  <li key={idx} className="flex items-start gap-2">
-                    <Check className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
-                    <span>{feature}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
 
             {/* Action Buttons */}
             <div className="flex gap-3">
@@ -287,97 +334,118 @@ export default function ProductDetail() {
               </Button>
             </div>
 
-            {/* Sold Info */}
-            <p className="text-sm text-muted-foreground text-center">
-              মোট বিক্রি হয়েছে: {productData.meta.total_sold} পিস
-            </p>
+            {/* Original Link */}
+            <a
+              href={item.detail_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ExternalLink className="h-4 w-4" />
+              1688 এ দেখুন
+            </a>
           </div>
         </div>
 
-        {/* Specifications */}
-        <Card className="mt-8">
-          <CardContent className="p-6">
-            <h3 className="text-xl font-semibold mb-4">স্পেসিফিকেশন</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {Object.entries(productData.specifications).map(([key, value]) => (
-                <div
-                  key={key}
-                  className="flex justify-between items-center p-3 rounded-lg bg-muted/50"
-                >
-                  <span className="text-muted-foreground capitalize">
-                    {key.replace(/_/g, " ")}
-                  </span>
-                  <span className="font-medium">{value}</span>
+        <Separator className="my-8" />
+
+        {/* Specifications & Seller Info */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Specifications */}
+          <div className="lg:col-span-2 space-y-6">
+            <div>
+              <h2 className="text-xl font-bold mb-4">পণ্যের বিবরণ</h2>
+              <Card>
+                <CardContent className="p-0">
+                  <div className="divide-y">
+                    {displayProps.map((prop, index) => (
+                      <div key={index} className="flex py-3 px-4">
+                        <span className="w-1/3 text-muted-foreground text-sm">
+                          {propNameTranslations[prop.name] || prop.name}
+                        </span>
+                        <span className="w-2/3 font-medium text-sm">
+                          {propValueTranslations[prop.value] || prop.value}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Description Images */}
+            <div>
+              <h2 className="text-xl font-bold mb-4">পণ্যের ছবি</h2>
+              <div className="space-y-4">
+                {item.desc_img.map((img, index) => (
+                  <img
+                    key={index}
+                    src={img}
+                    alt={`Description ${index + 1}`}
+                    className="w-full rounded-lg border"
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Seller Info */}
+          <div>
+            <h2 className="text-xl font-bold mb-4">সেলার তথ্য</h2>
+            <Card>
+              <CardContent className="p-4 space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+                    <span className="text-xl font-bold text-primary">S</span>
+                  </div>
+                  <div>
+                    <div className="font-medium">1688 সেলার</div>
+                    <div className="text-sm text-muted-foreground">শেনজেন, চীন</div>
+                  </div>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
 
-        {/* Package Includes */}
-        <Card className="mt-6">
-          <CardContent className="p-6">
-            <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
-              <Box className="w-5 h-5" />
-              প্যাকেজে যা থাকছে
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              {productData.package_includes.map((item, idx) => (
-                <Badge key={idx} variant="secondary" className="px-3 py-1.5">
-                  {item}
-                </Badge>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                <Separator />
 
-        {/* Platforms */}
-        <Card className="mt-6">
-          <CardContent className="p-6">
-            <h3 className="text-xl font-semibold mb-4">
-              যেসব প্ল্যাটফর্মে বিক্রি করা যায়
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              {productData.meta.platforms.map((platform, idx) => (
-                <Badge
-                  key={idx}
-                  variant="outline"
-                  className="px-4 py-2 text-sm"
-                >
-                  {platform}
-                </Badge>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">পণ্যের রেটিং</span>
+                    <div className="flex items-center gap-1">
+                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                      <span className="font-medium">{item.seller_info.item_score}</span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">সার্ভিস রেটিং</span>
+                    <div className="flex items-center gap-1">
+                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                      <span className="font-medium">{item.seller_info.score_p}</span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">ডেলিভারি রেটিং</span>
+                    <div className="flex items-center gap-1">
+                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                      <span className="font-medium">{item.seller_info.delivery_score}</span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">সামগ্রিক রেটিং</span>
+                    <div className="flex items-center gap-1">
+                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                      <span className="font-medium">{item.seller_info.composite_score}</span>
+                    </div>
+                  </div>
+                </div>
 
-        {/* Description Images */}
-        <Card className="mt-6">
-          <CardContent className="p-6">
-            <h3 className="text-xl font-semibold mb-4">পণ্যের বিস্তারিত ছবি</h3>
-            <div className="space-y-4">
-              {productData.images.description_images.map((img, idx) => (
-                <img
-                  key={idx}
-                  src={img}
-                  alt={`Description ${idx + 1}`}
-                  className="w-full rounded-lg"
-                />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                <Separator />
 
-        {/* Original Link */}
-        <div className="mt-6 text-center">
-          <a
-            href={productData.meta.original_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-muted-foreground hover:text-primary underline"
-          >
-            মূল পণ্য লিংক দেখুন (1688.com)
-          </a>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-primary">{item.total_sold}</div>
+                  <div className="text-sm text-muted-foreground">মোট বিক্রি</div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </div>
