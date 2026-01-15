@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { alibaba1688Api, Product1688 } from "@/lib/api/alibaba1688";
+import { alibaba1688Api, Product1688, ProductDetail1688 } from "@/lib/api/alibaba1688";
 import ProductDetail from "@/components/ProductDetail";
 
 const CNY_TO_BDT = 17.5;
@@ -16,42 +16,64 @@ const Index = () => {
   const [products, setProducts] = useState<Product1688[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
-  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<ProductDetail1688 | null>(null);
+  const [isLoadingProduct, setIsLoadingProduct] = useState(false);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) {
-      toast.error("সার্চ করতে কিছু লিখুন");
+      toast.error("Please enter a search term");
       return;
     }
 
     setIsLoading(true);
     setHasSearched(true);
-    setSelectedProductId(null);
+    setSelectedProduct(null);
 
     try {
       const result = await alibaba1688Api.search(query);
       if (result.success && result.data) {
         setProducts(result.data.items);
         if (result.data.items.length === 0) {
-          toast.info("কোনো প্রোডাক্ট পাওয়া যায়নি");
+          toast.info("No products found");
         } else {
-          toast.success(`${result.data.items.length} টি প্রোডাক্ট পাওয়া গেছে`);
+          toast.success(`Found ${result.data.items.length} products`);
         }
       } else {
-        toast.error(result.error || "সার্চ করতে সমস্যা হয়েছে");
+        toast.error(result.error || "Search failed");
         setProducts([]);
       }
     } catch (error) {
-      toast.error("সার্চ করতে সমস্যা হয়েছে");
+      toast.error("Search failed");
       setProducts([]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Show static product detail if no search
-  if (!hasSearched) {
+  const handleProductClick = async (product: Product1688) => {
+    setIsLoadingProduct(true);
+    
+    try {
+      const result = await alibaba1688Api.getProduct(product.num_iid);
+      if (result.success && result.data) {
+        setSelectedProduct(result.data);
+      } else {
+        toast.error(result.error || "Failed to load product details");
+      }
+    } catch (error) {
+      toast.error("Failed to load product details");
+    } finally {
+      setIsLoadingProduct(false);
+    }
+  };
+
+  const handleBackToSearch = () => {
+    setSelectedProduct(null);
+  };
+
+  // Show product detail if selected
+  if (selectedProduct || isLoadingProduct) {
     return (
       <div className="min-h-screen bg-background">
         {/* Search Header */}
@@ -62,7 +84,7 @@ const Index = () => {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="text"
-                  placeholder="1688 প্রোডাক্ট সার্চ করুন..."
+                  placeholder="Search 1688 products..."
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   className="pl-10"
@@ -72,19 +94,23 @@ const Index = () => {
                 {isLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  "সার্চ"
+                  "Search"
                 )}
               </Button>
             </form>
           </div>
         </div>
 
-        {/* Static Product Detail */}
-        <ProductDetail />
+        <ProductDetail 
+          product={selectedProduct || undefined} 
+          isLoading={isLoadingProduct}
+          onBack={handleBackToSearch}
+        />
       </div>
     );
   }
 
+  // Show initial state or search results
   return (
     <div className="min-h-screen bg-background">
       {/* Search Header */}
@@ -95,7 +121,7 @@ const Index = () => {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 type="text"
-                placeholder="1688 প্রোডাক্ট সার্চ করুন..."
+                placeholder="Search 1688 products..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 className="pl-10"
@@ -105,35 +131,45 @@ const Index = () => {
               {isLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                "সার্চ"
+                "Search"
               )}
             </Button>
           </form>
         </div>
       </div>
 
-      {/* Search Results */}
+      {/* Content */}
       <div className="container mx-auto px-4 py-6 max-w-7xl">
-        {isLoading ? (
+        {!hasSearched ? (
+          <div className="text-center py-20">
+            <h1 className="text-3xl font-bold mb-4">1688 Product Search</h1>
+            <p className="text-muted-foreground mb-8">
+              Search and view products from 1688.com with prices in BDT
+            </p>
+            <div className="flex flex-wrap justify-center gap-2">
+              <Badge variant="outline" className="cursor-pointer" onClick={() => setQuery("fog machine")}>fog machine</Badge>
+              <Badge variant="outline" className="cursor-pointer" onClick={() => setQuery("led lights")}>led lights</Badge>
+              <Badge variant="outline" className="cursor-pointer" onClick={() => setQuery("phone case")}>phone case</Badge>
+              <Badge variant="outline" className="cursor-pointer" onClick={() => setQuery("camera lens")}>camera lens</Badge>
+            </div>
+          </div>
+        ) : isLoading ? (
           <div className="flex flex-col items-center justify-center py-20">
             <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-            <p className="text-muted-foreground">সার্চ করা হচ্ছে...</p>
+            <p className="text-muted-foreground">Searching products...</p>
           </div>
         ) : products.length > 0 ? (
           <>
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold">সার্চ রেজাল্ট</h2>
-              <Badge variant="secondary">{products.length} প্রোডাক্ট</Badge>
+              <h2 className="text-xl font-bold">Search Results</h2>
+              <Badge variant="secondary">{products.length} products</Badge>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {products.map((product) => (
                 <Card
                   key={product.num_iid}
                   className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow group"
-                  onClick={() => {
-                    // Open 1688 product page in new tab for now
-                    window.open(product.detail_url, "_blank");
-                  }}
+                  onClick={() => handleProductClick(product)}
                 >
                   <div className="aspect-square overflow-hidden bg-muted">
                     <img
@@ -156,7 +192,7 @@ const Index = () => {
                     </div>
                     {product.sales && (
                       <p className="text-xs text-muted-foreground mt-1">
-                        বিক্রি: {product.sales}
+                        Sold: {product.sales}
                       </p>
                     )}
                   </CardContent>
@@ -166,7 +202,7 @@ const Index = () => {
           </>
         ) : (
           <div className="text-center py-20">
-            <p className="text-muted-foreground">কোনো প্রোডাক্ট পাওয়া যায়নি</p>
+            <p className="text-muted-foreground">No products found</p>
           </div>
         )}
       </div>
