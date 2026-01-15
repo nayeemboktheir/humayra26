@@ -18,7 +18,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const apiKey = Deno.env.get('ATP_1688_API_KEY');
+    const apiKey = (Deno.env.get('ATP_1688_API_KEY') ?? '').trim();
     if (!apiKey) {
       console.error('ATP_1688_API_KEY not configured');
       return new Response(
@@ -29,16 +29,22 @@ Deno.serve(async (req) => {
 
     console.log('Uploading image to 1688...');
 
-    // Step 1: Upload image - API requires api_key and upload_img in URL, imgcode in POST body
-    const uploadUrl = `https://api.icom.la/1688/api/call.php?api_key=${apiKey}&upload_img`;
-    
+    // Step 1: Upload image
+    // Some providers ignore query params on POST or fail parsing x-www-form-urlencoded for large payloads.
+    // Use multipart/form-data (FormData) so api_key + imgcode are reliably parsed.
+    const uploadUrl = `https://api.icom.la/1688/api/call.php?api_key=${encodeURIComponent(apiKey)}&upload_img`;
+
+    const form = new FormData();
+    form.set('api_key', apiKey);
+    form.set('upload_img', '1');
+    form.set('imgcode', imageBase64);
+
     const uploadResponse = await fetch(uploadUrl, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json',
+        Accept: 'application/json',
       },
-      body: `imgcode=${encodeURIComponent(imageBase64)}`,
+      body: form,
     });
 
     const uploadData = await uploadResponse.json();
