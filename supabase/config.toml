@@ -9,8 +9,8 @@ verify_jwt = false
 [functions.firecrawl-map]
 verify_jwt = false
 
-[functions.1688-search]
+[functions.alibaba-1688-search]
 verify_jwt = false
 
-[functions.1688-item-get]
+[functions.alibaba-1688-item-get]
 verify_jwt = false
