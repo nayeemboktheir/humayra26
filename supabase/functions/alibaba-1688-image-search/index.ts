@@ -29,23 +29,29 @@ Deno.serve(async (req) => {
 
     console.log('Uploading image to 1688...');
 
-    // Step 1: Upload image to get Alibaba image URL
-    const uploadUrl = `https://api.icom.la/1688/api/call.php?api_key=${apiKey}&upload_img&imgcode=${encodeURIComponent(imageBase64)}`;
+    // Step 1: Upload image using POST to avoid URL length issues
+    const uploadUrl = `https://api.icom.la/1688/api/call.php`;
     
     const uploadResponse = await fetch(uploadUrl, {
-      method: 'GET',
+      method: 'POST',
       headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
         'Accept': 'application/json',
       },
+      body: new URLSearchParams({
+        api_key: apiKey,
+        upload_img: '1',
+        imgcode: imageBase64,
+      }),
     });
 
     const uploadData = await uploadResponse.json();
-    console.log('Upload response:', JSON.stringify(uploadData));
+    console.log('Upload response:', JSON.stringify(uploadData).substring(0, 200));
 
     if (!uploadResponse.ok || !uploadData?.item?.picUrl) {
       console.error('Image upload failed:', uploadData);
       return new Response(
-        JSON.stringify({ success: false, error: 'Failed to upload image' }),
+        JSON.stringify({ success: false, error: uploadData?.error || 'Failed to upload image' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
