@@ -29,8 +29,8 @@ Deno.serve(async (req) => {
 
     console.log('Uploading image to 1688...');
 
-    // Step 1: Upload image using POST to avoid URL length issues
-    const uploadUrl = `https://api.icom.la/1688/api/call.php`;
+    // Step 1: Upload image - API requires api_key and upload_img in URL, imgcode in POST body
+    const uploadUrl = `https://api.icom.la/1688/api/call.php?api_key=${apiKey}&upload_img`;
     
     const uploadResponse = await fetch(uploadUrl, {
       method: 'POST',
@@ -38,15 +38,11 @@ Deno.serve(async (req) => {
         'Content-Type': 'application/x-www-form-urlencoded',
         'Accept': 'application/json',
       },
-      body: new URLSearchParams({
-        api_key: apiKey,
-        upload_img: '1',
-        imgcode: imageBase64,
-      }),
+      body: `imgcode=${encodeURIComponent(imageBase64)}`,
     });
 
     const uploadData = await uploadResponse.json();
-    console.log('Upload response:', JSON.stringify(uploadData).substring(0, 200));
+    console.log('Upload response:', JSON.stringify(uploadData).substring(0, 500));
 
     if (!uploadResponse.ok || !uploadData?.item?.picUrl) {
       console.error('Image upload failed:', uploadData);
