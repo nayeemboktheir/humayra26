@@ -43,6 +43,7 @@ type ApiResponse<T = any> = {
   success: boolean;
   error?: string;
   data?: T;
+  meta?: unknown;
 };
 
 // Translation helper

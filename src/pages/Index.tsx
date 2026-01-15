@@ -41,30 +41,43 @@ const Index = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounterRef = useRef(0);
 
-  // Background translation effect
-  useEffect(() => {
-    if (products.length === 0) return;
-    
-    const translateInBackground = async () => {
-      const titles = products.map(p => p.title);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalResults, setTotalResults] = useState<number | null>(null);
+  const [activeSearch, setActiveSearch] = useState<{
+    mode: "text" | "image";
+    query: string; // for image search this is the derived Chinese keyword query
+    altQueries: string[];
+  } | null>(null);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [altQueryIndex, setAltQueryIndex] = useState(0);
+
+  // Title translation is optional (manual) to keep searches fast.
+  const [isTranslatingTitles, setIsTranslatingTitles] = useState(false);
+
+  const handleTranslateTitles = async () => {
+    if (products.length === 0 || isTranslatingTitles) return;
+    setIsTranslatingTitles(true);
+    try {
+      const titles = products.map((p) => p.title);
       const translated = await translateTextsBackground(titles);
-      
+
       const titleMap: Record<number, string> = {};
       products.forEach((product, index) => {
-        if (translated[index] && translated[index] !== product.title) {
-          titleMap[product.num_iid] = translated[index];
-        }
+        const t = translated[index];
+        if (t && t !== product.title) titleMap[product.num_iid] = t;
       });
-      
+
       setTranslatedTitles(titleMap);
-    };
-    
-    translateInBackground();
-  }, [products]);
+    } finally {
+      setIsTranslatingTitles(false);
+    }
+  };
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!query.trim()) {
+
+    const trimmed = query.trim();
+    if (!trimmed) {
       toast.error("Please enter a search term");
       return;
     }
@@ -74,10 +87,16 @@ const Index = () => {
     setSelectedProduct(null);
     setTranslatedTitles({});
 
+    setCurrentPage(1);
+    setTotalResults(null);
+    setAltQueryIndex(0);
+    setActiveSearch({ mode: "text", query: trimmed, altQueries: [] });
+
     try {
-      const result = await alibaba1688Api.search(query);
+      const result = await alibaba1688Api.search(trimmed, 1);
       if (result.success && result.data) {
         setProducts(result.data.items);
+        setTotalResults(result.data.total);
         if (result.data.items.length === 0) {
           toast.info("No products found");
         } else {
@@ -86,10 +105,12 @@ const Index = () => {
       } else {
         toast.error(result.error || "Search failed");
         setProducts([]);
+        setTotalResults(0);
       }
-    } catch (error) {
+    } catch {
       toast.error("Search failed");
       setProducts([]);
+      setTotalResults(0);
     } finally {
       setIsLoading(false);
     }
@@ -101,6 +122,11 @@ const Index = () => {
     setSelectedProduct(null);
     setTranslatedTitles({});
 
+    setCurrentPage(1);
+    setTotalResults(null);
+    setAltQueryIndex(0);
+    setActiveSearch({ mode: "image", query: "", altQueries: [] });
+
     try {
       // Convert file to base64
       const reader = new FileReader();
@@ -108,19 +134,29 @@ const Index = () => {
         reader.onload = () => {
           const result = reader.result as string;
           // Remove the data:image/xxx;base64, prefix
-          const base64 = result.split(',')[1];
+          const base64 = result.split(",")[1];
           resolve(base64);
         };
         reader.onerror = reject;
       });
       reader.readAsDataURL(file);
-      
+
       const imageBase64 = await base64Promise;
       toast.info("Uploading image and searching...");
-      
-      const result = await alibaba1688Api.searchByImage(imageBase64);
+
+      const result = await alibaba1688Api.searchByImage(imageBase64, 1);
       if (result.success && result.data) {
         setProducts(result.data.items);
+        setTotalResults(result.data.total);
+
+        const derivedQuery = (result.meta as any)?.query;
+        const altQueries = Array.isArray((result.meta as any)?.altQueries) ? ((result.meta as any).altQueries as string[]) : [];
+        setActiveSearch({
+          mode: "image",
+          query: typeof derivedQuery === "string" ? derivedQuery : "",
+          altQueries: altQueries.filter(Boolean),
+        });
+
         if (result.data.items.length === 0) {
           toast.info("No similar products found");
         } else {
@@ -129,10 +165,80 @@ const Index = () => {
       } else {
         toast.error(result.error || "Image search failed");
         setProducts([]);
+        setTotalResults(0);
       }
-    } catch (error) {
+    } catch {
       toast.error("Image search failed");
       setProducts([]);
+      setTotalResults(0);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadMore = async () => {
+    if (!activeSearch || isLoading || isLoadingMore) return;
+    if (totalResults !== null && products.length >= totalResults) return;
+    if (!activeSearch.query) return;
+
+    const nextPage = currentPage + 1;
+    setIsLoadingMore(true);
+    try {
+      // For image search we page using the derived keyword query (fast, no re-upload).
+      const resp = await alibaba1688Api.search(activeSearch.query, nextPage);
+      if (resp.success && resp.data) {
+        setProducts((prev) => {
+          const existing = new Set(prev.map((p) => p.num_iid));
+          const appended = resp.data.items.filter((p) => !existing.has(p.num_iid));
+          return [...prev, ...appended];
+        });
+        setCurrentPage(nextPage);
+        setTotalResults(resp.data.total);
+      } else {
+        toast.error(resp.error || "Failed to load more");
+      }
+    } catch {
+      toast.error("Failed to load more");
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
+
+  const tryAlternativeMatch = async () => {
+    if (!activeSearch || activeSearch.mode !== "image") return;
+    const alts = activeSearch.altQueries;
+    if (!alts || alts.length === 0) return;
+
+    const nextIndex = (altQueryIndex + 1) % alts.length;
+    const nextQuery = alts[nextIndex];
+    if (!nextQuery) return;
+
+    setAltQueryIndex(nextIndex);
+    setIsLoading(true);
+    setHasSearched(true);
+    setSelectedProduct(null);
+    setTranslatedTitles({});
+    setCurrentPage(1);
+    setTotalResults(null);
+    setProducts([]);
+
+    try {
+      const result = await alibaba1688Api.search(nextQuery, 1);
+      if (result.success && result.data) {
+        setProducts(result.data.items);
+        setTotalResults(result.data.total);
+        setActiveSearch({ mode: "image", query: nextQuery, altQueries: alts });
+
+        if (result.data.items.length === 0) {
+          toast.info("No similar products found");
+        } else {
+          toast.success(`Found ${result.data.items.length} similar products`);
+        }
+      } else {
+        toast.error(result.error || "Search failed");
+      }
+    } catch {
+      toast.error("Search failed");
     } finally {
       setIsLoading(false);
     }
