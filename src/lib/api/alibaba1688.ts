@@ -128,25 +128,65 @@ export const alibaba1688Api = {
         return { success: false, error: 'Product not found' };
       }
 
-      // Translate title
-      const translatedTitles = await translateTexts([item.title]);
+      const hasCJK = (t: string) => /[\u4e00-\u9fff]/.test(t);
+
+      // Translate all user-facing Chinese strings we display in the product page
+      const toTranslate: string[] = [];
+      const indexByText = new Map<string, number>();
+      const pushUnique = (t: unknown) => {
+        const s = typeof t === 'string' ? t.trim() : '';
+        if (!s) return;
+        if (!hasCJK(s)) return;
+        if (indexByText.has(s)) return;
+        indexByText.set(s, toTranslate.length);
+        toTranslate.push(s);
+      };
+
+      pushUnique(item.title);
+      pushUnique(item.location);
+
+      const rawProps: { name: string; value: string }[] = Array.isArray(item.props) ? item.props : [];
+      rawProps.forEach((p) => {
+        pushUnique(p?.name);
+        pushUnique(p?.value);
+      });
+
+      const translations = toTranslate.length > 0 ? await translateTexts(toTranslate) : [];
+      const translatedByOriginal = new Map<string, string>();
+      toTranslate.forEach((orig, i) => {
+        const next = translations[i];
+        if (next && typeof next === 'string' && next.trim()) {
+          translatedByOriginal.set(orig, next.trim());
+        }
+      });
+
+      const translateField = (t: unknown) => {
+        const s = typeof t === 'string' ? t.trim() : '';
+        if (!s) return s;
+        return translatedByOriginal.get(s) || s;
+      };
+
+      const translatedProps = rawProps.map((p) => ({
+        name: translateField(p.name),
+        value: translateField(p.value),
+      }));
 
       return {
         success: true,
         data: {
           num_iid: item.num_iid,
-          title: translatedTitles[0] || item.title,
+          title: translateField(item.title),
           desc: item.desc,
           price: item.price,
           orginal_price: item.orginal_price,
           pic_url: item.pic_url,
           item_imgs: item.item_imgs || [],
           desc_img: item.desc_img,
-          location: item.location,
+          location: translateField(item.location),
           num: item.num,
           min_num: item.min_num,
           video: item.video,
-          props: item.props || [],
+          props: translatedProps,
           priceRange: item.priceRange,
           seller_info: item.seller_info || {},
           total_sold: item.total_sold,

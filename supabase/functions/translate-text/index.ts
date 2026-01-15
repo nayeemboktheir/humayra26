@@ -43,14 +43,16 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are a translator. Translate the following Chinese product titles to English. Keep translations concise and natural for e-commerce product names. 
-            
+            content: `You are a translator.
+
+Translate the input text from Chinese to natural English for e-commerce.
+
 Rules:
-- Translate each title separated by ---SEPARATOR---
-- Return ONLY the translated titles, separated by ---SEPARATOR---
-- Keep brand names, model numbers, and measurements as-is
-- Make titles sound natural in English
-- Do not add any explanations or extra text`
+- Each input is separated by ---SEPARATOR---
+- Return ONLY the translated texts, separated by ---SEPARATOR---
+- No numbering, no quotes, no bullets, no extra lines
+- Keep brand names, model numbers, units, and measurements as-is
+- If a line is already English, return it unchanged`
           },
           {
             role: 'user',
