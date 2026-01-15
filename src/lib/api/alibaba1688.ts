@@ -108,6 +108,49 @@ export const alibaba1688Api = {
     }
   },
 
+  // Search products by image
+  async searchByImage(imageBase64: string, page = 1, pageSize = 40): Promise<ApiResponse<{ items: Product1688[]; total: number }>> {
+    try {
+      const { data, error } = await supabase.functions.invoke('alibaba-1688-image-search', {
+        body: { imageBase64, page, pageSize },
+      });
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      if (!data?.success) {
+        return { success: false, error: data?.error || 'Image search failed' };
+      }
+
+      // Parse the response structure from ATP Host API
+      const items = data.data?.item?.items?.item || [];
+      const total = data.data?.item?.items?.total_results || 0;
+
+      return {
+        success: true,
+        data: {
+          items: items.map((item: any) => ({
+            num_iid: item.num_iid,
+            title: item.title,
+            pic_url: item.pic_url,
+            price: item.price,
+            promotion_price: item.promotion_price,
+            sales: item.sales,
+            detail_url: item.detail_url,
+            max_price: item.max_price,
+            min_price: item.min_price,
+            tag_percent: item.tag_percent,
+          })),
+          total,
+        },
+      };
+    } catch (error) {
+      console.error('Error searching 1688 by image:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Image search failed' };
+    }
+  },
+
   // Get product details
   async getProduct(numIid: number): Promise<ApiResponse<ProductDetail1688>> {
     try {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Search, Loader2, Camera } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,7 @@ const Index = () => {
   const [hasSearched, setHasSearched] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<ProductDetail1688 | null>(null);
   const [isLoadingProduct, setIsLoadingProduct] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Background translation effect
   useEffect(() => {
@@ -92,6 +93,70 @@ const Index = () => {
     }
   };
 
+  const handleImageSearch = async (file: File) => {
+    setIsLoading(true);
+    setHasSearched(true);
+    setSelectedProduct(null);
+    setTranslatedTitles({});
+
+    try {
+      // Convert file to base64
+      const reader = new FileReader();
+      const base64Promise = new Promise<string>((resolve, reject) => {
+        reader.onload = () => {
+          const result = reader.result as string;
+          // Remove the data:image/xxx;base64, prefix
+          const base64 = result.split(',')[1];
+          resolve(base64);
+        };
+        reader.onerror = reject;
+      });
+      reader.readAsDataURL(file);
+      
+      const imageBase64 = await base64Promise;
+      toast.info("Uploading image and searching...");
+      
+      const result = await alibaba1688Api.searchByImage(imageBase64);
+      if (result.success && result.data) {
+        setProducts(result.data.items);
+        if (result.data.items.length === 0) {
+          toast.info("No similar products found");
+        } else {
+          toast.success(`Found ${result.data.items.length} similar products`);
+        }
+      } else {
+        toast.error(result.error || "Image search failed");
+        setProducts([]);
+      }
+    } catch (error) {
+      toast.error("Image search failed");
+      setProducts([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleImageButtonClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        toast.error("Please select an image file");
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Image must be less than 5MB");
+        return;
+      }
+      handleImageSearch(file);
+    }
+    // Reset input so same file can be selected again
+    e.target.value = '';
+  };
+
   const handleProductClick = async (product: Product1688) => {
     setIsLoadingProduct(true);
     
@@ -125,6 +190,13 @@ const Index = () => {
         <div className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b">
           <div className="container mx-auto px-4 py-4 max-w-4xl">
             <form onSubmit={handleSearch} className="flex gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="hidden"
+              />
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -135,7 +207,7 @@ const Index = () => {
                   className="pl-10"
                 />
               </div>
-              <Button type="button" variant="outline" size="icon" title="Search by image">
+              <Button type="button" variant="outline" size="icon" title="Search by image" onClick={handleImageButtonClick} disabled={isLoading}>
                 <Camera className="h-4 w-4" />
               </Button>
               <Button type="submit" disabled={isLoading}>
@@ -165,6 +237,13 @@ const Index = () => {
       <div className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b">
         <div className="container mx-auto px-4 py-4 max-w-4xl">
           <form onSubmit={handleSearch} className="flex gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              className="hidden"
+            />
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -175,7 +254,7 @@ const Index = () => {
                 className="pl-10"
               />
             </div>
-            <Button type="button" variant="outline" size="icon" title="Search by image">
+            <Button type="button" variant="outline" size="icon" title="Search by image" onClick={handleImageButtonClick} disabled={isLoading}>
               <Camera className="h-4 w-4" />
             </Button>
             <Button type="submit" disabled={isLoading}>
