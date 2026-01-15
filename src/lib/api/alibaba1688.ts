@@ -49,7 +49,7 @@ export const alibaba1688Api = {
   // Search products on 1688
   async search(query: string, page = 1, pageSize = 40): Promise<ApiResponse<{ items: Product1688[]; total: number }>> {
     try {
-      const { data, error } = await supabase.functions.invoke('1688-search', {
+      const { data, error } = await supabase.functions.invoke('alibaba-1688-search', {
         body: { query, page, pageSize },
       });
 
@@ -92,7 +92,7 @@ export const alibaba1688Api = {
   // Get product details
   async getProduct(numIid: number): Promise<ApiResponse<ProductDetail1688>> {
     try {
-      const { data, error } = await supabase.functions.invoke('1688-item-get', {
+      const { data, error } = await supabase.functions.invoke('alibaba-1688-item-get', {
         body: { numIid },
       });
 
