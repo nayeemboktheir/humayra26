@@ -175,7 +175,12 @@ const Index = () => {
                     <img
                       src={product.pic_url}
                       alt={product.title}
+                      referrerPolicy="no-referrer"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = '/placeholder.svg';
+                      }}
                     />
                   </div>
                   <CardContent className="p-3">

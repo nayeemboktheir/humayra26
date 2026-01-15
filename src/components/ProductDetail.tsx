@@ -172,7 +172,12 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                 <img
                   src={images[selectedImage]}
                   alt={product.title}
+                  referrerPolicy="no-referrer"
                   className="w-full h-full object-contain"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.src = '/placeholder.svg';
+                  }}
                 />
               )}
 
@@ -206,7 +211,12 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                   <img
                     src={img}
                     alt={`Gallery ${idx + 1}`}
+                    referrerPolicy="no-referrer"
                     className="w-full h-full object-cover"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = '/placeholder.svg';
+                    }}
                   />
                 </button>
               ))}
@@ -391,7 +401,12 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                       key={index}
                       src={img}
                       alt={`Product detail ${index + 1}`}
+                      referrerPolicy="no-referrer"
                       className="w-full rounded-lg border"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                      }}
                     />
                   ))}
                 </div>
