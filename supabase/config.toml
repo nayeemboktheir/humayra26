@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.alibaba-1688-item-get]
 verify_jwt = false
+
+[functions.alibaba-1688-image-search]
+verify_jwt = false
