@@ -46,60 +46,53 @@ type ApiResponse<T = any> = {
   meta?: unknown;
 };
 
-// Translation helper
-async function translateTexts(texts: string[]): Promise<string[]> {
-  try {
-    const { data, error } = await supabase.functions.invoke('translate-text', {
-      body: { texts },
-    });
-    
-    if (error || !data?.translations) {
-      console.error('Translation error:', error);
-      return texts; // Return original texts on error
-    }
-    
-    return data.translations;
-  } catch (error) {
-    console.error('Translation failed:', error);
-    return texts; // Return original texts on error
-  }
+// Helper to get a featured value from the OTAPI FeaturedValues array
+function getFeaturedValue(item: any, name: string): string {
+  const arr = Array.isArray(item?.FeaturedValues) ? item.FeaturedValues : [];
+  const found = arr.find((v: any) => v?.Name === name);
+  return found?.Value || '';
+}
+
+// Parse OTAPI search item into our Product1688 format
+function parseOtapiItem(item: any): Product1688 {
+  const price = item?.Price?.ConvertedPriceList?.Internal?.Price || 0;
+  const picUrl = item?.MainPictureUrl || item?.Pictures?.[0]?.Url || '';
+  const externalId = item?.Id || '';
+  // Extract numeric ID from "abb-XXXXX" format
+  const numIid = parseInt(externalId.replace(/^abb-/, ''), 10) || 0;
+  const totalSales = parseInt(getFeaturedValue(item, 'TotalSales') || '0', 10) || undefined;
+
+  return {
+    num_iid: numIid,
+    title: item?.Title || '',
+    pic_url: picUrl,
+    price: typeof price === 'number' ? price : parseFloat(price) || 0,
+    promotion_price: undefined,
+    sales: totalSales,
+    detail_url: item?.ExternalItemUrl || `https://detail.1688.com/offer/${numIid}.html`,
+    max_price: undefined,
+    min_price: undefined,
+    tag_percent: undefined,
+  };
 }
 
 export const alibaba1688Api = {
-  // Search products on 1688 (no translation for speed)
   async search(query: string, page = 1, pageSize = 40): Promise<ApiResponse<{ items: Product1688[]; total: number }>> {
     try {
       const { data, error } = await supabase.functions.invoke('alibaba-1688-search', {
         body: { query, page, pageSize },
       });
 
-      if (error) {
-        return { success: false, error: error.message };
-      }
+      if (error) return { success: false, error: error.message };
+      if (!data?.success) return { success: false, error: data?.error || 'Search failed' };
 
-      if (!data?.success) {
-        return { success: false, error: data?.error || 'Search failed' };
-      }
-
-      // Parse the response structure from ATP Host API
-      const items = data.data?.item?.items?.item || [];
-      const total = data.data?.item?.items?.total_results || 0;
+      const rawItems = data.data?.Result?.Items?.Content || [];
+      const total = data.data?.Result?.Items?.TotalCount || 0;
 
       return {
         success: true,
         data: {
-          items: items.map((item: any) => ({
-            num_iid: item.num_iid,
-            title: item.title,
-            pic_url: item.pic_url,
-            price: item.price,
-            promotion_price: item.promotion_price,
-            sales: item.sales,
-            detail_url: item.detail_url,
-            max_price: item.max_price,
-            min_price: item.min_price,
-            tag_percent: item.tag_percent,
-          })),
+          items: rawItems.map(parseOtapiItem),
           total,
         },
       };
@@ -109,40 +102,22 @@ export const alibaba1688Api = {
     }
   },
 
-  // Search products by image
   async searchByImage(imageBase64: string, page = 1, pageSize = 40): Promise<ApiResponse<{ items: Product1688[]; total: number }>> {
     try {
       const { data, error } = await supabase.functions.invoke('alibaba-1688-image-search', {
         body: { imageBase64, page, pageSize },
       });
 
-      if (error) {
-        return { success: false, error: error.message };
-      }
+      if (error) return { success: false, error: error.message };
+      if (!data?.success) return { success: false, error: data?.error || 'Image search failed' };
 
-      if (!data?.success) {
-        return { success: false, error: data?.error || 'Image search failed' };
-      }
-
-      // Parse the response structure from ATP Host API
-      const items = data.data?.item?.items?.item || [];
-      const total = data.data?.item?.items?.total_results || 0;
+      const rawItems = data.data?.Result?.Items?.Content || [];
+      const total = data.data?.Result?.Items?.TotalCount || 0;
 
       return {
         success: true,
         data: {
-          items: items.map((item: any) => ({
-            num_iid: item.num_iid,
-            title: item.title,
-            pic_url: item.pic_url,
-            price: item.price,
-            promotion_price: item.promotion_price,
-            sales: item.sales,
-            detail_url: item.detail_url,
-            max_price: item.max_price,
-            min_price: item.min_price,
-            tag_percent: item.tag_percent,
-          })),
+          items: rawItems.map(parseOtapiItem),
           total,
         },
       };
@@ -152,89 +127,58 @@ export const alibaba1688Api = {
     }
   },
 
-  // Get product details
   async getProduct(numIid: number): Promise<ApiResponse<ProductDetail1688>> {
     try {
       const { data, error } = await supabase.functions.invoke('alibaba-1688-item-get', {
         body: { numIid },
       });
 
-      if (error) {
-        return { success: false, error: error.message };
-      }
+      if (error) return { success: false, error: error.message };
+      if (!data?.success) return { success: false, error: data?.error || 'Failed to get product' };
 
-      if (!data?.success) {
-        return { success: false, error: data?.error || 'Failed to get product' };
-      }
+      // OTAPI BatchGetItemFullInfo returns item data in Result
+      const result = data.data?.Result;
+      const item = result?.Item || result;
 
-      const item = data.data?.item;
-      if (!item) {
-        return { success: false, error: 'Product not found' };
-      }
+      if (!item) return { success: false, error: 'Product not found' };
 
-      const hasCJK = (t: string) => /[\u4e00-\u9fff]/.test(t);
-
-      // Translate all user-facing Chinese strings we display in the product page
-      const toTranslate: string[] = [];
-      const indexByText = new Map<string, number>();
-      const pushUnique = (t: unknown) => {
-        const s = typeof t === 'string' ? t.trim() : '';
-        if (!s) return;
-        if (!hasCJK(s)) return;
-        if (indexByText.has(s)) return;
-        indexByText.set(s, toTranslate.length);
-        toTranslate.push(s);
-      };
-
-      pushUnique(item.title);
-      pushUnique(item.location);
-
-      const rawProps: { name: string; value: string }[] = Array.isArray(item.props) ? item.props : [];
-      rawProps.forEach((p) => {
-        pushUnique(p?.name);
-        pushUnique(p?.value);
-      });
-
-      const translations = toTranslate.length > 0 ? await translateTexts(toTranslate) : [];
-      const translatedByOriginal = new Map<string, string>();
-      toTranslate.forEach((orig, i) => {
-        const next = translations[i];
-        if (next && typeof next === 'string' && next.trim()) {
-          translatedByOriginal.set(orig, next.trim());
-        }
-      });
-
-      const translateField = (t: unknown) => {
-        const s = typeof t === 'string' ? t.trim() : '';
-        if (!s) return s;
-        return translatedByOriginal.get(s) || s;
-      };
-
-      const translatedProps = rawProps.map((p) => ({
-        name: translateField(p.name),
-        value: translateField(p.value),
+      const price = item?.Price?.ConvertedPriceList?.Internal?.Price || item?.Price?.OriginalPrice || 0;
+      const origPrice = item?.Price?.OriginalPrice || 0;
+      const pics = Array.isArray(item?.Pictures) ? item.Pictures : [];
+      const props = (Array.isArray(item?.Configurators) ? item.Configurators : []).map((c: any) => ({
+        name: c?.Title || '',
+        value: (Array.isArray(c?.Values) ? c.Values : []).map((v: any) => v?.Value || '').join(', '),
       }));
+
+      const externalId = item?.Id || '';
+      const parsedNumIid = parseInt(externalId.replace(/^abb-/, ''), 10) || numIid;
 
       return {
         success: true,
         data: {
-          num_iid: item.num_iid,
-          title: translateField(item.title),
-          desc: item.desc,
-          price: item.price,
-          orginal_price: item.orginal_price,
-          pic_url: item.pic_url,
-          item_imgs: item.item_imgs || [],
-          desc_img: item.desc_img,
-          location: translateField(item.location),
-          num: item.num,
-          min_num: item.min_num,
-          video: item.video,
-          props: translatedProps,
-          priceRange: item.priceRange,
-          seller_info: item.seller_info || {},
-          total_sold: item.total_sold,
-          item_weight: item.item_weight,
+          num_iid: parsedNumIid,
+          title: item?.Title || '',
+          desc: item?.Description || '',
+          price,
+          orginal_price: origPrice || undefined,
+          pic_url: item?.MainPictureUrl || pics[0]?.Url || '',
+          item_imgs: pics.map((p: any) => ({ url: p?.Url || '' })),
+          desc_img: item?.DescriptionImages?.string || [],
+          location: typeof item?.Location === 'string' ? item.Location : (item?.Location?.State || item?.Location?.City || ''),
+          num: String(item?.StockQuantity || ''),
+          min_num: parseInt(item?.MinQuantity || '1', 10),
+          video: item?.VideoUrl || undefined,
+          props,
+          priceRange: undefined,
+          seller_info: {
+            nick: item?.VendorName || '',
+            shop_name: item?.VendorName || '',
+            item_score: '',
+            delivery_score: '',
+            composite_score: '',
+          },
+          total_sold: parseInt(item?.FeaturedValues?.TotalSales || '0', 10) || undefined,
+          item_weight: parseFloat(item?.Weight || '0') || undefined,
         },
       };
     } catch (error) {
