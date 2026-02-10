@@ -66,27 +66,36 @@ export const ProductSearch = () => {
     setIsLoadingDetails(true);
     setCurrentImageIndex(0);
 
+    // Build a basic detail from search data immediately
+    const fallbackDetail: ProductDetail1688 = {
+      num_iid: product.num_iid,
+      title: product.title,
+      desc: '',
+      price: product.price,
+      pic_url: product.pic_url,
+      item_imgs: (product.extra_images?.length ? product.extra_images : [product.pic_url]).filter(Boolean).map(url => ({ url })),
+      location: product.location || '',
+      num: product.stock ? String(product.stock) : '',
+      min_num: 1,
+      props: [],
+      seller_info: { nick: product.vendor_name || '', shop_name: product.vendor_name || '', item_score: '', delivery_score: '', composite_score: '' },
+      total_sold: product.sales,
+      item_weight: product.weight,
+    };
+
     try {
       const response = await alibaba1688Api.getProduct(product.num_iid);
       
       if (response.success && response.data) {
         setSelectedProduct(response.data);
       } else {
-        toast({
-          title: "বিস্তারিত লোড ব্যর্থ",
-          description: response.error || "পণ্যের তথ্য পাওয়া যায়নি",
-          variant: "destructive",
-        });
-        setIsDetailsOpen(false);
+        // Use search data as fallback
+        console.warn('Using search data as fallback:', response.error);
+        setSelectedProduct(fallbackDetail);
       }
     } catch (error) {
       console.error("Product details error:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load product details",
-        variant: "destructive",
-      });
-      setIsDetailsOpen(false);
+      setSelectedProduct(fallbackDetail);
     } finally {
       setIsLoadingDetails(false);
     }

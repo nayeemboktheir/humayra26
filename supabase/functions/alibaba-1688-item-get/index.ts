@@ -20,7 +20,6 @@ Deno.serve(async (req) => {
 
     const apiKey = Deno.env.get('OTCOMMERCE_API_KEY');
     if (!apiKey) {
-      console.error('OTCOMMERCE_API_KEY not configured');
       return new Response(
         JSON.stringify({ success: false, error: '1688 API not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -29,10 +28,7 @@ Deno.serve(async (req) => {
 
     console.log('Getting 1688 product details via OTAPI for:', numIid);
 
-    // OTAPI uses ItemId format: "Alibaba1688-{numIid}" or just the raw ID
-    const itemId = String(numIid).startsWith('Alibaba1688-') ? numIid : numIid;
-
-    const url = `https://otapi.net/service-json/BatchGetItemFullInfo?instanceKey=${encodeURIComponent(apiKey)}&language=en&itemId=${encodeURIComponent(itemId)}`;
+    const url = `https://otapi.net/service-json/GetItemInfo?instanceKey=${encodeURIComponent(apiKey)}&language=en&itemId=${encodeURIComponent(String(numIid))}`;
 
     const response = await fetch(url, {
       method: 'GET',
@@ -42,23 +38,32 @@ Deno.serve(async (req) => {
     const data = await response.json();
 
     if (!response.ok) {
-      console.error('OTAPI error:', data);
+      const err = data?.ErrorDescription || data?.ErrorMessage || `Request failed: ${response.status}`;
+      console.error('OTAPI HTTP error:', err);
       return new Response(
-        JSON.stringify({ success: false, error: data?.ErrorMessage || `Request failed with status ${response.status}` }),
+        JSON.stringify({ success: false, error: err }),
         { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    if (data?.ErrorCode && data.ErrorCode !== 'Ok' && data.ErrorCode !== 'None') {
-      console.error('OTAPI error response:', data);
+    if (data?.ErrorCode === 'NotAvailable' && data?.SubErrorCode?.Value === 'ItemIsNotComplete') {
+      // OTAPI hasn't cached this item yet; tell client to retry
       return new Response(
-        JSON.stringify({ success: false, error: data.ErrorMessage || data.ErrorCode }),
+        JSON.stringify({ success: false, error: 'Product data is loading. Please try again in a few seconds.', retryable: true }),
+        { status: 202, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (data?.ErrorCode && data.ErrorCode !== 'Ok') {
+      const err = data?.ErrorDescription || data?.ErrorMessage || data.ErrorCode;
+      console.error('OTAPI error:', err);
+      return new Response(
+        JSON.stringify({ success: false, error: err }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     console.log('Product details fetched successfully');
-
     return new Response(
       JSON.stringify({ success: true, data }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
