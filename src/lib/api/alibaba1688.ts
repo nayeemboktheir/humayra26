@@ -155,49 +155,82 @@ export const alibaba1688Api = {
 
       if (!data?.success) return { success: false, error: data?.error || 'Failed to get product' };
 
-      // OTAPI BatchGetItemFullInfo returns item data in Result
-      const result = data.data?.Result;
-      const item = result?.Item || result;
-
+      // BatchGetItemFullInfo returns data in Result.Item
+      const item = data.data?.Result?.Item;
       if (!item) return { success: false, error: 'Product not found' };
 
-      const price = item?.Price?.ConvertedPriceList?.Internal?.Price || item?.Price?.OriginalPrice || 0;
-      const origPrice = item?.Price?.OriginalPrice || 0;
-      const pics = Array.isArray(item?.Pictures) ? item.Pictures : [];
-      const props = (Array.isArray(item?.Configurators) ? item.Configurators : []).map((c: any) => ({
-        name: c?.Title || '',
-        value: (Array.isArray(c?.Values) ? c.Values : []).map((v: any) => v?.Value || '').join(', '),
-      }));
+      // Price from OriginalPrice (CNY yuan)
+      const price = item?.Price?.OriginalPrice || 0;
 
+      // Extract price range from ConfiguredItems
+      const configuredItems = Array.isArray(item?.ConfiguredItems) ? item.ConfiguredItems : [];
+      const prices = configuredItems
+        .map((ci: any) => ci?.Price?.OriginalPrice)
+        .filter((p: any) => typeof p === 'number' && p > 0);
+      const uniquePrices = [...new Set(prices)].sort((a: number, b: number) => a - b);
+      const priceRange: number[][] | undefined = uniquePrices.length > 1
+        ? uniquePrices.map((p: number) => [1, p])
+        : undefined;
+
+      // Pictures
+      const pics = Array.isArray(item?.Pictures) ? item.Pictures : [];
+
+      // Attributes (non-configurator props)
+      const attributes = Array.isArray(item?.Attributes) ? item.Attributes : [];
+      const props = attributes
+        .filter((a: any) => !a?.IsConfigurator)
+        .map((a: any) => ({
+          name: a?.PropertyName || a?.OriginalPropertyName || '',
+          value: a?.Value || a?.OriginalValue || '',
+        }));
+
+      // Parse item ID
       const externalId = item?.Id || '';
       const parsedNumIid = parseInt(externalId.replace(/^abb-/, ''), 10) || numIid;
+
+      // Extract description images from HTML description
+      const descHtml = item?.Description || '';
+      const descImgMatches = descHtml.match(/src="(https?:\/\/[^"]+)"/g) || [];
+      const descImgs = descImgMatches.map((m: string) => m.replace(/^src="/, '').replace(/"$/, ''));
+
+      // Featured values
+      const featuredValues = Array.isArray(item?.FeaturedValues) ? item.FeaturedValues : [];
+      const getFeatured = (name: string) => featuredValues.find((v: any) => v?.Name === name)?.Value || '';
+
+      // Location
+      const location = typeof item?.Location === 'string'
+        ? item.Location
+        : (item?.Location?.State || item?.Location?.City || '');
+
+      // Total stock from all configured items
+      const totalStock = configuredItems.reduce((sum: number, ci: any) => sum + (ci?.Quantity || 0), 0);
 
       return {
         success: true,
         data: {
           num_iid: parsedNumIid,
-          title: item?.Title || '',
-          desc: item?.Description || '',
+          title: item?.Title || item?.OriginalTitle || '',
+          desc: descHtml,
           price,
-          orginal_price: origPrice || undefined,
+          orginal_price: undefined,
           pic_url: item?.MainPictureUrl || pics[0]?.Url || '',
-          item_imgs: pics.map((p: any) => ({ url: p?.Url || '' })),
-          desc_img: item?.DescriptionImages?.string || [],
-          location: typeof item?.Location === 'string' ? item.Location : (item?.Location?.State || item?.Location?.City || ''),
-          num: String(item?.StockQuantity || ''),
-          min_num: parseInt(item?.MinQuantity || '1', 10),
+          item_imgs: pics.map((p: any) => ({ url: p?.Large?.Url || p?.Url || '' })),
+          desc_img: descImgs,
+          location,
+          num: String(totalStock || item?.MasterQuantity || ''),
+          min_num: item?.FirstLotQuantity || 1,
           video: item?.VideoUrl || undefined,
           props,
-          priceRange: undefined,
+          priceRange,
           seller_info: {
-            nick: item?.VendorName || '',
-            shop_name: item?.VendorName || '',
+            nick: item?.VendorName || item?.VendorDisplayName || '',
+            shop_name: item?.VendorName || item?.VendorDisplayName || '',
             item_score: '',
             delivery_score: '',
             composite_score: '',
           },
-          total_sold: parseInt(item?.FeaturedValues?.TotalSales || '0', 10) || undefined,
-          item_weight: parseFloat(item?.Weight || '0') || undefined,
+          total_sold: parseInt(getFeatured('SalesInLast30Days') || getFeatured('TotalSales') || '0', 10) || undefined,
+          item_weight: item?.PhysicalParameters?.Weight || undefined,
         },
       };
     } catch (error) {

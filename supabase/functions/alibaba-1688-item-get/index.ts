@@ -26,9 +26,14 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log('Getting 1688 product details via OTAPI for:', numIid);
+    // 1688 items require the "abb-" prefix per OTAPI docs
+    const itemId = String(numIid).startsWith('abb-') ? String(numIid) : `abb-${numIid}`;
 
-    const url = `https://otapi.net/service-json/GetItemInfo?instanceKey=${encodeURIComponent(apiKey)}&language=en&itemId=${encodeURIComponent(String(numIid))}`;
+    console.log('Getting 1688 product details via BatchGetItemFullInfo for:', itemId);
+
+    // Use BatchGetItemFullInfo - the correct method per OTAPI docs
+    // Description blockList includes images, video, description
+    const url = `https://otapi.net/service-json/BatchGetItemFullInfo?instanceKey=${encodeURIComponent(apiKey)}&language=en&itemId=${encodeURIComponent(itemId)}&blockList=Description`;
 
     const response = await fetch(url, {
       method: 'GET',
@@ -46,17 +51,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (data?.ErrorCode === 'NotAvailable' && data?.SubErrorCode?.Value === 'ItemIsNotComplete') {
-      // OTAPI hasn't cached this item yet; tell client to retry
-      return new Response(
-        JSON.stringify({ success: false, error: 'Product data is loading. Please try again in a few seconds.', retryable: true }),
-        { status: 202, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     if (data?.ErrorCode && data.ErrorCode !== 'Ok') {
       const err = data?.ErrorDescription || data?.ErrorMessage || data.ErrorCode;
-      console.error('OTAPI error:', err);
+      console.error('OTAPI error:', data.ErrorCode, err);
       return new Response(
         JSON.stringify({ success: false, error: err }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
