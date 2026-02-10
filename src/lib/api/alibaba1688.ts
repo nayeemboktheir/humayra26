@@ -179,19 +179,10 @@ export const alibaba1688Api = {
         ? uniquePrices.map((p: number) => [1, p])
         : undefined;
 
-      // Parse configured items for SKU variant table
-      const parsedConfiguredItems = configuredItems.map((ci: any) => ({
-        id: ci?.Id || '',
-        title: ci?.Title || ci?.Configurators?.map((c: any) => c?.Value || c?.OriginalValue || '').join(' / ') || '',
-        imageUrl: ci?.Pictures?.[0]?.Url || ci?.Pictures?.[0]?.Large?.Url || undefined,
-        price: ci?.Price?.OriginalPrice || price,
-        stock: ci?.Quantity || 0,
-      }));
-
       // Pictures
       const pics = Array.isArray(item?.Pictures) ? item.Pictures : [];
 
-      // Attributes (non-configurator props)
+      // Attributes
       const attributes = Array.isArray(item?.Attributes) ? item.Attributes : [];
       const props = attributes
         .filter((a: any) => !a?.IsConfigurator)
@@ -199,6 +190,35 @@ export const alibaba1688Api = {
           name: a?.PropertyName || a?.OriginalPropertyName || '',
           value: a?.Value || a?.OriginalValue || '',
         }));
+
+      // Build a map of configurator Vid -> ImageUrl from Attributes
+      const configuratorImageMap: Record<string, string> = {};
+      attributes
+        .filter((a: any) => a?.IsConfigurator && a?.ImageUrl)
+        .forEach((a: any) => {
+          configuratorImageMap[a.Vid || a.OriginalValue || ''] = a.ImageUrl;
+        });
+
+      // Parse configured items for SKU variant table
+      const parsedConfiguredItems = configuredItems.map((ci: any) => {
+        const configurators = Array.isArray(ci?.Configurators) ? ci.Configurators : [];
+        let imageUrl: string | undefined;
+        for (const c of configurators) {
+          const vid = c?.Vid || '';
+          if (configuratorImageMap[vid]) {
+            imageUrl = configuratorImageMap[vid];
+            break;
+          }
+        }
+        const title = ci?.Title || configurators.map((c: any) => c?.Value || c?.OriginalValue || c?.Vid || '').join(' / ') || '';
+        return {
+          id: ci?.Id || '',
+          title,
+          imageUrl,
+          price: ci?.Price?.OriginalPrice || price,
+          stock: ci?.Quantity || 0,
+        };
+      });
 
       // Parse item ID
       const externalId = item?.Id || '';
