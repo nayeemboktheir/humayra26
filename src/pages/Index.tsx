@@ -406,7 +406,7 @@ const Index = () => {
         <div className="flex gap-6 mt-4">
           {/* Category Sidebar - desktop only */}
           <aside className="hidden lg:block w-56 shrink-0">
-            <div className="bg-card rounded-xl border p-4 sticky top-20">
+            <div className="bg-card rounded-xl border p-4 sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto scrollbar-hide">
               <h2 className="text-lg font-bold text-primary mb-4">Category</h2>
               <nav className="space-y-0.5">
                 {categories.map((cat) => (
