@@ -6,7 +6,8 @@ import {
   Dialog,
   DialogContent,
 } from "@/components/ui/dialog";
-import { Loader2, Search, ShoppingBag, Star, Store, ChevronLeft, ChevronRight, ShoppingCart, MessageCircle, Play } from "lucide-react";
+import { Loader2, Search, ShoppingBag, Star, Store, ChevronLeft, ChevronRight, ShoppingCart, MessageCircle, Play, Truck, BadgeCheck, Flame } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
 import { alibaba1688Api, Product1688, ProductDetail1688 } from "@/lib/api/alibaba1688";
 
@@ -161,58 +162,102 @@ export const ProductSearch = () => {
       {/* Product Grid */}
       {!isLoading && products.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {products.map((product) => (
-            <Card
-              key={product.num_iid}
-              className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group"
-              role="button"
-              tabIndex={0}
-              onClick={() => handleProductClick(product)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  handleProductClick(product);
-                }
-              }}
-            >
-              <div className="aspect-square bg-muted relative overflow-hidden">
-                {product.pic_url ? (
-                  <img
-                    src={product.pic_url}
-                    alt={product.title}
-                    loading="lazy"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = "/placeholder.svg";
-                    }}
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <ShoppingBag className="h-12 w-12 text-muted-foreground" />
-                  </div>
-                )}
-                {product.sales && product.sales > 0 && (
-                  <div className="absolute top-2 right-2 bg-primary text-primary-foreground text-xs px-2 py-1 rounded">
-                    {product.sales} sold
-                  </div>
-                )}
-              </div>
-              <CardContent className="p-3">
-                <h3 className="font-medium text-sm line-clamp-2 mb-1">{product.title}</h3>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-primary font-bold">¥{product.price}</span>
-                  <span className="text-xs text-muted-foreground">
-                    ≈ {convertToBDT(product.price)} ৳
-                  </span>
+          {products.map((product) => {
+            // Derive badge type from sales count
+            const isTopRated = (product.sales || 0) >= 2000;
+            const isVerified = !isTopRated && (product.sales || 0) >= 500;
+            const formattedSales = product.sales
+              ? product.sales >= 1000
+                ? `${(product.sales / 1000).toFixed(product.sales >= 10000 ? 0 : 1)}K Sold`
+                : `${product.sales} Sold`
+              : null;
+
+            return (
+              <Card
+                key={product.num_iid}
+                className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group"
+                role="button"
+                tabIndex={0}
+                onClick={() => handleProductClick(product)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    handleProductClick(product);
+                  }
+                }}
+              >
+                <div className="aspect-square bg-muted relative overflow-hidden">
+                  {product.pic_url ? (
+                    <img
+                      src={product.pic_url}
+                      alt={product.title}
+                      loading="lazy"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = "/placeholder.svg";
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <ShoppingBag className="h-12 w-12 text-muted-foreground" />
+                    </div>
+                  )}
+                  {product.location && (
+                    <div className="absolute bottom-2 left-2 bg-background/80 backdrop-blur-sm text-foreground text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1">
+                      <span className="inline-block w-3 h-2 rounded-sm bg-red-500 relative overflow-hidden">
+                        <span className="absolute inset-0 flex items-center justify-center">
+                          <span className="block w-1 h-1 rounded-full" style={{ backgroundColor: '#FFD700' }} />
+                        </span>
+                      </span>
+                      CN
+                    </div>
+                  )}
                 </div>
-                {product.min_price !== product.max_price && (
-                  <p className="text-xs text-muted-foreground">
-                    ¥{product.min_price} - ¥{product.max_price}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          ))}
+                <CardContent className="p-3 space-y-1.5">
+                  <h3 className="font-medium text-sm line-clamp-2 leading-tight">{product.title}</h3>
+
+                  {/* Star rating + sold */}
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <div className="flex items-center gap-0.5">
+                      <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                      <span>5</span>
+                    </div>
+                    {formattedSales && <span>{formattedSales}</span>}
+                  </div>
+
+                  {/* Price in BDT */}
+                  <div className="text-primary font-bold text-base">
+                    ৳{convertToBDT(product.price).toLocaleString()}
+                  </div>
+
+                  {/* Badge row */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {isVerified && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-emerald-500 text-emerald-600 bg-emerald-50 gap-0.5">
+                        <BadgeCheck className="h-3 w-3" />
+                        Verified
+                      </Badge>
+                    )}
+                    {isTopRated && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-red-500 text-red-600 bg-red-50 gap-0.5">
+                        <Flame className="h-3 w-3" />
+                        Top Rated
+                      </Badge>
+                    )}
+                  </div>
+
+                  {/* MOQ + Shipping */}
+                  <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-0.5">
+                    <span>MOQ: 1</span>
+                    <span className="flex items-center gap-0.5">
+                      <Truck className="h-3 w-3" />
+                      CN to BD: 10-12 days
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
