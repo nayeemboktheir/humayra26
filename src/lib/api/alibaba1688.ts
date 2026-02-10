@@ -11,6 +11,12 @@ export interface Product1688 {
   max_price?: number;
   min_price?: number;
   tag_percent?: string;
+  // Extra fields from OTAPI search for fallback detail view
+  location?: string;
+  extra_images?: string[];
+  vendor_name?: string;
+  stock?: number;
+  weight?: number;
 }
 
 export interface ProductDetail1688 {
@@ -58,9 +64,10 @@ function parseOtapiItem(item: any): Product1688 {
   const price = item?.Price?.ConvertedPriceList?.Internal?.Price || 0;
   const picUrl = item?.MainPictureUrl || item?.Pictures?.[0]?.Url || '';
   const externalId = item?.Id || '';
-  // Extract numeric ID from "abb-XXXXX" format
   const numIid = parseInt(externalId.replace(/^abb-/, ''), 10) || 0;
   const totalSales = parseInt(getFeaturedValue(item, 'TotalSales') || '0', 10) || undefined;
+  const pics = Array.isArray(item?.Pictures) ? item.Pictures : [];
+  const location = item?.Location?.State || item?.Location?.City || '';
 
   return {
     num_iid: numIid,
@@ -73,6 +80,11 @@ function parseOtapiItem(item: any): Product1688 {
     max_price: undefined,
     min_price: undefined,
     tag_percent: undefined,
+    location,
+    extra_images: pics.map((p: any) => p?.Url || p?.Large?.Url || '').filter(Boolean),
+    vendor_name: item?.VendorName || item?.VendorDisplayName || '',
+    stock: item?.MasterQuantity || undefined,
+    weight: item?.PhysicalParameters?.Weight || undefined,
   };
 }
 
@@ -127,13 +139,20 @@ export const alibaba1688Api = {
     }
   },
 
-  async getProduct(numIid: number): Promise<ApiResponse<ProductDetail1688>> {
+  async getProduct(numIid: number, _retries = 0): Promise<ApiResponse<ProductDetail1688>> {
     try {
       const { data, error } = await supabase.functions.invoke('alibaba-1688-item-get', {
         body: { numIid },
       });
 
       if (error) return { success: false, error: error.message };
+
+      // Handle retryable "loading" response from OTAPI
+      if (data?.retryable && _retries < 2) {
+        await new Promise(r => setTimeout(r, 3000));
+        return this.getProduct(numIid, _retries + 1);
+      }
+
       if (!data?.success) return { success: false, error: data?.error || 'Failed to get product' };
 
       // OTAPI BatchGetItemFullInfo returns item data in Result
