@@ -67,7 +67,7 @@ const topCategories = [
 // Trending products data (from chinaonlinebd.com)
 const trendingProducts = [
   { id: "abb-189535847655", title: "Metal Stainless Steel Compass Set for Students", image: "https://cbu01.alicdn.com/img/ibank/O1CN01hcgHP51nIHYLPqiTh_!!2220460965066-0-cib.310x310.jpg", price: 74, oldPrice: 76, sold: 8432108 },
-  { id: "abb-130714535773", title: "Original Cartoon Shoulder Bag Large Capacity Canvas Bag", image: "https://cbu01.alicdn.com/img/ibank/O1CN01s5Oil52Eh0WsZp8Mm_!!2214657758775-0-cib.310x310.jpg", price: 91, oldPrice: 94, sold: 3982769 },
+  { id: "abb-905114125851", title: "Original Cartoon Shoulder Bag Large Capacity Canvas", image: "https://cbu01.alicdn.com/img/ibank/O1CN01s5Oil52Eh0WsZp8Mm_!!2214657758775-0-cib.310x310.jpg", price: 91, oldPrice: 94, sold: 3982769 },
   { id: "abb-172982973149", title: "Deli Sf568 Posture-Correcting Student Fountain Pen Set", image: "https://cbu01.alicdn.com/img/ibank/O1CN01vN7RGZ1VXFOqHBYqJ_!!2219976542662-0-cib.310x310.jpg", price: 66, oldPrice: 68, sold: 1254653 },
   { id: "abb-158883101861", title: "True Color New Three-Color Gel Pen High-Quality", image: "https://cbu01.alicdn.com/img/ibank/O1CN01HrJlC61bmiSerh7vr_!!2219455113508-0-cib.310x310.jpg", price: 72, oldPrice: 74, sold: 9692584 },
   { id: "abb-113853719837", title: "Deli Ss005 Turbo Warrior Gel Pen Quick-Drying", image: "https://cbu01.alicdn.com/img/ibank/O1CN01VqLzZj2EZDqRlf3do_!!2214183158758-0-cib.310x310.jpg", price: 69, oldPrice: 71, sold: 8070966 },
