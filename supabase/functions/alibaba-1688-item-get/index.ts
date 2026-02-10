@@ -18,7 +18,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const apiKey = Deno.env.get('ATP_1688_API_KEY');
+    const apiKey = Deno.env.get('OTCOMMERCE_API_KEY');
     if (!apiKey) {
       console.error('ATP_1688_API_KEY not configured');
       return new Response(
