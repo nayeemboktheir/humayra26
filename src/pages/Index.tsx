@@ -507,7 +507,11 @@ const Index = () => {
               )}
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-              {products.map((product) => {
+              {[...products].sort((a, b) => {
+                const scoreA = (a.sales || 0) >= 2000 ? 2 : (a.sales || 0) >= 500 ? 1 : 0;
+                const scoreB = (b.sales || 0) >= 2000 ? 2 : (b.sales || 0) >= 500 ? 1 : 0;
+                return scoreB - scoreA;
+              }).map((product) => {
                 const isTopRated = (product.sales || 0) >= 2000;
                 const isVerified = !isTopRated && (product.sales || 0) >= 500;
                 const formattedSales = product.sales
