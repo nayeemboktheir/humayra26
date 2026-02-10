@@ -18,7 +18,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const apiKey = (Deno.env.get('ATP_1688_API_KEY') ?? '').trim();
+    const apiKey = (Deno.env.get('OTCOMMERCE_API_KEY') ?? '').trim();
     if (!apiKey) {
       return new Response(JSON.stringify({ success: false, error: '1688 API not configured' }), {
         status: 500,
