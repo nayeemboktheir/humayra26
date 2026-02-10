@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import { Search, Loader2, Camera, ImageIcon } from "lucide-react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { Search, Loader2, Camera, ImageIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -48,7 +48,6 @@ const Index = () => {
     query: string; // for image search this is the derived Chinese keyword query
     altQueries: string[];
   } | null>(null);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [altQueryIndex, setAltQueryIndex] = useState(0);
 
   // Title translation is optional (manual) to keep searches fast.
@@ -176,31 +175,31 @@ const Index = () => {
     }
   };
 
-  const loadMore = async () => {
-    if (!activeSearch || isLoading || isLoadingMore) return;
-    if (totalResults !== null && products.length >= totalResults) return;
-    if (!activeSearch.query) return;
+  const PAGE_SIZE = 40;
+  const totalPages = totalResults ? Math.ceil(totalResults / PAGE_SIZE) : 0;
 
-    const nextPage = currentPage + 1;
-    setIsLoadingMore(true);
+  const goToPage = async (page: number) => {
+    if (!activeSearch || isLoading) return;
+    if (page < 1 || (totalPages > 0 && page > totalPages)) return;
+
+    setIsLoading(true);
+    setTranslatedTitles({});
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
     try {
-      // For image search we page using the derived keyword query (fast, no re-upload).
-      const resp = await alibaba1688Api.search(activeSearch.query, nextPage);
+      const searchQuery = activeSearch.query || query.trim();
+      const resp = await alibaba1688Api.search(searchQuery, page);
       if (resp.success && resp.data) {
-        setProducts((prev) => {
-          const existing = new Set(prev.map((p) => p.num_iid));
-          const appended = resp.data.items.filter((p) => !existing.has(p.num_iid));
-          return [...prev, ...appended];
-        });
-        setCurrentPage(nextPage);
+        setProducts(resp.data.items);
+        setCurrentPage(page);
         setTotalResults(resp.data.total);
       } else {
-        toast.error(resp.error || "Failed to load more");
+        toast.error(resp.error || "Failed to load page");
       }
     } catch {
-      toast.error("Failed to load more");
+      toast.error("Failed to load page");
     } finally {
-      setIsLoadingMore(false);
+      setIsLoading(false);
     }
   };
 
@@ -481,11 +480,17 @@ const Index = () => {
           </div>
         ) : products.length > 0 ? (
           <>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold">Search Results</h2>
-              <Badge variant="secondary">{products.length} products</Badge>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">
+                {totalResults ? `${totalResults.toLocaleString()} results` : `${products.length} products`}
+              </h2>
+              {totalPages > 1 && (
+                <span className="text-sm text-muted-foreground">
+                  Page {currentPage} of {totalPages}
+                </span>
+              )}
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
               {products.map((product) => (
                 <Card
                   key={product.num_iid}
@@ -497,6 +502,7 @@ const Index = () => {
                       src={product.pic_url}
                       alt={getDisplayTitle(product)}
                       referrerPolicy="no-referrer"
+                      loading="lazy"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
@@ -525,6 +531,58 @@ const Index = () => {
                 </Card>
               ))}
             </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-1 mt-8 pb-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => goToPage(currentPage - 1)}
+                  disabled={currentPage <= 1 || isLoading}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                {(() => {
+                  const pages: (number | '...')[] = [];
+                  if (totalPages <= 7) {
+                    for (let i = 1; i <= totalPages; i++) pages.push(i);
+                  } else {
+                    pages.push(1);
+                    if (currentPage > 3) pages.push('...');
+                    for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+                      pages.push(i);
+                    }
+                    if (currentPage < totalPages - 2) pages.push('...');
+                    pages.push(totalPages);
+                  }
+                  return pages.map((p, idx) =>
+                    p === '...' ? (
+                      <span key={`ellipsis-${idx}`} className="px-2 text-muted-foreground">…</span>
+                    ) : (
+                      <Button
+                        key={p}
+                        variant={p === currentPage ? "default" : "outline"}
+                        size="sm"
+                        className="min-w-[36px]"
+                        onClick={() => goToPage(p)}
+                        disabled={isLoading}
+                      >
+                        {p}
+                      </Button>
+                    )
+                  );
+                })()}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => goToPage(currentPage + 1)}
+                  disabled={currentPage >= totalPages || isLoading}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
           </>
         ) : (
           <div className="text-center py-20">
