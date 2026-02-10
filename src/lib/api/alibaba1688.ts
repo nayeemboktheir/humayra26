@@ -191,26 +191,46 @@ export const alibaba1688Api = {
           value: a?.Value || a?.OriginalValue || '',
         }));
 
-      // Build a map of configurator Vid -> ImageUrl from Attributes
+      // Build maps from configurator Attributes for image and title lookup
       const configuratorImageMap: Record<string, string> = {};
+      const configuratorTitleMap: Record<string, string> = {};
       attributes
-        .filter((a: any) => a?.IsConfigurator && a?.ImageUrl)
+        .filter((a: any) => a?.IsConfigurator)
         .forEach((a: any) => {
-          configuratorImageMap[a.Vid || a.OriginalValue || ''] = a.ImageUrl;
+          const vid = a?.Vid || a?.OriginalValue || '';
+          if (vid) {
+            if (a?.ImageUrl) {
+              configuratorImageMap[vid] = a.ImageUrl;
+            }
+            if (a?.MiniImageUrl && !configuratorImageMap[vid]) {
+              configuratorImageMap[vid] = a.MiniImageUrl;
+            }
+            // Map Vid to translated Value for display
+            const displayValue = a?.Value || a?.OriginalValue || vid;
+            configuratorTitleMap[vid] = displayValue;
+          }
         });
 
       // Parse configured items for SKU variant table
       const parsedConfiguredItems = configuredItems.map((ci: any) => {
         const configurators = Array.isArray(ci?.Configurators) ? ci.Configurators : [];
         let imageUrl: string | undefined;
+        // Find image: try each configurator's Vid against the image map
         for (const c of configurators) {
-          const vid = c?.Vid || '';
-          if (configuratorImageMap[vid]) {
+          const vid = c?.Vid || c?.OriginalValue || '';
+          if (vid && configuratorImageMap[vid]) {
             imageUrl = configuratorImageMap[vid];
             break;
           }
         }
-        const title = ci?.Title || configurators.map((c: any) => c?.Value || c?.OriginalValue || c?.Vid || '').join(' / ') || '';
+        // Build title from translated values
+        const titleParts = configurators
+          .map((c: any) => {
+            const vid = c?.Vid || c?.OriginalValue || '';
+            return configuratorTitleMap[vid] || c?.Value || c?.OriginalValue || vid || '';
+          })
+          .filter(Boolean);
+        const title = ci?.Title || (titleParts.length > 0 ? titleParts.join(' / ') : '');
         return {
           id: ci?.Id || '',
           title,
