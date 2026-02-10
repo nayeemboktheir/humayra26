@@ -47,7 +47,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
   const [showVideo, setShowVideo] = useState(false);
   const [quantity, setQuantity] = useState(0);
 
-  if (isLoading) {
+  if (!product && isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
@@ -64,6 +64,8 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
     );
   }
 
+  console.log('ProductDetail props count:', product.props?.length, product.props);
+
   const images = product.item_imgs?.map((img) => img.url) || [product.pic_url];
   const displayProps = product.props?.slice(0, 15) || [];
 
@@ -78,6 +80,12 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
 
   return (
     <div className="min-h-screen bg-background">
+      {isLoading && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-primary text-primary-foreground px-4 py-1.5 rounded-full text-xs flex items-center gap-2 shadow-lg">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          Loading full details...
+        </div>
+      )}
       <div className="container mx-auto px-4 py-4 max-w-7xl">
         {/* Breadcrumb */}
         {onBack && (
