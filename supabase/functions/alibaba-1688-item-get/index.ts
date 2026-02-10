@@ -20,36 +20,45 @@ Deno.serve(async (req) => {
 
     const apiKey = Deno.env.get('OTCOMMERCE_API_KEY');
     if (!apiKey) {
-      console.error('ATP_1688_API_KEY not configured');
+      console.error('OTCOMMERCE_API_KEY not configured');
       return new Response(
         JSON.stringify({ success: false, error: '1688 API not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Getting 1688 product details for:', numIid);
+    console.log('Getting 1688 product details via OTAPI for:', numIid);
 
-    const url = `https://api.icom.la/1688/api/call.php?api_key=${apiKey}&item_get&num_iid=${numIid}&lang=zh-CN`;
-    
+    // OTAPI uses ItemId format: "Alibaba1688-{numIid}" or just the raw ID
+    const itemId = String(numIid).startsWith('Alibaba1688-') ? numIid : numIid;
+
+    const url = `https://otapi.net/service-json/BatchGetItemFullInfo?instanceKey=${encodeURIComponent(apiKey)}&language=en&itemId=${encodeURIComponent(itemId)}`;
+
     const response = await fetch(url, {
       method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      },
+      headers: { 'Accept': 'application/json' },
     });
 
     const data = await response.json();
 
     if (!response.ok) {
-      console.error('1688 API error:', data);
+      console.error('OTAPI error:', data);
       return new Response(
-        JSON.stringify({ success: false, error: data.error || `Request failed with status ${response.status}` }),
+        JSON.stringify({ success: false, error: data?.ErrorMessage || `Request failed with status ${response.status}` }),
         { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Product details fetched successfully:', data?.item?.title?.substring(0, 50));
-    
+    if (data?.ErrorCode && data.ErrorCode !== 'Ok' && data.ErrorCode !== 'None') {
+      console.error('OTAPI error response:', data);
+      return new Response(
+        JSON.stringify({ success: false, error: data.ErrorMessage || data.ErrorCode }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('Product details fetched successfully');
+
     return new Response(
       JSON.stringify({ success: true, data }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
