@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, ArrowLeft, Play, ShoppingCart, MessageCircle, ExternalLink, Star, MapPin, Truck, Package, Box, Weight, ChevronLeft, ChevronRight, Minus, Plus } from "lucide-react";
+import { Loader2, ArrowLeft, Play, ShoppingCart, MessageCircle, ExternalLink, Star, MapPin, Truck, Package, Box, Weight, ChevronLeft, ChevronRight, Minus, Plus, ChevronDown, ChevronUp } from "lucide-react";
 import { ProductDetail1688 } from "@/lib/api/alibaba1688";
 
 const CNY_TO_BDT = 17.5;
@@ -46,6 +46,8 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
   const [selectedImage, setSelectedImage] = useState(0);
   const [showVideo, setShowVideo] = useState(false);
   const [quantity, setQuantity] = useState(0);
+  const [skuQuantities, setSkuQuantities] = useState<Record<string, number>>({});
+  const [showAllSkus, setShowAllSkus] = useState(false);
 
   if (!product && isLoading) {
     return (
@@ -186,8 +188,61 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
               <span className="text-muted-foreground">Ships within 48 hours</span>
             </div>
 
-            {/* Tiered Pricing */}
-            {getPriceRanges().length > 1 && (
+            {/* SKU Variant Table */}
+            {product.configuredItems && product.configuredItems.length > 0 && (
+              <div>
+                <h3 className="text-sm font-medium mb-2">Specification: Selected Good Products</h3>
+                <div className="border rounded-lg overflow-hidden">
+                  {/* Table header */}
+                  <div className="grid grid-cols-[48px_1fr_100px_80px_120px] gap-2 px-3 py-2 bg-muted/50 text-xs font-medium text-muted-foreground border-b">
+                    <span></span>
+                    <span>Variant</span>
+                    <span className="text-right">Price</span>
+                    <span className="text-right">Stock</span>
+                    <span className="text-center">Quantity</span>
+                  </div>
+                  {/* Table rows */}
+                  {(showAllSkus ? product.configuredItems : product.configuredItems.slice(0, 5)).map((sku) => (
+                    <div key={sku.id} className="grid grid-cols-[48px_1fr_100px_80px_120px] gap-2 px-3 py-2 border-b last:border-b-0 items-center">
+                      <div className="w-10 h-10 rounded overflow-hidden bg-muted flex-shrink-0">
+                        {sku.imageUrl ? (
+                          <img src={sku.imageUrl} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover"
+                            onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
+                        ) : (
+                          <div className="w-full h-full bg-muted" />
+                        )}
+                      </div>
+                      <span className="text-sm truncate">{sku.title || '—'}</span>
+                      <span className="text-sm font-medium text-right">৳{convertToBDT(sku.price).toLocaleString()}</span>
+                      <span className="text-sm text-muted-foreground text-right">{sku.stock.toLocaleString()}</span>
+                      <div className="flex items-center justify-center gap-1">
+                        <Button variant="outline" size="icon" className="h-6 w-6"
+                          onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: Math.max(0, (prev[sku.id] || 0) - 1) }))}>
+                          <Minus className="h-3 w-3" />
+                        </Button>
+                        <span className="w-6 text-center text-sm">{skuQuantities[sku.id] || 0}</span>
+                        <Button variant="outline" size="icon" className="h-6 w-6"
+                          onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: (prev[sku.id] || 0) + 1 }))}>
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                  {/* Show more toggle */}
+                  {product.configuredItems.length > 5 && (
+                    <button
+                      onClick={() => setShowAllSkus(!showAllSkus)}
+                      className="w-full py-2 text-sm text-muted-foreground hover:text-foreground flex items-center justify-center gap-1 border-t"
+                    >
+                      {showAllSkus ? <>Show Less <ChevronUp className="h-3.5 w-3.5" /></> : <>Show More <ChevronDown className="h-3.5 w-3.5" /></>}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Tiered Pricing (fallback when no SKU variants) */}
+            {(!product.configuredItems || product.configuredItems.length === 0) && getPriceRanges().length > 1 && (
               <div>
                 <h3 className="text-sm font-medium mb-2">Price by Quantity:</h3>
                 <div className="flex gap-2 overflow-x-auto">
@@ -259,23 +314,36 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
 
                 <Separator />
 
-                {/* Quantity */}
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">{quantity} Pieces</span>
-                  <div className="flex items-center gap-1">
-                    <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => setQuantity(Math.max(0, quantity - 1))}>
-                      <Minus className="h-3 w-3" />
-                    </Button>
-                    <span className="w-8 text-center text-sm font-medium">{quantity}</span>
-                    <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => setQuantity(quantity + 1)}>
-                      <Plus className="h-3 w-3" />
-                    </Button>
+                {/* Quantity - only show simple selector when no SKU variants */}
+                {(!product.configuredItems || product.configuredItems.length === 0) && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">{quantity} Pieces</span>
+                    <div className="flex items-center gap-1">
+                      <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => setQuantity(Math.max(0, quantity - 1))}>
+                        <Minus className="h-3 w-3" />
+                      </Button>
+                      <span className="w-8 text-center text-sm font-medium">{quantity}</span>
+                      <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => setQuantity(quantity + 1)}>
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {/* Show total pieces from SKU selection */}
+                {product.configuredItems && product.configuredItems.length > 0 && (
+                  <div className="text-sm">
+                    <span>{Object.values(skuQuantities).reduce((a, b) => a + b, 0)} Pieces</span>
+                  </div>
+                )}
 
                 <div className="flex items-center justify-between text-sm font-semibold">
                   <span>Total</span>
-                  <span>৳{(convertToBDT(product.price) * quantity).toLocaleString()}</span>
+                  <span>৳{(
+                    product.configuredItems && product.configuredItems.length > 0
+                      ? product.configuredItems.reduce((sum, sku) => sum + convertToBDT(sku.price) * (skuQuantities[sku.id] || 0), 0)
+                      : convertToBDT(product.price) * quantity
+                  ).toLocaleString()}</span>
                 </div>
 
                 <p className="text-xs text-muted-foreground">
