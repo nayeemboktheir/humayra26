@@ -62,11 +62,9 @@ export const ProductSearch = () => {
   };
 
   const handleProductClick = async (product: Product1688) => {
-    setIsDetailsOpen(true);
-    setIsLoadingDetails(true);
     setCurrentImageIndex(0);
 
-    // Build a basic detail from search data immediately
+    // Show fallback detail from search data immediately
     const fallbackDetail: ProductDetail1688 = {
       num_iid: product.num_iid,
       title: product.title,
@@ -83,19 +81,18 @@ export const ProductSearch = () => {
       item_weight: product.weight,
     };
 
+    setSelectedProduct(fallbackDetail);
+    setIsDetailsOpen(true);
+    setIsLoadingDetails(true);
+
+    // Fetch full details in background
     try {
       const response = await alibaba1688Api.getProduct(product.num_iid);
-      
       if (response.success && response.data) {
         setSelectedProduct(response.data);
-      } else {
-        // Use search data as fallback
-        console.warn('Using search data as fallback:', response.error);
-        setSelectedProduct(fallbackDetail);
       }
     } catch (error) {
       console.error("Product details error:", error);
-      setSelectedProduct(fallbackDetail);
     } finally {
       setIsLoadingDetails(false);
     }
