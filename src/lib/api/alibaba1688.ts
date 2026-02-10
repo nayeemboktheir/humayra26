@@ -34,6 +34,13 @@ export interface ProductDetail1688 {
   video?: string;
   props: { name: string; value: string }[];
   priceRange?: number[][];
+  configuredItems?: {
+    id: string;
+    title: string;
+    imageUrl?: string;
+    price: number;
+    stock: number;
+  }[];
   seller_info: {
     nick: string;
     shop_name: string;
@@ -172,6 +179,15 @@ export const alibaba1688Api = {
         ? uniquePrices.map((p: number) => [1, p])
         : undefined;
 
+      // Parse configured items for SKU variant table
+      const parsedConfiguredItems = configuredItems.map((ci: any) => ({
+        id: ci?.Id || '',
+        title: ci?.Title || ci?.Configurators?.map((c: any) => c?.Value || c?.OriginalValue || '').join(' / ') || '',
+        imageUrl: ci?.Pictures?.[0]?.Url || ci?.Pictures?.[0]?.Large?.Url || undefined,
+        price: ci?.Price?.OriginalPrice || price,
+        stock: ci?.Quantity || 0,
+      }));
+
       // Pictures
       const pics = Array.isArray(item?.Pictures) ? item.Pictures : [];
 
@@ -222,6 +238,7 @@ export const alibaba1688Api = {
           video: item?.VideoUrl || undefined,
           props,
           priceRange,
+          configuredItems: parsedConfiguredItems.length > 0 ? parsedConfiguredItems : undefined,
           seller_info: {
             nick: item?.VendorName || item?.VendorDisplayName || '',
             shop_name: item?.VendorName || item?.VendorDisplayName || '',
