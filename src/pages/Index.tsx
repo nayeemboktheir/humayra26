@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Camera, ImageIcon, Loader2, ChevronLeft, ChevronRight, Star, BadgeCheck, Flame, Truck, Heart, ShoppingCart, User, Zap } from "lucide-react";
+import { Search, Camera, ImageIcon, Loader2, ChevronLeft, ChevronRight, Star, BadgeCheck, Flame, Truck, Heart, ShoppingCart, User, Zap, SlidersHorizontal } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import { alibaba1688Api, Product1688, ProductDetail1688 } from "@/lib/api/alibab
 import { supabase } from "@/integrations/supabase/client";
 import ProductDetail from "@/components/ProductDetail";
 import { useAuth } from "@/contexts/AuthContext";
+import SearchFilters, { SearchFilterValues, getDefaultFilters, applyFilters } from "@/components/SearchFilters";
 
 const CNY_TO_BDT = 17.5;
 const convertToBDT = (cny: number) => Math.round(cny * CNY_TO_BDT);
@@ -114,6 +115,8 @@ const Index = () => {
   } | null>(null);
   const [altQueryIndex, setAltQueryIndex] = useState(0);
   const [isTranslatingTitles, setIsTranslatingTitles] = useState(false);
+  const [filters, setFilters] = useState<SearchFilterValues>(getDefaultFilters());
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   const handleTranslateTitles = async () => {
     if (products.length === 0 || isTranslatingTitles) return;
@@ -339,57 +342,84 @@ const Index = () => {
 
   // Search results view
   if (hasSearched) {
+    const filteredProducts = applyFilters(products, filters, convertToBDT);
+
     return (
       <div className="min-h-screen bg-background relative" onDragEnter={handleDragEnter} onDragLeave={handleDragLeave} onDragOver={handleDragOver} onDrop={handleDrop}>
         {isDragging && <DragOverlay />}
         <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} />
         <div className="container mx-auto px-4 py-6 max-w-7xl">
-          {isLoading ? (
-            <div className="flex flex-col items-center justify-center py-20">
-              <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-              <p className="text-muted-foreground">Searching products...</p>
+          <div className="flex gap-6">
+            {/* Filter Sidebar */}
+            <SearchFilters
+              filters={filters}
+              onFiltersChange={setFilters}
+              onCategorySearch={(q) => { setQuery(q); performSearch(q); }}
+            />
+
+            {/* Mobile filter toggle */}
+            <div className="lg:hidden fixed bottom-4 right-4 z-40">
+              <Button size="sm" className="rounded-full shadow-lg gap-1.5" onClick={() => setMobileFiltersOpen(!mobileFiltersOpen)}>
+                <SlidersHorizontal className="h-4 w-4" /> Filters
+              </Button>
             </div>
-          ) : products.length > 0 ? (
-            <>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold">
-                  {totalResults ? `${totalResults.toLocaleString()} results` : `${products.length} products`}
-                </h2>
-                {totalPages > 1 && <span className="text-sm text-muted-foreground">Page {currentPage} of {totalPages}</span>}
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                {[...products].sort((a, b) => {
-                  const scoreA = (a.sales || 0) >= 2000 ? 2 : (a.sales || 0) >= 500 ? 1 : 0;
-                  const scoreB = (b.sales || 0) >= 2000 ? 2 : (b.sales || 0) >= 500 ? 1 : 0;
-                  return scoreB - scoreA;
-                }).map((product) => <ProductCard key={product.num_iid} product={product} getDisplayTitle={getDisplayTitle} onClick={() => handleProductClick(product)} />)}
-              </div>
-              {totalPages > 1 && (
-                <div className="flex items-center justify-center gap-1 mt-8 pb-4">
-                  <Button variant="outline" size="sm" onClick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1 || isLoading}><ChevronLeft className="h-4 w-4" /></Button>
-                  {(() => {
-                    const pages: (number | '...')[] = [];
-                    if (totalPages <= 7) { for (let i = 1; i <= totalPages; i++) pages.push(i); }
-                    else {
-                      pages.push(1);
-                      if (currentPage > 3) pages.push('...');
-                      for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) pages.push(i);
-                      if (currentPage < totalPages - 2) pages.push('...');
-                      pages.push(totalPages);
-                    }
-                    return pages.map((p, idx) =>
-                      p === '...' ? <span key={`e-${idx}`} className="px-2 text-muted-foreground">…</span> : (
-                        <Button key={p} variant={p === currentPage ? "default" : "outline"} size="sm" className="min-w-[36px]" onClick={() => goToPage(p)} disabled={isLoading}>{p}</Button>
-                      )
-                    );
-                  })()}
-                  <Button variant="outline" size="sm" onClick={() => goToPage(currentPage + 1)} disabled={currentPage >= totalPages || isLoading}><ChevronRight className="h-4 w-4" /></Button>
+
+            {/* Results */}
+            <div className="flex-1 min-w-0">
+              {isLoading ? (
+                <div className="flex flex-col items-center justify-center py-20">
+                  <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
+                  <p className="text-muted-foreground">Searching products...</p>
                 </div>
+              ) : filteredProducts.length > 0 ? (
+                <>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-semibold">
+                      {totalResults ? `${totalResults.toLocaleString()} results` : `${filteredProducts.length} products`}
+                      {filteredProducts.length !== products.length && (
+                        <span className="text-sm font-normal text-muted-foreground ml-2">
+                          ({filteredProducts.length} shown)
+                        </span>
+                      )}
+                    </h2>
+                    {totalPages > 1 && <span className="text-sm text-muted-foreground">Page {currentPage} of {totalPages}</span>}
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                    {filteredProducts.map((product) => <ProductCard key={product.num_iid} product={product} getDisplayTitle={getDisplayTitle} onClick={() => handleProductClick(product)} />)}
+                  </div>
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-center gap-1 mt-8 pb-4">
+                      <Button variant="outline" size="sm" onClick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1 || isLoading}><ChevronLeft className="h-4 w-4" /></Button>
+                      {(() => {
+                        const pages: (number | '...')[] = [];
+                        if (totalPages <= 7) { for (let i = 1; i <= totalPages; i++) pages.push(i); }
+                        else {
+                          pages.push(1);
+                          if (currentPage > 3) pages.push('...');
+                          for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) pages.push(i);
+                          if (currentPage < totalPages - 2) pages.push('...');
+                          pages.push(totalPages);
+                        }
+                        return pages.map((p, idx) =>
+                          p === '...' ? <span key={`e-${idx}`} className="px-2 text-muted-foreground">…</span> : (
+                            <Button key={p} variant={p === currentPage ? "default" : "outline"} size="sm" className="min-w-[36px]" onClick={() => goToPage(p)} disabled={isLoading}>{p}</Button>
+                          )
+                        );
+                      })()}
+                      <Button variant="outline" size="sm" onClick={() => goToPage(currentPage + 1)} disabled={currentPage >= totalPages || isLoading}><ChevronRight className="h-4 w-4" /></Button>
+                    </div>
+                  )}
+                </>
+              ) : products.length > 0 ? (
+                <div className="text-center py-20">
+                  <p className="text-muted-foreground">No products match your filters</p>
+                  <Button variant="link" onClick={() => setFilters(getDefaultFilters())} className="mt-2">Clear filters</Button>
+                </div>
+              ) : (
+                <div className="text-center py-20"><p className="text-muted-foreground">No products found</p></div>
               )}
-            </>
-          ) : (
-            <div className="text-center py-20"><p className="text-muted-foreground">No products found</p></div>
-          )}
+            </div>
+          </div>
         </div>
       </div>
     );
