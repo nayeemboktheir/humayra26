@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { Search, Loader2, Camera, ImageIcon, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Loader2, Camera, ImageIcon, ChevronLeft, ChevronRight, Star, BadgeCheck, Flame, Truck } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -507,45 +507,92 @@ const Index = () => {
               )}
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-              {products.map((product) => (
-                <Card
-                  key={product.num_iid}
-                  className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow group"
-                  onClick={() => handleProductClick(product)}
-                >
-                  <div className="aspect-square overflow-hidden bg-muted">
-                    <img
-                      src={product.pic_url}
-                      alt={getDisplayTitle(product)}
-                      referrerPolicy="no-referrer"
-                      loading="lazy"
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.src = '/placeholder.svg';
-                      }}
-                    />
-                  </div>
-                  <CardContent className="p-3">
-                    <h3 className="text-sm font-medium line-clamp-2 mb-2 min-h-[2.5rem]">
-                      {getDisplayTitle(product)}
-                    </h3>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-lg font-bold text-primary">
-                        ৳{convertToBDT(product.price)}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        (¥{product.price})
-                      </span>
+              {products.map((product) => {
+                const isTopRated = (product.sales || 0) >= 2000;
+                const isVerified = !isTopRated && (product.sales || 0) >= 500;
+                const formattedSales = product.sales
+                  ? product.sales >= 1000
+                    ? `${(product.sales / 1000).toFixed(product.sales >= 10000 ? 0 : 1)}K Sold`
+                    : `${product.sales} Sold`
+                  : null;
+
+                return (
+                  <Card
+                    key={product.num_iid}
+                    className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow group"
+                    onClick={() => handleProductClick(product)}
+                  >
+                    <div className="aspect-square overflow-hidden bg-muted relative">
+                      <img
+                        src={product.pic_url}
+                        alt={getDisplayTitle(product)}
+                        referrerPolicy="no-referrer"
+                        loading="lazy"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.src = '/placeholder.svg';
+                        }}
+                      />
+                      {product.location && (
+                        <div className="absolute bottom-2 left-2 bg-background/80 backdrop-blur-sm text-foreground text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1">
+                          <span className="inline-block w-3 h-2 rounded-sm bg-destructive" />
+                          CN
+                        </div>
+                      )}
                     </div>
-                    {product.sales && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Sold: {product.sales}
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
+                    <CardContent className="p-3 space-y-1.5">
+                      <h3 className="text-sm font-medium line-clamp-2 min-h-[2.5rem] leading-tight">
+                        {getDisplayTitle(product)}
+                      </h3>
+
+                      {/* Star rating + sold */}
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <div className="flex items-center gap-0.5">
+                          <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                          <span>5</span>
+                        </div>
+                        {formattedSales && <span>{formattedSales}</span>}
+                      </div>
+
+                      {/* Price in BDT */}
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-lg font-bold text-primary">
+                          ৳{convertToBDT(product.price).toLocaleString()}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          (¥{product.price})
+                        </span>
+                      </div>
+
+                      {/* Badge row */}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {isVerified && (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-emerald-500 text-emerald-600 bg-emerald-50 gap-0.5">
+                            <BadgeCheck className="h-3 w-3" />
+                            Verified
+                          </Badge>
+                        )}
+                        {isTopRated && (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-destructive text-destructive bg-destructive/10 gap-0.5">
+                            <Flame className="h-3 w-3" />
+                            Top Rated
+                          </Badge>
+                        )}
+                      </div>
+
+                      {/* MOQ + Shipping */}
+                      <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-0.5">
+                        <span>MOQ: 1</span>
+                        <span className="flex items-center gap-0.5">
+                          <Truck className="h-3 w-3" />
+                          CN to BD: 10-12 days
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
 
             {/* Pagination */}
