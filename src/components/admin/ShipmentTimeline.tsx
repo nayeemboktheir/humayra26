@@ -40,6 +40,11 @@ export default function ShipmentTimeline({ orderId, userId, shipment, onUpdate }
     setSaving(true);
     const newStatus = STAGES[stageIndex];
     try {
+      // Map shipment stage to order status
+      const orderStatus = newStatus === "Delivered" ? "delivered" 
+        : newStatus === "Ordered" ? "pending" 
+        : "processing";
+
       if (shipment) {
         const { error } = await supabase
           .from("shipments")
@@ -52,6 +57,8 @@ export default function ShipmentTimeline({ orderId, userId, shipment, onUpdate }
           .insert({ order_id: orderId, user_id: userId, status: newStatus });
         if (error) throw error;
       }
+      // Sync order status
+      await supabase.from("orders").update({ status: orderStatus }).eq("id", orderId);
       toast({ title: `Stage updated to "${newStatus}"` });
       onUpdate();
     } catch (e: any) {
