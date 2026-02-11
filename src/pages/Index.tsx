@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import ProductDetail from "@/components/ProductDetail";
 import { useAuth } from "@/contexts/AuthContext";
 import SearchFilters, { SearchFilterValues, getDefaultFilters, applyFilters } from "@/components/SearchFilters";
+import CategorySection from "@/components/CategorySection";
 
 const CNY_TO_BDT = 17.5;
 const convertToBDT = (cny: number) => Math.round(cny * CNY_TO_BDT);
@@ -562,45 +563,13 @@ const Index = () => {
               </div>
             </div>
 
-            {/* Top Category carousel */}
-            <section className="mb-8">
-              <div className="flex items-center gap-2 mb-4">
-                <Zap className="h-6 w-6 text-primary" />
-                <h2 className="text-xl font-bold">Top Category</h2>
-              </div>
-              <div className="relative">
-                <Button variant="ghost" size="icon" className="absolute -left-3 top-1/2 -translate-y-1/2 z-10 bg-card shadow-md border h-8 w-8 hidden md:flex" onClick={() => scrollTopCat('left')}>
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <div ref={topCatScrollRef} className="flex overflow-x-auto gap-4 pb-2 scrollbar-hide">
-                  {topCategories.map((cat) => (
-                    <button
-                      key={cat.name}
-                      onClick={() => handleCategoryClick(cat.query)}
-                      className="flex flex-col items-center gap-2 shrink-0 group"
-                    >
-                      <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-secondary flex items-center justify-center text-3xl md:text-4xl group-hover:bg-primary/10 transition-colors border">
-                        {cat.icon}
-                      </div>
-                      <Badge variant="outline" className="text-[10px] px-2 py-0 text-primary border-primary/30">
-                        From {cat.price} ৳
-                      </Badge>
-                      <span className="text-xs font-medium text-center max-w-[96px] leading-tight capitalize">{cat.name}</span>
-                    </button>
-                  ))}
-                </div>
-                <Button variant="ghost" size="icon" className="absolute -right-3 top-1/2 -translate-y-1/2 z-10 bg-card shadow-md border h-8 w-8 hidden md:flex" onClick={() => scrollTopCat('right')}>
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </section>
-
-            {/* Trending Products */}
-            <section className="mb-12">
+            {/* Trending Products - on top */}
+            <section className="mb-10">
               <div className="flex items-center gap-2 mb-4">
                 <Heart className="h-6 w-6 text-primary fill-primary" />
                 <h2 className="text-xl font-bold">Trending Products</h2>
               </div>
+              <div className="border-b border-primary/20 mb-4" />
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                 {trendingProducts.map((product) => (
                   <Card
@@ -638,6 +607,18 @@ const Index = () => {
                 ))}
               </div>
             </section>
+
+            {/* Category-wise product sections */}
+            {categories.map((cat) => (
+              <CategorySection
+                key={cat.name}
+                name={cat.name}
+                icon={cat.icon}
+                query={cat.query}
+                onProductClick={handleProductClick}
+                onViewAll={(q) => { setQuery(q); performSearch(q); }}
+              />
+            ))}
           </div>
         </div>
       </div>
