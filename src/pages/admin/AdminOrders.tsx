@@ -12,6 +12,7 @@ import {
   Truck, DollarSign, Calendar, Hash, StickyNote, ImageIcon, Copy
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import ShipmentTimeline from "@/components/admin/ShipmentTimeline";
 
 interface OrderWithProfile {
   id: string;
@@ -58,15 +59,22 @@ export default function AdminOrders() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  const [shipmentMap, setShipmentMap] = useState<Record<string, any>>({});
+
   const fetchOrders = async () => {
     setLoading(true);
-    const [ordersRes, profilesRes] = await Promise.all([
+    const [ordersRes, profilesRes, shipmentsRes] = await Promise.all([
       supabase.from("orders").select("*").order("created_at", { ascending: false }),
       supabase.from("profiles").select("user_id, full_name, phone, address, avatar_url"),
+      supabase.from("shipments").select("*"),
     ]);
     const orders = ordersRes.data || [];
     const profiles = profilesRes.data || [];
+    const shipments = shipmentsRes.data || [];
     const profileMap = new Map(profiles.map((p: any) => [p.user_id, p]));
+    const sMap: Record<string, any> = {};
+    shipments.forEach((s: any) => { if (s.order_id) sMap[s.order_id] = s; });
+    setShipmentMap(sMap);
     setData(orders.map((o: any) => ({ ...o, profile: profileMap.get(o.user_id) || null })));
     setLoading(false);
   };
@@ -258,6 +266,14 @@ export default function AdminOrders() {
                       <span className="line-clamp-2">{order.notes}</span>
                     </div>
                   )}
+
+                  {/* Shipment Timeline */}
+                  <ShipmentTimeline
+                    orderId={order.id}
+                    userId={order.user_id}
+                    shipment={shipmentMap[order.id] || null}
+                    onUpdate={fetchOrders}
+                  />
 
                   {/* Links */}
                   <div className="flex gap-2">
