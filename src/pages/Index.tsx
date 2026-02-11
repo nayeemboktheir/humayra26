@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Search, Camera, ImageIcon, Loader2, ChevronLeft, ChevronRight, Star, BadgeCheck, Flame, Truck, Heart, ShoppingCart, User, Zap, SlidersHorizontal, Download } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -85,6 +85,7 @@ async function translateTextsBackground(texts: string[]): Promise<string[]> {
 
 const Index = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const [query, setQuery] = useState("");
   const [products, setProducts] = useState<Product1688[]>([]);
@@ -348,6 +349,7 @@ const Index = () => {
     };
     setSelectedProduct(fallback);
     setIsLoadingProduct(true);
+    setSearchParams({ product: String(product.num_iid) });
     try {
       const result = await alibaba1688Api.getProduct(product.num_iid);
       if (result.success && result.data) setSelectedProduct(result.data);
@@ -359,6 +361,7 @@ const Index = () => {
     const numIid = parseInt(productId.replace('abb-', ''));
     setIsLoadingProduct(true);
     setSelectedProduct(null);
+    setSearchParams({ product: String(numIid) });
     try {
       const result = await alibaba1688Api.getProduct(numIid);
       if (result.success && result.data) {
@@ -366,15 +369,28 @@ const Index = () => {
       } else {
         toast.error("This product is no longer available");
         setSelectedProduct(null);
+        setSearchParams({});
       }
     } catch {
       toast.error("This product is no longer available");
       setSelectedProduct(null);
+      setSearchParams({});
     }
     finally { setIsLoadingProduct(false); }
   };
 
-  const handleBackToSearch = () => { setSelectedProduct(null); };
+  const handleBackToSearch = () => { setSelectedProduct(null); setSearchParams({}); };
+
+  // Load product from URL param on mount
+  useEffect(() => {
+    const productParam = searchParams.get('product');
+    if (productParam && !selectedProduct && !isLoadingProduct) {
+      const numIid = parseInt(productParam);
+      if (!isNaN(numIid) && numIid > 0) {
+        handleTrendingClick(`abb-${numIid}`);
+      }
+    }
+  }, []);
 
   const getDisplayTitle = (product: Product1688) => translatedTitles[product.num_iid] || product.title;
 
