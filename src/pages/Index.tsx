@@ -64,23 +64,15 @@ const topCategories = [
   { name: "School Supplies", icon: "📚", query: "school supplies", price: "2" },
 ];
 
-// Trending products data (from chinaonlinebd.com)
-const trendingProducts = [
+// Hardcoded fallback trending products
+const fallbackTrendingProducts = [
   { id: "abb-189535847655", title: "Metal Stainless Steel Compass Set for Students", image: "https://cbu01.alicdn.com/img/ibank/O1CN01hcgHP51nIHYLPqiTh_!!2220460965066-0-cib.310x310.jpg", price: 74, oldPrice: 76, sold: 8432108 },
   { id: "abb-905114125851", title: "Original Cartoon Shoulder Bag Large Capacity Canvas", image: "https://cbu01.alicdn.com/img/ibank/O1CN01s5Oil52Eh0WsZp8Mm_!!2214657758775-0-cib.310x310.jpg", price: 91, oldPrice: 94, sold: 3982769 },
   { id: "abb-172982973149", title: "Deli Sf568 Posture-Correcting Student Fountain Pen Set", image: "https://cbu01.alicdn.com/img/ibank/O1CN01vN7RGZ1VXFOqHBYqJ_!!2219976542662-0-cib.310x310.jpg", price: 66, oldPrice: 68, sold: 1254653 },
-  { id: "abb-158883101861", title: "True Color New Three-Color Gel Pen High-Quality", image: "https://cbu01.alicdn.com/img/ibank/O1CN01HrJlC61bmiSerh7vr_!!2219455113508-0-cib.310x310.jpg", price: 72, oldPrice: 74, sold: 9692584 },
   { id: "abb-113853719837", title: "Deli Ss005 Turbo Warrior Gel Pen Quick-Drying", image: "https://cbu01.alicdn.com/img/ibank/O1CN01VqLzZj2EZDqRlf3do_!!2214183158758-0-cib.310x310.jpg", price: 69, oldPrice: 71, sold: 8070966 },
   { id: "abb-189347214600", title: "Blue Fruit Handbook Pen Morandi Color Series 9-Piece Set", image: "https://cbu01.alicdn.com/img/ibank/O1CN01mFUfmw2Kue38hmDqQ_!!2220432529617-0-cib.310x310.jpg", price: 68, oldPrice: 70, sold: 4342616 },
   { id: "abb-104449903717", title: "New Creative Aircraft Gel Pen Military Weapon Fighter", image: "https://cbu01.alicdn.com/img/ibank/O1CN01eEHP4f1egFOeIzs0x_!!2208127063900-0-cib.310x310.jpg", price: 70, oldPrice: 72, sold: 4982215 },
   { id: "abb-868362523543", title: "Travel to Beautiful China 30 Postcards Night Scenery", image: "https://cbu01.alicdn.com/img/ibank/O1CN01Ti6Bv71FKqRCoR1mD_!!2458430469-0-cib.310x310.jpg", price: 95, oldPrice: 98, sold: 2326810 },
-  { id: "abb-905114125851", title: "Xingyue Zircon Pearl Bracelet Women's Niche Design", image: "https://cbu01.alicdn.com/img/ibank/O1CN01PU5Ly120nVAvd6Lld_!!2204814786894-0-cib.310x310.jpg", price: 15, oldPrice: 16, sold: 1609452 },
-  { id: "abb-872326066846", title: "Bracelet Ins Creative Design Star Moon Bracelet", image: "https://cbu01.alicdn.com/img/ibank/O1CN01TOrYkz1IENhWfZFuQ_!!2211872010861-0-cib.310x310.jpg", price: 24, oldPrice: 24, sold: 6584100 },
-  { id: "abb-046426059572", title: "Bulletproof Youth Group Storage Bag Cosmetic Bag", image: "https://cbu01.alicdn.com/img/ibank/O1CN01PJvtV225rElM8ybFF_!!2218389807579-0-cib.310x310.jpg", price: 144, oldPrice: 148, sold: 7408922 },
-  { id: "abb-012386255704", title: "Kapibala Ruler Suit Primary School Students Cute Set", image: "https://cbu01.alicdn.com/img/ibank/O1CN01yNa6ZA1OGZdF3hI1K_!!1060571678-0-cib.310x310.jpg", price: 65, oldPrice: 67, sold: 3906949 },
-  { id: "abb-160064165815", title: "New Men's Wallet Casual Short Zipper Multi-Function", image: "https://cbu01.alicdn.com/img/ibank/O1CN01Dgz4Pf1OOonZeH0Bd_!!2217611721696-0-cib.310x310.jpg", price: 127, oldPrice: 131, sold: 7835575 },
-  { id: "abb-122202715635", title: "Knock Cute Bear Schoolbag Nightlight Keychain", image: "https://cbu01.alicdn.com/img/ibank/O1CN01QkCQWH1h9E2zvLTp6_!!2218787444234-0-cib.310x310.jpg", price: 64, oldPrice: 66, sold: 5066763 },
-  { id: "abb-159300685866", title: "Fitness Keychain Exquisite Key Chain Bag Pendant", image: "https://cbu01.alicdn.com/img/ibank/O1CN01LNBFUq1cCp2Q0lpKy_!!1703653565-0-cib.310x310.jpg", price: 123, oldPrice: 126, sold: 1572667 },
 ];
 
 async function translateTextsBackground(texts: string[]): Promise<string[]> {
@@ -118,6 +110,7 @@ const Index = () => {
   const [filters, setFilters] = useState<SearchFilterValues>(getDefaultFilters());
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [trendingProducts, setTrendingProducts] = useState(fallbackTrendingProducts);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -126,6 +119,33 @@ const Index = () => {
     };
     window.addEventListener("beforeinstallprompt", handler);
     return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  // Fetch trending products from database, fallback to hardcoded
+  useEffect(() => {
+    const fetchTrending = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("trending_products")
+          .select("*")
+          .order("sold", { ascending: false });
+        if (!error && data && data.length > 0) {
+          setTrendingProducts(
+            data.map((p: any) => ({
+              id: p.product_id,
+              title: p.title,
+              image: p.image_url,
+              price: Number(p.price) || 0,
+              oldPrice: Number(p.old_price) || Number(p.price) || 0,
+              sold: Number(p.sold) || 0,
+            }))
+          );
+        }
+      } catch {
+        // Keep fallback
+      }
+    };
+    fetchTrending();
   }, []);
 
   const handleInstallClick = async () => {

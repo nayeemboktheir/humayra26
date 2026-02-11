@@ -243,6 +243,42 @@ export type Database = {
         }
         Relationships: []
       }
+      trending_products: {
+        Row: {
+          created_at: string
+          id: string
+          image_url: string
+          old_price: number | null
+          price: number
+          product_id: string
+          sold: number | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          image_url: string
+          old_price?: number | null
+          price?: number
+          product_id: string
+          sold?: number | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          image_url?: string
+          old_price?: number | null
+          price?: number
+          product_id?: string
+          sold?: number | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
