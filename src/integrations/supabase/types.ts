@@ -171,8 +171,10 @@ export type Database = {
           carrier: string | null
           created_at: string
           estimated_delivery: string | null
+          external_tracking_url: string | null
           id: string
           order_id: string | null
+          stage_notes: string | null
           status: string
           tracking_number: string | null
           updated_at: string
@@ -182,8 +184,10 @@ export type Database = {
           carrier?: string | null
           created_at?: string
           estimated_delivery?: string | null
+          external_tracking_url?: string | null
           id?: string
           order_id?: string | null
+          stage_notes?: string | null
           status?: string
           tracking_number?: string | null
           updated_at?: string
@@ -193,8 +197,10 @@ export type Database = {
           carrier?: string | null
           created_at?: string
           estimated_delivery?: string | null
+          external_tracking_url?: string | null
           id?: string
           order_id?: string | null
+          stage_notes?: string | null
           status?: string
           tracking_number?: string | null
           updated_at?: string
