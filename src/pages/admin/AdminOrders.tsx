@@ -94,9 +94,14 @@ export default function AdminOrders() {
       order.order_number.toLowerCase().includes(search.toLowerCase()) ||
       order.product_name.toLowerCase().includes(search.toLowerCase()) ||
       (order.profile?.full_name || "").toLowerCase().includes(search.toLowerCase());
+    if (statusFilter === "pending") {
+      const matchesStatus = order.status === "pending";
+      return matchesSearch && matchesStatus;
+    }
+    if (statusFilter === "all") return matchesSearch;
     const shipment = shipmentMap[order.id];
-    const shipmentStatus = shipment ? shipment.status : "Ordered";
-    const matchesStatus = statusFilter === "all" || shipmentStatus === statusFilter;
+    const shipmentStatus = shipment ? shipment.status : "";
+    const matchesStatus = shipmentStatus === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
@@ -150,12 +155,16 @@ export default function AdminOrders() {
   };
 
   const SHIPMENT_STAGES = ["Ordered", "Purchased from 1688", "Shipped to Warehouse", "Arrived at Warehouse", "Shipped to Bangladesh", "In Customs", "Out for Delivery", "Delivered"];
-  const statuses = ["Ordered", ...SHIPMENT_STAGES.slice(1), "all"];
+  const statuses = ["pending", ...SHIPMENT_STAGES, "all"];
   const statusCounts = statuses.reduce((acc, s) => {
-    acc[s] = s === "all" ? data.length : data.filter((o) => {
-      const shipment = shipmentMap[o.id];
-      return shipment ? shipment.status === s : s === "Ordered";
-    }).length;
+    if (s === "all") { acc[s] = data.length; }
+    else if (s === "pending") { acc[s] = data.filter((o) => o.status === "pending").length; }
+    else {
+      acc[s] = data.filter((o) => {
+        const shipment = shipmentMap[o.id];
+        return shipment ? shipment.status === s : false;
+      }).length;
+    }
     return acc;
   }, {} as Record<string, number>);
 
