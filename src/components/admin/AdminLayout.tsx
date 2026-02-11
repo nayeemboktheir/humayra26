@@ -18,7 +18,8 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/admin" },
-  { label: "Users & Profiles", icon: Users, path: "/admin/users" },
+  { label: "Customers", icon: Users, path: "/admin/customers" },
+  { label: "Users & Profiles", icon: Shield, path: "/admin/users" },
   { label: "User Roles", icon: Shield, path: "/admin/roles" },
   { label: "Orders", icon: ShoppingCart, path: "/admin/orders" },
   { label: "Shipments", icon: Truck, path: "/admin/shipments" },
