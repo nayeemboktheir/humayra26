@@ -45,6 +45,7 @@ export default function AdminCustomers() {
   const [selected, setSelected] = useState<CustomerData | null>(null);
   const [ordersCustomer, setOrdersCustomer] = useState<CustomerData | null>(null);
   const [customerOrders, setCustomerOrders] = useState<OrderItem[]>([]);
+  const [customerShipments, setCustomerShipments] = useState<Record<string, string>>({});
   const [ordersLoading, setOrdersLoading] = useState(false);
 
   useEffect(() => {
@@ -107,12 +108,21 @@ export default function AdminCustomers() {
     e.stopPropagation();
     setOrdersCustomer(customer);
     setOrdersLoading(true);
-    const { data } = await supabase
-      .from("orders")
-      .select("id, order_number, product_name, product_image, quantity, unit_price, total_price, shipping_charges, commission, status, created_at, product_url")
-      .eq("user_id", customer.user_id)
-      .order("created_at", { ascending: false });
-    setCustomerOrders(data || []);
+    const [ordersRes, shipmentsRes] = await Promise.all([
+      supabase
+        .from("orders")
+        .select("id, order_number, product_name, product_image, quantity, unit_price, total_price, shipping_charges, commission, status, created_at, product_url")
+        .eq("user_id", customer.user_id)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("shipments")
+        .select("order_id, status")
+        .eq("user_id", customer.user_id),
+    ]);
+    setCustomerOrders(ordersRes.data || []);
+    const sMap: Record<string, string> = {};
+    (shipmentsRes.data || []).forEach((s: any) => { if (s.order_id) sMap[s.order_id] = s.status; });
+    setCustomerShipments(sMap);
     setOrdersLoading(false);
   };
 
@@ -303,7 +313,7 @@ export default function AdminCustomers() {
                     <div className="min-w-0 flex-1 space-y-1">
                       <div className="flex items-start justify-between gap-2">
                         <p className="text-sm font-medium line-clamp-1">{order.product_name}</p>
-                        <Badge variant="secondary" className="text-[10px] flex-shrink-0">{order.status}</Badge>
+                        <Badge variant="secondary" className="text-[10px] flex-shrink-0">{customerShipments[order.id] || "Ordered"}</Badge>
                       </div>
                       <p className="text-xs text-muted-foreground">
                         <span className="font-mono">#{order.order_number}</span> · Qty: {order.quantity} × ৳{Number(order.unit_price).toFixed(0)}
