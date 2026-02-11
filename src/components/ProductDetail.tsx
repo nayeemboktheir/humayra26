@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -6,6 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, ArrowLeft, Play, ShoppingCart, MessageCircle, ExternalLink, Star, MapPin, Truck, Package, Box, Weight, ChevronLeft, ChevronRight, Minus, Plus, ChevronDown, ChevronUp } from "lucide-react";
 import { ProductDetail1688 } from "@/lib/api/alibaba1688";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 const CNY_TO_BDT = 17.5;
 const convertToBDT = (cny: number) => Math.round(cny * CNY_TO_BDT);
@@ -48,6 +52,65 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
   const [quantity, setQuantity] = useState(0);
   const [skuQuantities, setSkuQuantities] = useState<Record<string, number>>({});
   const [showAllSkus, setShowAllSkus] = useState(false);
+  const [ordering, setOrdering] = useState(false);
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  const handleBuyNow = async () => {
+    if (!product) return;
+    if (!user) {
+      toast({ title: "Please login first", description: "You need to be logged in to place an order.", variant: "destructive" });
+      navigate("/auth");
+      return;
+    }
+
+    const hasSkus = product.configuredItems && product.configuredItems.length > 0;
+    const totalQty = hasSkus
+      ? Object.values(skuQuantities).reduce((a, b) => a + b, 0)
+      : quantity;
+
+    if (totalQty <= 0) {
+      toast({ title: "Select quantity", description: "Please select at least 1 item.", variant: "destructive" });
+      return;
+    }
+
+    const totalPrice = hasSkus
+      ? product.configuredItems!.reduce((sum, sku) => sum + convertToBDT(sku.price) * (skuQuantities[sku.id] || 0), 0)
+      : convertToBDT(product.price) * quantity;
+
+    const unitPrice = totalQty > 0 ? Math.round(totalPrice / totalQty) : 0;
+    const orderNumber = `HT-${Date.now().toString(36).toUpperCase()}`;
+
+    // Build notes with SKU details
+    let notes = '';
+    if (hasSkus) {
+      const selectedSkus = product.configuredItems!.filter(sku => (skuQuantities[sku.id] || 0) > 0);
+      notes = selectedSkus.map(sku => `${sku.title}: ${skuQuantities[sku.id]} pcs × ৳${convertToBDT(sku.price)}`).join('\n');
+    }
+
+    setOrdering(true);
+    try {
+      const { error } = await supabase.from('orders').insert({
+        user_id: user.id,
+        order_number: orderNumber,
+        product_name: product.title,
+        product_image: product.pic_url,
+        quantity: totalQty,
+        unit_price: unitPrice,
+        total_price: totalPrice,
+        notes: notes || null,
+      });
+
+      if (error) throw error;
+
+      toast({ title: "Order placed!", description: `Order ${orderNumber} has been created successfully.` });
+      navigate("/dashboard/orders");
+    } catch (err: any) {
+      toast({ title: "Order failed", description: err.message || "Something went wrong.", variant: "destructive" });
+    } finally {
+      setOrdering(false);
+    }
+  };
 
   if (!product && isLoading) {
     return (
@@ -350,9 +413,9 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                   চায়না গোডাউন ডেলিভারি চার্জ কার্ট পেজে যোগ হবে
                 </p>
 
-                <Button className="w-full" size="lg">
-                  <ShoppingCart className="w-4 h-4 mr-2" />
-                  Buy Now
+                <Button className="w-full" size="lg" onClick={handleBuyNow} disabled={ordering}>
+                  {ordering ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ShoppingCart className="w-4 h-4 mr-2" />}
+                  {ordering ? "Placing Order..." : "Buy Now"}
                 </Button>
                 <Button variant="outline" className="w-full" size="lg">
                   <MessageCircle className="w-4 h-4 mr-2" />
