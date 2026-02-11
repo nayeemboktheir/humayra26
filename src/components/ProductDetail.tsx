@@ -88,6 +88,10 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
       notes = selectedSkus.map(sku => `${sku.title}: ${skuQuantities[sku.id]} pcs × ৳${convertToBDT(sku.price)}`).join('\n');
     }
 
+    // Build URLs
+    const productUrl = `${window.location.origin}/?product=${product.num_iid}`;
+    const sourceUrl = `https://detail.1688.com/offer/${product.num_iid}.html`;
+
     setOrdering(true);
     try {
       const { error } = await supabase.from('orders').insert({
@@ -99,7 +103,9 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
         unit_price: unitPrice,
         total_price: totalPrice,
         notes: notes || null,
-      });
+        product_url: productUrl,
+        source_url: sourceUrl,
+      } as any);
 
       if (error) throw error;
 

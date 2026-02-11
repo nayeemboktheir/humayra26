@@ -52,7 +52,9 @@ export type Database = {
           order_number: string
           product_image: string | null
           product_name: string
+          product_url: string | null
           quantity: number
+          source_url: string | null
           status: string
           total_price: number
           tracking_number: string | null
@@ -67,7 +69,9 @@ export type Database = {
           order_number: string
           product_image?: string | null
           product_name: string
+          product_url?: string | null
           quantity?: number
+          source_url?: string | null
           status?: string
           total_price?: number
           tracking_number?: string | null
@@ -82,7 +86,9 @@ export type Database = {
           order_number?: string
           product_image?: string | null
           product_name?: string
+          product_url?: string | null
           quantity?: number
+          source_url?: string | null
           status?: string
           total_price?: number
           tracking_number?: string | null
