@@ -27,8 +27,10 @@ const stageColor: Record<string, string> = {
 
 export default function AdminShipments() {
   const [data, setData] = useState<any[]>([]);
+  const [filteredData, setFilteredData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [profileMap, setProfileMap] = useState<Map<string, string>>(new Map());
+  const [stageFilter, setStageFilter] = useState<string | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -47,6 +49,14 @@ export default function AdminShipments() {
   };
 
   useEffect(() => { fetchData(); }, []);
+
+  useEffect(() => {
+    if (!stageFilter) {
+      setFilteredData(data);
+    } else {
+      setFilteredData(data.filter((s) => s.status === stageFilter));
+    }
+  }, [data, stageFilter]);
 
   const columns: Column[] = [
     { key: "customer_name", label: "Customer" },
@@ -87,20 +97,27 @@ export default function AdminShipments() {
   return (
     <div>
       <div className="mb-4 p-3 rounded-lg border bg-muted/50">
-        <p className="text-sm font-medium mb-2">Delivery Stages:</p>
+        <p className="text-sm font-medium mb-2">Filter by Stage:</p>
         <div className="flex flex-wrap gap-1.5">
-          {DELIVERY_STAGES.map((stage, i) => (
-            <span key={stage} className="text-xs">
-              <Badge variant="outline" className={stageColor[stage]}>{stage}</Badge>
-              {i < DELIVERY_STAGES.length - 1 && <span className="mx-1 text-muted-foreground">→</span>}
-            </span>
-          ))}
+          <button onClick={() => setStageFilter(null)}>
+            <Badge variant="outline" className={`cursor-pointer transition-all ${!stageFilter ? "ring-2 ring-primary ring-offset-1" : "opacity-60 hover:opacity-100"}`}>All ({data.length})</Badge>
+          </button>
+          {DELIVERY_STAGES.map((stage) => {
+            const count = data.filter((s) => s.status === stage).length;
+            return (
+              <button key={stage} onClick={() => setStageFilter(stageFilter === stage ? null : stage)}>
+                <Badge variant="outline" className={`cursor-pointer transition-all ${stageColor[stage]} ${stageFilter === stage ? "ring-2 ring-primary ring-offset-1" : "opacity-60 hover:opacity-100"}`}>
+                  {stage} ({count})
+                </Badge>
+              </button>
+            );
+          })}
         </div>
       </div>
       <AdminDataTable
         title="Shipments & Tracking"
         columns={columns}
-        data={data}
+        data={filteredData}
         loading={loading}
         onUpdate={onUpdate}
         onDelete={onDelete}
