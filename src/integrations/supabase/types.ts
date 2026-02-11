@@ -46,6 +46,7 @@ export type Database = {
       }
       orders: {
         Row: {
+          commission: number | null
           created_at: string
           id: string
           notes: string | null
@@ -54,6 +55,7 @@ export type Database = {
           product_name: string
           product_url: string | null
           quantity: number
+          shipping_charges: number | null
           source_url: string | null
           status: string
           total_price: number
@@ -63,6 +65,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          commission?: number | null
           created_at?: string
           id?: string
           notes?: string | null
@@ -71,6 +74,7 @@ export type Database = {
           product_name: string
           product_url?: string | null
           quantity?: number
+          shipping_charges?: number | null
           source_url?: string | null
           status?: string
           total_price?: number
@@ -80,6 +84,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          commission?: number | null
           created_at?: string
           id?: string
           notes?: string | null
@@ -88,6 +93,7 @@ export type Database = {
           product_name?: string
           product_url?: string | null
           quantity?: number
+          shipping_charges?: number | null
           source_url?: string | null
           status?: string
           total_price?: number
