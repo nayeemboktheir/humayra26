@@ -117,6 +117,32 @@ const Index = () => {
   const [isTranslatingTitles, setIsTranslatingTitles] = useState(false);
   const [filters, setFilters] = useState<SearchFilterValues>(getDefaultFilters());
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === "accepted") {
+        toast.success("App installed successfully!");
+      }
+      setDeferredPrompt(null);
+    } else if (window.matchMedia("(display-mode: standalone)").matches) {
+      toast.info("App is already installed!");
+    } else {
+      // Fallback for iOS / browsers that don't support beforeinstallprompt
+      toast.info("Tap Share → Add to Home Screen to install", { duration: 5000 });
+    }
+  };
 
   const handleTranslateTitles = async () => {
     if (products.length === 0 || isTranslatingTitles) return;
@@ -649,7 +675,7 @@ const SiteHeader = ({ query, setQuery, handleSearch, isLoading, handleImageButto
 
         {/* Right nav */}
         <div className="hidden md:flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/install")} title="Install App">
+          <Button variant="ghost" size="icon" onClick={handleInstallClick} title="Install App">
             <Download className="h-5 w-5" />
           </Button>
           <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard/wishlist")} title="Wishlist">
@@ -665,7 +691,7 @@ const SiteHeader = ({ query, setQuery, handleSearch, isLoading, handleImageButto
 
         {/* Mobile nav */}
         <div className="flex md:hidden items-center gap-1">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/install")} title="Install App" className="h-9 w-9">
+          <Button variant="ghost" size="icon" onClick={handleInstallClick} title="Install App" className="h-9 w-9">
             <Download className="h-4 w-4" />
           </Button>
           <Button variant="ghost" size="icon" onClick={() => navigate(user ? "/dashboard" : "/auth")} title={user ? "Dashboard" : "Sign In"} className="h-9 w-9">
