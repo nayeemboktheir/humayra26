@@ -150,7 +150,7 @@ export default function AdminOrders() {
   };
 
   const SHIPMENT_STAGES = ["Ordered", "Purchased from 1688", "Shipped to Warehouse", "Arrived at Warehouse", "Shipped to Bangladesh", "In Customs", "Out for Delivery", "Delivered"];
-  const statuses = ["all", ...SHIPMENT_STAGES];
+  const statuses = ["Ordered", ...SHIPMENT_STAGES.slice(1), "all"];
   const statusCounts = statuses.reduce((acc, s) => {
     acc[s] = s === "all" ? data.length : data.filter((o) => {
       const shipment = shipmentMap[o.id];
