@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { useAdmin } from "@/hooks/useAdmin";
 import Index from "./pages/Index";
 import Install from "./pages/Install";
 import Auth from "./pages/Auth";
@@ -23,6 +24,17 @@ import Withdrawal from "./pages/dashboard/Withdrawal";
 import Transactions from "./pages/dashboard/Transactions";
 import Refunds from "./pages/dashboard/Refunds";
 import Profile from "./pages/dashboard/Profile";
+import AdminLayout from "./components/admin/AdminLayout";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminOrders from "./pages/admin/AdminOrders";
+import AdminUsers from "./pages/admin/AdminUsers";
+import AdminRoles from "./pages/admin/AdminRoles";
+import AdminShipments from "./pages/admin/AdminShipments";
+import AdminRefunds from "./pages/admin/AdminRefunds";
+import AdminTransactions from "./pages/admin/AdminTransactions";
+import AdminWallets from "./pages/admin/AdminWallets";
+import AdminNotifications from "./pages/admin/AdminNotifications";
+import AdminWishlist from "./pages/admin/AdminWishlist";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
@@ -39,6 +51,15 @@ const DashboardRoute = ({ children }: { children: React.ReactNode }) => (
     <DashboardLayout>{children}</DashboardLayout>
   </ProtectedRoute>
 );
+
+const AdminRoute = ({ children }: { children: React.ReactNode }) => {
+  const { user, loading: authLoading } = useAuth();
+  const { isAdmin, loading: adminLoading } = useAdmin();
+  if (authLoading || adminLoading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  if (!user) return <Navigate to="/auth" replace />;
+  if (!isAdmin) return <Navigate to="/dashboard" replace />;
+  return <AdminLayout>{children}</AdminLayout>;
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -65,6 +86,16 @@ const App = () => (
             <Route path="/dashboard/transactions" element={<DashboardRoute><Transactions /></DashboardRoute>} />
             <Route path="/dashboard/refunds" element={<DashboardRoute><Refunds /></DashboardRoute>} />
             <Route path="/dashboard/profile" element={<DashboardRoute><Profile /></DashboardRoute>} />
+            <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+            <Route path="/admin/orders" element={<AdminRoute><AdminOrders /></AdminRoute>} />
+            <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
+            <Route path="/admin/roles" element={<AdminRoute><AdminRoles /></AdminRoute>} />
+            <Route path="/admin/shipments" element={<AdminRoute><AdminShipments /></AdminRoute>} />
+            <Route path="/admin/refunds" element={<AdminRoute><AdminRefunds /></AdminRoute>} />
+            <Route path="/admin/transactions" element={<AdminRoute><AdminTransactions /></AdminRoute>} />
+            <Route path="/admin/wallets" element={<AdminRoute><AdminWallets /></AdminRoute>} />
+            <Route path="/admin/notifications" element={<AdminRoute><AdminNotifications /></AdminRoute>} />
+            <Route path="/admin/wishlist" element={<AdminRoute><AdminWishlist /></AdminRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
