@@ -25,15 +25,13 @@ const Auth = () => {
         if (error) throw error;
         toast.success("Logged in successfully!");
         
-        // Check if user is admin
-        const { data: roleData } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", data.user.id)
-          .eq("role", "admin")
-          .maybeSingle();
+        // Check if user is admin using the security definer function
+        const { data: isAdmin } = await supabase.rpc("has_role", {
+          _user_id: data.user.id,
+          _role: "admin",
+        });
         
-        navigate(roleData ? "/admin" : "/dashboard");
+        navigate(isAdmin ? "/admin" : "/dashboard");
       } else {
         const { error } = await supabase.auth.signUp({
           email,
