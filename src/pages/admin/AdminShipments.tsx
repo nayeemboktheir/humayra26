@@ -25,37 +25,49 @@ const stageColor: Record<string, string> = {
   "Delivered": "bg-green-100 text-green-800",
 };
 
-const columns: Column[] = [
-  { key: "tracking_number", label: "Tracking Code", editable: true },
-  { key: "carrier", label: "Carrier", editable: true },
-  {
-    key: "status",
-    label: "Stage",
-    editable: true,
-    render: (v) => <Badge className={stageColor[v] || ""}>{v}</Badge>,
-  },
-  { key: "stage_notes", label: "Notes", editable: true },
-  { key: "external_tracking_url", label: "Tracking URL", editable: true },
-  { key: "user_id", label: "User ID" },
-  { key: "order_id", label: "Order ID" },
-  { key: "created_at", label: "Date", render: (v) => new Date(v).toLocaleDateString() },
-];
-
 export default function AdminShipments() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [profileMap, setProfileMap] = useState<Map<string, string>>(new Map());
 
   const fetchData = async () => {
     setLoading(true);
-    const { data: d } = await supabase.from("shipments").select("*").order("created_at", { ascending: false });
-    setData(d || []);
+    const [shipmentsRes, profilesRes] = await Promise.all([
+      supabase.from("shipments").select("*").order("created_at", { ascending: false }),
+      supabase.from("profiles").select("user_id, full_name"),
+    ]);
+    const pMap = new Map<string, string>();
+    (profilesRes.data || []).forEach((p: any) => pMap.set(p.user_id, p.full_name || "Unknown"));
+    setProfileMap(pMap);
+    setData((shipmentsRes.data || []).map((s: any) => ({
+      ...s,
+      customer_name: pMap.get(s.user_id) || "Unknown",
+    })));
     setLoading(false);
   };
 
   useEffect(() => { fetchData(); }, []);
 
+  const columns: Column[] = [
+    { key: "customer_name", label: "Customer" },
+    { key: "tracking_number", label: "Tracking Code", editable: true },
+    { key: "carrier", label: "Carrier", editable: true },
+    {
+      key: "status",
+      label: "Stage",
+      editable: true,
+      render: (v) => <Badge className={stageColor[v] || ""}>{v}</Badge>,
+    },
+    { key: "stage_notes", label: "Notes", editable: true },
+    { key: "external_tracking_url", label: "Tracking URL", editable: true },
+    { key: "order_id", label: "Order ID" },
+    { key: "created_at", label: "Date", render: (v) => new Date(v).toLocaleDateString() },
+  ];
+
   const onUpdate = async (id: string, vals: Record<string, any>) => {
-    const { error } = await supabase.from("shipments").update(vals).eq("id", id);
+    // Remove computed field before saving
+    const { customer_name, ...dbVals } = vals;
+    const { error } = await supabase.from("shipments").update(dbVals).eq("id", id);
     if (error) throw error;
     fetchData();
   };
