@@ -1,10 +1,17 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import AdminDataTable, { Column } from "@/components/admin/AdminDataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ExternalLink, UserCircle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Card } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  ExternalLink, UserCircle, Search, Trash2, Pencil, Package,
+  Truck, DollarSign, Calendar, Hash, StickyNote, ImageIcon, Copy
+} from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 
 interface OrderWithProfile {
   id: string;
@@ -29,13 +36,27 @@ interface OrderWithProfile {
     address: string | null;
     avatar_url: string | null;
   } | null;
-  user_email?: string;
 }
+
+const statusConfig: Record<string, { color: string; label: string }> = {
+  pending: { color: "bg-amber-100 text-amber-800 border-amber-200", label: "Pending" },
+  processing: { color: "bg-blue-100 text-blue-800 border-blue-200", label: "Processing" },
+  shipped: { color: "bg-purple-100 text-purple-800 border-purple-200", label: "Shipped" },
+  delivered: { color: "bg-emerald-100 text-emerald-800 border-emerald-200", label: "Delivered" },
+  completed: { color: "bg-emerald-100 text-emerald-800 border-emerald-200", label: "Completed" },
+  cancelled: { color: "bg-red-100 text-red-800 border-red-200", label: "Cancelled" },
+};
 
 export default function AdminOrders() {
   const [data, setData] = useState<OrderWithProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [selectedProfile, setSelectedProfile] = useState<OrderWithProfile | null>(null);
+  const [editOrder, setEditOrder] = useState<OrderWithProfile | null>(null);
+  const [editValues, setEditValues] = useState<Record<string, any>>({});
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -43,115 +64,318 @@ export default function AdminOrders() {
       supabase.from("orders").select("*").order("created_at", { ascending: false }),
       supabase.from("profiles").select("user_id, full_name, phone, address, avatar_url"),
     ]);
-
     const orders = ordersRes.data || [];
     const profiles = profilesRes.data || [];
     const profileMap = new Map(profiles.map((p: any) => [p.user_id, p]));
-
-    const mapped: OrderWithProfile[] = orders.map((o: any) => ({
-      ...o,
-      profile: profileMap.get(o.user_id) || null,
-    }));
-    setData(mapped);
+    setData(orders.map((o: any) => ({ ...o, profile: profileMap.get(o.user_id) || null })));
     setLoading(false);
   };
 
   useEffect(() => { fetchOrders(); }, []);
 
-  const onUpdate = async (id: string, vals: Record<string, any>) => {
-    // Convert numeric fields
-    const updates: Record<string, any> = { ...vals };
-    if (updates.shipping_charges !== undefined) updates.shipping_charges = Number(updates.shipping_charges) || 0;
-    if (updates.commission !== undefined) updates.commission = Number(updates.commission) || 0;
-    if (updates.quantity !== undefined) updates.quantity = Number(updates.quantity) || 1;
+  const filtered = data.filter((order) => {
+    const matchesSearch =
+      order.order_number.toLowerCase().includes(search.toLowerCase()) ||
+      order.product_name.toLowerCase().includes(search.toLowerCase()) ||
+      (order.profile?.full_name || "").toLowerCase().includes(search.toLowerCase());
+    const matchesStatus = statusFilter === "all" || order.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
-    const { error } = await supabase.from("orders").update(updates).eq("id", id);
-    if (error) throw error;
-    fetchOrders();
+  const handleEdit = (order: OrderWithProfile) => {
+    setEditOrder(order);
+    setEditValues({
+      product_name: order.product_name,
+      quantity: order.quantity,
+      status: order.status,
+      tracking_number: order.tracking_number || "",
+      shipping_charges: order.shipping_charges || 0,
+      commission: order.commission || 0,
+      notes: order.notes || "",
+    });
   };
 
-  const onDelete = async (id: string) => {
-    const { error } = await supabase.from("orders").delete().eq("id", id);
-    if (error) throw error;
-    fetchOrders();
+  const handleSaveEdit = async () => {
+    if (!editOrder) return;
+    setSaving(true);
+    try {
+      const updates = {
+        ...editValues,
+        shipping_charges: Number(editValues.shipping_charges) || 0,
+        commission: Number(editValues.commission) || 0,
+        quantity: Number(editValues.quantity) || 1,
+      };
+      const { error } = await supabase.from("orders").update(updates).eq("id", editOrder.id);
+      if (error) throw error;
+      toast({ title: "Order updated successfully" });
+      setEditOrder(null);
+      fetchOrders();
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    }
+    setSaving(false);
   };
 
-  const columns: Column[] = [
-    { key: "order_number", label: "Order #" },
-    {
-      key: "user_id", label: "Customer", render: (_v, row) => {
-        const name = row.profile?.full_name || "Unknown";
-        return (
-          <Button variant="ghost" size="sm" className="text-xs p-1 h-auto gap-1" onClick={() => setSelectedProfile(row)}>
-            <UserCircle className="h-3.5 w-3.5" />
-            <span className="truncate max-w-[80px]">{name}</span>
-          </Button>
-        );
-      }
-    },
-    { key: "product_name", label: "Product", editable: true },
-    { key: "product_image", label: "Image", render: (v) => v ? <img src={v} alt="" className="w-10 h-10 rounded object-cover" referrerPolicy="no-referrer" /> : "—" },
-    { key: "quantity", label: "Qty", editable: true },
-    { key: "total_price", label: "Total", render: (v) => `৳${Number(v).toFixed(2)}` },
-    { key: "shipping_charges", label: "Shipping", editable: true, render: (v) => `৳${Number(v || 0).toFixed(2)}` },
-    { key: "commission", label: "Commission", editable: true, render: (v) => `৳${Number(v || 0).toFixed(2)}` },
-    { key: "status", label: "Status", editable: true, render: (v) => <Badge variant={v === "completed" ? "default" : "secondary"}>{v}</Badge> },
-    { key: "tracking_number", label: "Tracking", editable: true },
-    { key: "product_url", label: "Site Link", render: (v) => v ? <a href={v} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1 text-xs"><ExternalLink className="h-3 w-3" />View</a> : "—" },
-    { key: "source_url", label: "1688 Link", render: (v) => v ? <a href={v} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1 text-xs"><ExternalLink className="h-3 w-3" />1688</a> : "—" },
-    { key: "notes", label: "Notes", editable: true },
-    { key: "created_at", label: "Date", render: (v) => new Date(v).toLocaleDateString() },
-  ];
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase.from("orders").delete().eq("id", deleteId);
+      if (error) throw error;
+      toast({ title: "Order deleted" });
+      setDeleteId(null);
+      fetchOrders();
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    }
+    setSaving(false);
+  };
+
+  const statuses = ["all", "pending", "processing", "shipped", "delivered", "completed", "cancelled"];
+  const statusCounts = statuses.reduce((acc, s) => {
+    acc[s] = s === "all" ? data.length : data.filter((o) => o.status === s).length;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const grandTotal = (order: OrderWithProfile) =>
+    Number(order.total_price) + Number(order.shipping_charges || 0) + Number(order.commission || 0);
 
   return (
-    <>
-      <AdminDataTable title="Orders" columns={columns} data={data} loading={loading} onUpdate={onUpdate} onDelete={onDelete} />
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Orders</h1>
+          <p className="text-sm text-muted-foreground">{data.length} total orders</p>
+        </div>
+        <div className="relative w-full sm:w-72">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Search orders, products, customers..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+        </div>
+      </div>
+
+      {/* Status Tabs */}
+      <Tabs value={statusFilter} onValueChange={setStatusFilter}>
+        <TabsList className="flex-wrap h-auto gap-1 bg-transparent p-0">
+          {statuses.map((s) => (
+            <TabsTrigger key={s} value={s} className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full px-4 py-1.5 text-xs capitalize border border-border">
+              {s === "all" ? "All" : s} ({statusCounts[s]})
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
+
+      {/* Orders Grid */}
+      {loading ? (
+        <div className="flex justify-center py-20 text-muted-foreground">Loading orders...</div>
+      ) : filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+          <Package className="h-12 w-12 mb-3 opacity-40" />
+          <p>No orders found</p>
+        </div>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {filtered.map((order) => {
+            const sc = statusConfig[order.status] || statusConfig.pending;
+            return (
+              <Card key={order.id} className="overflow-hidden hover:shadow-lg transition-shadow border-border/60">
+                {/* Card Header */}
+                <div className="flex items-center justify-between px-4 py-3 bg-muted/40 border-b border-border/40">
+                  <div className="flex items-center gap-2">
+                    <Hash className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="font-mono text-sm font-semibold">{order.order_number}</span>
+                  </div>
+                  <Badge className={`${sc.color} border text-[10px] font-medium px-2 py-0.5`}>{sc.label}</Badge>
+                </div>
+
+                {/* Product Info */}
+                <div className="p-4 space-y-4">
+                  <div className="flex gap-3">
+                    {order.product_image ? (
+                      <img src={order.product_image} alt="" className="w-16 h-16 rounded-lg object-cover border border-border/40 flex-shrink-0" referrerPolicy="no-referrer" />
+                    ) : (
+                      <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                        <ImageIcon className="h-6 w-6 text-muted-foreground/40" />
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-sm line-clamp-2 leading-snug">{order.product_name}</p>
+                      <p className="text-xs text-muted-foreground mt-1">Qty: {order.quantity} × ৳{Number(order.unit_price).toFixed(2)}</p>
+                    </div>
+                  </div>
+
+                  {/* Customer */}
+                  <button
+                    onClick={() => setSelectedProfile(order)}
+                    className="flex items-center gap-2.5 w-full p-2.5 rounded-lg bg-muted/50 hover:bg-muted transition-colors text-left"
+                  >
+                    {order.profile?.avatar_url ? (
+                      <img src={order.profile.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover border border-border" />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                        <UserCircle className="h-4 w-4 text-primary" />
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{order.profile?.full_name || "Unknown Customer"}</p>
+                      <p className="text-[11px] text-muted-foreground truncate">{order.profile?.phone || "No phone"}</p>
+                    </div>
+                  </button>
+
+                  {/* Pricing Breakdown */}
+                  <div className="space-y-1.5 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Product Total</span>
+                      <span>৳{Number(order.total_price).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Shipping</span>
+                      <span>৳{Number(order.shipping_charges || 0).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Commission</span>
+                      <span>৳{Number(order.commission || 0).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between pt-1.5 border-t border-border/40 font-semibold text-sm">
+                      <span>Grand Total</span>
+                      <span className="text-primary">৳{grandTotal(order).toFixed(2)}</span>
+                    </div>
+                  </div>
+
+                  {/* Tracking & Notes */}
+                  {order.tracking_number && (
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Truck className="h-3 w-3" />
+                      <span className="truncate">{order.tracking_number}</span>
+                      <button onClick={() => { navigator.clipboard.writeText(order.tracking_number!); toast({ title: "Copied!" }); }}>
+                        <Copy className="h-3 w-3 hover:text-foreground" />
+                      </button>
+                    </div>
+                  )}
+                  {order.notes && (
+                    <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                      <StickyNote className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                      <span className="line-clamp-2">{order.notes}</span>
+                    </div>
+                  )}
+
+                  {/* Links */}
+                  <div className="flex gap-2">
+                    {order.product_url && (
+                      <a href={order.product_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline">
+                        <ExternalLink className="h-3 w-3" /> Site Link
+                      </a>
+                    )}
+                    {order.source_url && (
+                      <a href={order.source_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline">
+                        <ExternalLink className="h-3 w-3" /> 1688
+                      </a>
+                    )}
+                  </div>
+
+                  {/* Date + Actions */}
+                  <div className="flex items-center justify-between pt-2 border-t border-border/40">
+                    <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                      <Calendar className="h-3 w-3" />
+                      {new Date(order.created_at).toLocaleDateString()}
+                    </div>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(order)}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleteId(order.id)}>
+                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
 
       {/* Customer Profile Dialog */}
       <Dialog open={!!selectedProfile} onOpenChange={() => setSelectedProfile(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <UserCircle className="h-5 w-5" /> Customer Details
+              <UserCircle className="h-5 w-5 text-primary" /> Customer Details
             </DialogTitle>
           </DialogHeader>
           {selectedProfile && (
             <div className="space-y-4">
-              {selectedProfile.profile?.avatar_url && (
-                <div className="flex justify-center">
-                  <img src={selectedProfile.profile.avatar_url} alt="Avatar" className="w-20 h-20 rounded-full object-cover border-2 border-muted" />
-                </div>
-              )}
+              <div className="flex flex-col items-center gap-3 pb-4 border-b border-border/40">
+                {selectedProfile.profile?.avatar_url ? (
+                  <img src={selectedProfile.profile.avatar_url} alt="" className="w-20 h-20 rounded-full object-cover border-2 border-primary/20" />
+                ) : (
+                  <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
+                    <UserCircle className="h-10 w-10 text-primary/40" />
+                  </div>
+                )}
+                <p className="font-semibold text-lg">{selectedProfile.profile?.full_name || "Unknown"}</p>
+              </div>
               <div className="space-y-3 text-sm">
-                <div className="flex justify-between border-b pb-2">
-                  <span className="text-muted-foreground">Name</span>
-                  <span className="font-medium">{selectedProfile.profile?.full_name || "Not set"}</span>
-                </div>
-                <div className="flex justify-between border-b pb-2">
-                  <span className="text-muted-foreground">Phone</span>
-                  <span className="font-medium">{selectedProfile.profile?.phone || "Not set"}</span>
-                </div>
-                <div className="flex justify-between border-b pb-2">
-                  <span className="text-muted-foreground">Address</span>
-                  <span className="font-medium text-right max-w-[200px]">{selectedProfile.profile?.address || "Not set"}</span>
-                </div>
-                <div className="flex justify-between border-b pb-2">
-                  <span className="text-muted-foreground">Order</span>
-                  <span className="font-medium">#{selectedProfile.order_number}</span>
-                </div>
-                <div className="flex justify-between border-b pb-2">
-                  <span className="text-muted-foreground">Product</span>
-                  <span className="font-medium truncate max-w-[200px]">{selectedProfile.product_name}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Total</span>
-                  <span className="font-medium">৳{Number(selectedProfile.total_price).toFixed(2)}</span>
-                </div>
+                {[
+                  { label: "Phone", value: selectedProfile.profile?.phone },
+                  { label: "Address", value: selectedProfile.profile?.address },
+                  { label: "Order", value: `#${selectedProfile.order_number}` },
+                  { label: "Product", value: selectedProfile.product_name },
+                  { label: "Grand Total", value: `৳${grandTotal(selectedProfile).toFixed(2)}` },
+                ].map((item) => (
+                  <div key={item.label} className="flex justify-between gap-4">
+                    <span className="text-muted-foreground flex-shrink-0">{item.label}</span>
+                    <span className="font-medium text-right truncate max-w-[200px]">{item.value || "Not set"}</span>
+                  </div>
+                ))}
               </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
-    </>
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editOrder} onOpenChange={() => setEditOrder(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Edit Order #{editOrder?.order_number}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            {[
+              { key: "product_name", label: "Product Name", type: "text" },
+              { key: "quantity", label: "Quantity", type: "number" },
+              { key: "status", label: "Status", type: "text" },
+              { key: "tracking_number", label: "Tracking Number", type: "text" },
+              { key: "shipping_charges", label: "Shipping Charges (৳)", type: "number" },
+              { key: "commission", label: "Commission (৳)", type: "number" },
+              { key: "notes", label: "Notes", type: "text" },
+            ].map((field) => (
+              <div key={field.key}>
+                <Label className="text-xs">{field.label}</Label>
+                <Input
+                  type={field.type}
+                  value={editValues[field.key] ?? ""}
+                  onChange={(e) => setEditValues((v) => ({ ...v, [field.key]: e.target.value }))}
+                />
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOrder(null)}>Cancel</Button>
+            <Button onClick={handleSaveEdit} disabled={saving}>{saving ? "Saving..." : "Save Changes"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <Dialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Delete Order</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Are you sure? This action cannot be undone.</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteId(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={saving}>{saving ? "Deleting..." : "Delete"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
