@@ -168,7 +168,7 @@ export default function AdminCustomers() {
         ))}
       </div>
 
-      {/* Customer Grid */}
+      {/* Customer Table */}
       {loading ? (
         <div className="flex justify-center py-20 text-muted-foreground">Loading customers...</div>
       ) : filtered.length === 0 ? (
@@ -177,57 +177,59 @@ export default function AdminCustomers() {
           <p>No customers found</p>
         </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filtered.map((customer) => (
-            <Card
-              key={customer.user_id}
-              className="p-4 cursor-pointer hover:shadow-lg hover:border-primary/30 transition-all group"
-              onClick={() => setSelected(customer)}
-            >
-              <div className="flex items-center gap-3 mb-3">
-                <Avatar className="h-11 w-11 border-2 border-primary/10 group-hover:border-primary/30 transition-colors">
-                  {customer.avatar_url ? (
-                    <AvatarImage src={customer.avatar_url} alt={customer.full_name || ""} />
-                  ) : null}
-                  <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
-                    {getInitials(customer.full_name)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-sm truncate">{customer.full_name || "Unnamed"}</p>
-                  <p className="text-[11px] text-muted-foreground truncate">
-                    {customer.phone || "No phone"}
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <button
-                  className="bg-muted/50 rounded-md p-2 text-center hover:bg-primary/10 hover:text-primary transition-colors"
-                  onClick={(e) => handleOrdersClick(e, customer)}
-                >
-                  <p className="text-muted-foreground mb-0.5">Orders</p>
-                  <p className="font-bold text-sm">{customer.order_count}</p>
-                </button>
-                <div className="bg-muted/50 rounded-md p-2 text-center">
-                  <p className="text-muted-foreground mb-0.5">Spent</p>
-                  <p className="font-bold text-sm">৳{customer.total_spent.toFixed(0)}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between mt-3 pt-2 border-t border-border/40">
-                <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                  <Wallet className="h-3 w-3" />
-                  ৳{customer.wallet_balance.toFixed(0)}
-                </div>
-                <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                  <Calendar className="h-3 w-3" />
-                  {new Date(customer.created_at).toLocaleDateString()}
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
+        <Card className="overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/50">
+                  <th className="text-left p-3 font-medium text-muted-foreground">Customer</th>
+                  <th className="text-left p-3 font-medium text-muted-foreground">Phone</th>
+                  <th className="text-left p-3 font-medium text-muted-foreground">Address</th>
+                  <th className="text-center p-3 font-medium text-muted-foreground">Orders</th>
+                  <th className="text-right p-3 font-medium text-muted-foreground">Spent</th>
+                  <th className="text-right p-3 font-medium text-muted-foreground">Balance</th>
+                  <th className="text-right p-3 font-medium text-muted-foreground">Joined</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((customer) => (
+                  <tr
+                    key={customer.user_id}
+                    className="border-b last:border-0 hover:bg-muted/30 cursor-pointer transition-colors"
+                    onClick={() => setSelected(customer)}
+                  >
+                    <td className="p-3">
+                      <div className="flex items-center gap-2.5">
+                        <Avatar className="h-8 w-8 border border-primary/10">
+                          {customer.avatar_url ? (
+                            <AvatarImage src={customer.avatar_url} alt={customer.full_name || ""} />
+                          ) : null}
+                          <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
+                            {getInitials(customer.full_name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="font-medium truncate max-w-[150px]">{customer.full_name || "Unnamed"}</span>
+                      </div>
+                    </td>
+                    <td className="p-3 text-muted-foreground">{customer.phone || "—"}</td>
+                    <td className="p-3 text-muted-foreground truncate max-w-[180px]">{customer.address || "—"}</td>
+                    <td className="p-3 text-center">
+                      <button
+                        className="font-semibold hover:text-primary transition-colors"
+                        onClick={(e) => handleOrdersClick(e, customer)}
+                      >
+                        {customer.order_count}
+                      </button>
+                    </td>
+                    <td className="p-3 text-right font-medium">৳{customer.total_spent.toFixed(0)}</td>
+                    <td className="p-3 text-right text-muted-foreground">৳{customer.wallet_balance.toFixed(0)}</td>
+                    <td className="p-3 text-right text-muted-foreground text-xs">{new Date(customer.created_at).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
       )}
 
       {/* Customer Detail Dialog */}
