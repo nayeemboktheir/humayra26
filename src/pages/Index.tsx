@@ -360,7 +360,7 @@ const Index = () => {
   if (selectedProduct || isLoadingProduct) {
     return (
       <div className="min-h-screen bg-background">
-        <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} />
+        <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} />
         <ProductDetail product={selectedProduct || undefined} isLoading={isLoadingProduct} onBack={handleBackToSearch} />
       </div>
     );
@@ -373,7 +373,7 @@ const Index = () => {
     return (
       <div className="min-h-screen bg-background relative" onDragEnter={handleDragEnter} onDragLeave={handleDragLeave} onDragOver={handleDragOver} onDrop={handleDrop}>
         {isDragging && <DragOverlay />}
-        <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} />
+        <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} />
         <div className="container mx-auto px-4 py-6 max-w-7xl">
           <div className="flex gap-6">
             {/* Filter Sidebar */}
@@ -455,7 +455,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background relative" onDragEnter={handleDragEnter} onDragLeave={handleDragLeave} onDragOver={handleDragOver} onDrop={handleDrop}>
       {isDragging && <DragOverlay />}
-      <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} />
+      <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} />
 
       {/* Main content with category sidebar */}
       <div className="container mx-auto px-4 max-w-7xl">
@@ -649,7 +649,7 @@ const Index = () => {
 
 // Shared components
 
-const SiteHeader = ({ query, setQuery, handleSearch, isLoading, handleImageButtonClick, fileInputRef, handleFileChange, user, navigate }: any) => (
+const SiteHeader = ({ query, setQuery, handleSearch, isLoading, handleImageButtonClick, fileInputRef, handleFileChange, user, navigate, handleInstallClick }: any) => (
   <header className="sticky top-0 z-50 bg-card border-b shadow-sm">
     <div className="container mx-auto px-4 max-w-7xl">
       <div className="flex items-center gap-4 h-16">
