@@ -682,7 +682,7 @@ const SiteHeader = ({ query, setQuery, handleSearch, isLoading, handleImageButto
       <div className="flex items-center gap-4 h-16">
         {/* Logo */}
         <button onClick={() => { setQuery(""); window.location.href = "/"; }} className="shrink-0">
-          <h1 className="text-xl font-bold text-primary">ChinaOnlineBD</h1>
+          <h1 className="text-xl font-bold text-primary">Humayra Trade</h1>
         </button>
 
         {/* Search */}
