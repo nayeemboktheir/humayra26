@@ -21,10 +21,19 @@ const Auth = () => {
 
     try {
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast.success("Logged in successfully!");
-        navigate("/dashboard");
+        
+        // Check if user is admin
+        const { data: roleData } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", data.user.id)
+          .eq("role", "admin")
+          .maybeSingle();
+        
+        navigate(roleData ? "/admin" : "/dashboard");
       } else {
         const { error } = await supabase.auth.signUp({
           email,
