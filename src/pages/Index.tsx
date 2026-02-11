@@ -341,9 +341,16 @@ const Index = () => {
     setSelectedProduct(null);
     try {
       const result = await alibaba1688Api.getProduct(numIid);
-      if (result.success && result.data) setSelectedProduct(result.data);
-      else toast.error("Failed to load product");
-    } catch { toast.error("Failed to load product"); }
+      if (result.success && result.data) {
+        setSelectedProduct(result.data);
+      } else {
+        toast.error("This product is no longer available");
+        setSelectedProduct(null);
+      }
+    } catch {
+      toast.error("This product is no longer available");
+      setSelectedProduct(null);
+    }
     finally { setIsLoadingProduct(false); }
   };
 
