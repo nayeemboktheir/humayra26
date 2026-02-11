@@ -5,9 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Search, Phone, MapPin, ShoppingCart, Wallet, Calendar,
-  Mail, UserCircle, Package, ArrowUpRight
+  Mail, UserCircle, Package, ArrowUpRight, ImageIcon, Hash, ExternalLink
 } from "lucide-react";
 
 interface CustomerData {
@@ -22,11 +23,29 @@ interface CustomerData {
   wallet_balance: number;
 }
 
+interface OrderItem {
+  id: string;
+  order_number: string;
+  product_name: string;
+  product_image: string | null;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+  shipping_charges: number | null;
+  commission: number | null;
+  status: string;
+  created_at: string;
+  product_url: string | null;
+}
+
 export default function AdminCustomers() {
   const [customers, setCustomers] = useState<CustomerData[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<CustomerData | null>(null);
+  const [ordersCustomer, setOrdersCustomer] = useState<CustomerData | null>(null);
+  const [customerOrders, setCustomerOrders] = useState<OrderItem[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
 
   useEffect(() => {
     const fetchCustomers = async () => {
@@ -83,6 +102,22 @@ export default function AdminCustomers() {
     if (!name) return "?";
     return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
   };
+
+  const handleOrdersClick = async (e: React.MouseEvent, customer: CustomerData) => {
+    e.stopPropagation();
+    setOrdersCustomer(customer);
+    setOrdersLoading(true);
+    const { data } = await supabase
+      .from("orders")
+      .select("id, order_number, product_name, product_image, quantity, unit_price, total_price, shipping_charges, commission, status, created_at, product_url")
+      .eq("user_id", customer.user_id)
+      .order("created_at", { ascending: false });
+    setCustomerOrders(data || []);
+    setOrdersLoading(false);
+  };
+
+  const grandTotal = (o: OrderItem) =>
+    Number(o.total_price) + Number(o.shipping_charges || 0) + Number(o.commission || 0);
 
   return (
     <div className="space-y-6">
@@ -157,10 +192,13 @@ export default function AdminCustomers() {
               </div>
 
               <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="bg-muted/50 rounded-md p-2 text-center">
+                <button
+                  className="bg-muted/50 rounded-md p-2 text-center hover:bg-primary/10 hover:text-primary transition-colors"
+                  onClick={(e) => handleOrdersClick(e, customer)}
+                >
                   <p className="text-muted-foreground mb-0.5">Orders</p>
                   <p className="font-bold text-sm">{customer.order_count}</p>
-                </div>
+                </button>
                 <div className="bg-muted/50 rounded-md p-2 text-center">
                   <p className="text-muted-foreground mb-0.5">Spent</p>
                   <p className="font-bold text-sm">৳{customer.total_spent.toFixed(0)}</p>
@@ -230,6 +268,55 @@ export default function AdminCustomers() {
                 ))}
               </div>
             </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Customer Orders Dialog */}
+      <Dialog open={!!ordersCustomer} onOpenChange={() => setOrdersCustomer(null)}>
+        <DialogContent className="max-w-lg max-h-[85vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShoppingCart className="h-5 w-5 text-primary" />
+              Orders — {ordersCustomer?.full_name || "Customer"}
+            </DialogTitle>
+          </DialogHeader>
+          {ordersLoading ? (
+            <div className="flex justify-center py-10 text-muted-foreground">Loading orders...</div>
+          ) : customerOrders.length === 0 ? (
+            <div className="flex flex-col items-center py-10 text-muted-foreground">
+              <Package className="h-10 w-10 mb-2 opacity-40" />
+              <p>No orders found</p>
+            </div>
+          ) : (
+            <ScrollArea className="max-h-[60vh] pr-3">
+              <div className="space-y-3">
+                {customerOrders.map((order) => (
+                  <div key={order.id} className="flex gap-3 p-3 rounded-lg border border-border/60 hover:border-primary/20 transition-colors">
+                    {order.product_image ? (
+                      <img src={order.product_image} alt="" className="w-14 h-14 rounded-lg object-cover border border-border/40 flex-shrink-0" referrerPolicy="no-referrer" />
+                    ) : (
+                      <div className="w-14 h-14 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                        <ImageIcon className="h-5 w-5 text-muted-foreground/40" />
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-medium line-clamp-1">{order.product_name}</p>
+                        <Badge variant="secondary" className="text-[10px] flex-shrink-0">{order.status}</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        <span className="font-mono">#{order.order_number}</span> · Qty: {order.quantity} × ৳{Number(order.unit_price).toFixed(0)}
+                      </p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-primary">৳{grandTotal(order).toFixed(0)}</span>
+                        <span className="text-[11px] text-muted-foreground">{new Date(order.created_at).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
           )}
         </DialogContent>
       </Dialog>
