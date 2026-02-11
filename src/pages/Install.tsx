@@ -46,7 +46,7 @@ const Install = () => {
           <div className="mx-auto mb-4">
             <img src="/pwa-192x192.png" alt="App icon" className="w-20 h-20 rounded-2xl mx-auto" />
           </div>
-          <CardTitle className="text-2xl">1688 Product Search</CardTitle>
+          <CardTitle className="text-2xl">Humayra Trade</CardTitle>
           <CardDescription>Install for a faster, app-like experience</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
