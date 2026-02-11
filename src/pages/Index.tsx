@@ -190,6 +190,12 @@ const Index = () => {
     if (page === 1) { setTotalResults(null); setAltQueryIndex(0); }
     setActiveSearch({ mode: "text", query: searchQuery, altQueries: [] });
 
+    // Update URL with search query and page
+    const params = new URLSearchParams();
+    params.set("q", searchQuery);
+    if (page > 1) params.set("page", String(page));
+    setSearchParams(params, { replace: true });
+
     try {
       const result = await alibaba1688Api.search(searchQuery, page);
       if (result.success && result.data) {
@@ -275,6 +281,13 @@ const Index = () => {
     setIsLoading(true);
     setTranslatedTitles({});
     window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // Update URL with page
+    const params = new URLSearchParams(searchParams);
+    if (page > 1) params.set("page", String(page));
+    else params.delete("page");
+    setSearchParams(params, { replace: true });
+
     try {
       const searchQuery = activeSearch.query || query.trim();
       const resp = await alibaba1688Api.search(searchQuery, page);
@@ -382,14 +395,19 @@ const Index = () => {
 
   const handleBackToSearch = () => { setSelectedProduct(null); setSearchParams({}); };
 
-  // Load product from URL param on mount
+  // Load product or search from URL params on mount
   useEffect(() => {
     const productParam = searchParams.get('product');
+    const qParam = searchParams.get('q');
+    const pageParam = searchParams.get('page');
     if (productParam && !selectedProduct && !isLoadingProduct) {
       const numIid = parseInt(productParam);
       if (!isNaN(numIid) && numIid > 0) {
         handleTrendingClick(`abb-${numIid}`);
       }
+    } else if (qParam && !hasSearched) {
+      setQuery(qParam);
+      performSearch(qParam, pageParam ? parseInt(pageParam) : 1);
     }
   }, []);
 
