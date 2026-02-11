@@ -41,6 +41,14 @@ interface OrderWithProfile {
 
 const statusConfig: Record<string, { color: string; label: string }> = {
   pending: { color: "bg-amber-100 text-amber-800 border-amber-200", label: "Pending" },
+  "Ordered": { color: "bg-amber-100 text-amber-800 border-amber-200", label: "Ordered" },
+  "Purchased from 1688": { color: "bg-blue-100 text-blue-800 border-blue-200", label: "Purchased from 1688" },
+  "Shipped to Warehouse": { color: "bg-indigo-100 text-indigo-800 border-indigo-200", label: "Shipped to Warehouse" },
+  "Arrived at Warehouse": { color: "bg-violet-100 text-violet-800 border-violet-200", label: "Arrived at Warehouse" },
+  "Shipped to Bangladesh": { color: "bg-purple-100 text-purple-800 border-purple-200", label: "Shipped to BD" },
+  "In Customs": { color: "bg-orange-100 text-orange-800 border-orange-200", label: "In Customs" },
+  "Out for Delivery": { color: "bg-cyan-100 text-cyan-800 border-cyan-200", label: "Out for Delivery" },
+  "Delivered": { color: "bg-emerald-100 text-emerald-800 border-emerald-200", label: "Delivered" },
   processing: { color: "bg-blue-100 text-blue-800 border-blue-200", label: "Processing" },
   shipped: { color: "bg-purple-100 text-purple-800 border-purple-200", label: "Shipped" },
   delivered: { color: "bg-emerald-100 text-emerald-800 border-emerald-200", label: "Delivered" },
@@ -86,7 +94,9 @@ export default function AdminOrders() {
       order.order_number.toLowerCase().includes(search.toLowerCase()) ||
       order.product_name.toLowerCase().includes(search.toLowerCase()) ||
       (order.profile?.full_name || "").toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = statusFilter === "all" || order.status === statusFilter;
+    const shipment = shipmentMap[order.id];
+    const shipmentStatus = shipment ? shipment.status : "Ordered";
+    const matchesStatus = statusFilter === "all" || shipmentStatus === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
@@ -139,9 +149,13 @@ export default function AdminOrders() {
     setSaving(false);
   };
 
-  const statuses = ["all", "pending", "processing", "shipped", "delivered", "completed", "cancelled"];
+  const SHIPMENT_STAGES = ["Ordered", "Purchased from 1688", "Shipped to Warehouse", "Arrived at Warehouse", "Shipped to Bangladesh", "In Customs", "Out for Delivery", "Delivered"];
+  const statuses = ["all", ...SHIPMENT_STAGES];
   const statusCounts = statuses.reduce((acc, s) => {
-    acc[s] = s === "all" ? data.length : data.filter((o) => o.status === s).length;
+    acc[s] = s === "all" ? data.length : data.filter((o) => {
+      const shipment = shipmentMap[o.id];
+      return shipment ? shipment.status === s : s === "Ordered";
+    }).length;
     return acc;
   }, {} as Record<string, number>);
 
@@ -184,7 +198,9 @@ export default function AdminOrders() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {filtered.map((order) => {
-            const sc = statusConfig[order.status] || statusConfig.pending;
+            const shipment = shipmentMap[order.id];
+            const shipmentStatus = shipment ? shipment.status : "Ordered";
+            const sc = statusConfig[shipmentStatus] || statusConfig["Ordered"];
             return (
               <Card key={order.id} className="overflow-hidden hover:shadow-lg transition-shadow border-border/60">
                 {/* Card Header */}
