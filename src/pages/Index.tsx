@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Camera, ImageIcon, Loader2, ChevronLeft, ChevronRight, Star, BadgeCheck, Flame, Truck, Heart, ShoppingCart, User, Zap, SlidersHorizontal } from "lucide-react";
+import { Search, Camera, ImageIcon, Loader2, ChevronLeft, ChevronRight, Star, BadgeCheck, Flame, Truck, Heart, ShoppingCart, User, Zap, SlidersHorizontal, Download } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -649,6 +649,9 @@ const SiteHeader = ({ query, setQuery, handleSearch, isLoading, handleImageButto
 
         {/* Right nav */}
         <div className="hidden md:flex items-center gap-2">
+          <Button variant="ghost" size="icon" onClick={() => navigate("/install")} title="Install App">
+            <Download className="h-5 w-5" />
+          </Button>
           <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard/wishlist")} title="Wishlist">
             <Heart className="h-5 w-5" />
           </Button>
@@ -657,6 +660,16 @@ const SiteHeader = ({ query, setQuery, handleSearch, isLoading, handleImageButto
           </Button>
           <Button variant="ghost" size="icon" onClick={() => navigate(user ? "/dashboard" : "/auth")} title={user ? "Dashboard" : "Sign In"}>
             <User className="h-5 w-5" />
+          </Button>
+        </div>
+
+        {/* Mobile nav */}
+        <div className="flex md:hidden items-center gap-1">
+          <Button variant="ghost" size="icon" onClick={() => navigate("/install")} title="Install App" className="h-9 w-9">
+            <Download className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => navigate(user ? "/dashboard" : "/auth")} title={user ? "Dashboard" : "Sign In"} className="h-9 w-9">
+            <User className="h-4 w-4" />
           </Button>
         </div>
       </div>
