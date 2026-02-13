@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, ShoppingCart, Truck, Package, RefreshCcw,
   Receipt, Wallet, Bell, Heart, Users, Shield, LogOut, Menu, X,
-  ChevronDown, ChevronRight
+  ChevronDown, ChevronRight, BarChart3, MessageSquare, Settings
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -18,16 +18,19 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/admin" },
+  { label: "Analytics", icon: BarChart3, path: "/admin/analytics" },
   { label: "Customers", icon: Users, path: "/admin/customers" },
   { label: "Users & Profiles", icon: Shield, path: "/admin/users" },
   { label: "User Roles", icon: Shield, path: "/admin/roles" },
   { label: "Orders", icon: ShoppingCart, path: "/admin/orders" },
   { label: "Shipments", icon: Truck, path: "/admin/shipments" },
+  { label: "Messaging", icon: MessageSquare, path: "/admin/messaging" },
   { label: "Refunds", icon: RefreshCcw, path: "/admin/refunds" },
   { label: "Transactions", icon: Receipt, path: "/admin/transactions" },
   { label: "Wallets", icon: Wallet, path: "/admin/wallets" },
   { label: "Notifications", icon: Bell, path: "/admin/notifications" },
   { label: "Wishlist", icon: Heart, path: "/admin/wishlist" },
+  { label: "Settings", icon: Settings, path: "/admin/settings" },
 ];
 
 const AdminLayout = ({ children }: { children: ReactNode }) => {

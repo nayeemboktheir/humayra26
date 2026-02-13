@@ -9,7 +9,8 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   ExternalLink, UserCircle, Search, Trash2, Pencil, Package,
-  Truck, DollarSign, Calendar, Hash, StickyNote, ImageIcon, Copy
+  Truck, DollarSign, Calendar, Hash, StickyNote, ImageIcon, Copy,
+  CheckSquare, Square, Download
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import ShipmentTimeline from "@/components/admin/ShipmentTimeline";
@@ -66,6 +67,8 @@ export default function AdminOrders() {
   const [editValues, setEditValues] = useState<Record<string, any>>({});
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkStatus, setBulkStatus] = useState("");
 
   const [shipmentMap, setShipmentMap] = useState<Record<string, any>>({});
 
@@ -154,6 +157,60 @@ export default function AdminOrders() {
     setSaving(false);
   };
 
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filtered.length) setSelectedIds(new Set());
+    else setSelectedIds(new Set(filtered.map((o) => o.id)));
+  };
+
+  const handleBulkStatusUpdate = async () => {
+    if (!bulkStatus || selectedIds.size === 0) return;
+    setSaving(true);
+    try {
+      const ids = Array.from(selectedIds);
+      const { error } = await supabase.from("orders").update({ status: bulkStatus }).in("id", ids);
+      if (error) throw error;
+      toast({ title: `${ids.length} orders updated to "${bulkStatus}"` });
+      setSelectedIds(new Set());
+      setBulkStatus("");
+      fetchOrders();
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    }
+    setSaving(false);
+  };
+
+  const exportCSV = () => {
+    const rows = filtered.map((o) => ({
+      order_number: o.order_number,
+      product: o.product_name,
+      customer: o.profile?.full_name || "",
+      quantity: o.quantity,
+      unit_price: o.unit_price,
+      total: o.total_price,
+      shipping: o.shipping_charges || 0,
+      commission: o.commission || 0,
+      grand_total: Number(o.total_price) + Number(o.shipping_charges || 0) + Number(o.commission || 0),
+      status: o.status,
+      date: new Date(o.created_at).toLocaleDateString(),
+    }));
+    const headers = Object.keys(rows[0] || {});
+    const csv = [headers.join(","), ...rows.map((r) => headers.map((h) => `"${(r as any)[h]}"`).join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `orders-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: `Exported ${rows.length} orders to CSV` });
+  };
+
   const SHIPMENT_STAGES = ["Ordered", "Purchased from 1688", "Shipped to Warehouse", "Arrived at Warehouse", "Shipped to Bangladesh", "In Customs", "Out for Delivery", "Delivered"];
   const statuses = ["pending", ...SHIPMENT_STAGES, "all"];
   const statusCounts = statuses.reduce((acc, s) => {
@@ -179,11 +236,34 @@ export default function AdminOrders() {
           <h1 className="text-2xl font-bold tracking-tight">Orders</h1>
           <p className="text-sm text-muted-foreground">{data.length} total orders</p>
         </div>
-        <div className="relative w-full sm:w-72">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search orders, products, customers..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={exportCSV}>
+            <Download className="h-4 w-4 mr-1" /> Export CSV
+          </Button>
+          <div className="relative w-full sm:w-56">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+          </div>
         </div>
       </div>
+
+      {/* Bulk Actions Bar */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 p-3 rounded-lg border bg-primary/5">
+          <span className="text-sm font-medium">{selectedIds.size} selected</span>
+          <select value={bulkStatus} onChange={(e) => setBulkStatus(e.target.value)} className="text-sm border rounded px-2 py-1 bg-background">
+            <option value="">Change status...</option>
+            <option value="pending">Pending</option>
+            <option value="processing">Processing</option>
+            <option value="delivered">Delivered</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+          <Button size="sm" disabled={!bulkStatus || saving} onClick={handleBulkStatusUpdate}>
+            {saving ? "Updating..." : "Apply"}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>Clear</Button>
+        </div>
+      )}
 
       {/* Status Tabs */}
       <Tabs value={statusFilter} onValueChange={setStatusFilter}>
@@ -205,16 +285,27 @@ export default function AdminOrders() {
           <p>No orders found</p>
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <>
+          <div className="flex items-center gap-2 mb-2">
+            <Button variant="ghost" size="sm" onClick={toggleSelectAll} className="text-xs">
+              {selectedIds.size === filtered.length ? <CheckSquare className="h-4 w-4 mr-1" /> : <Square className="h-4 w-4 mr-1" />}
+              {selectedIds.size === filtered.length ? "Deselect All" : "Select All"}
+            </Button>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {filtered.map((order) => {
             const shipment = shipmentMap[order.id];
             const shipmentStatus = shipment ? shipment.status : "Ordered";
             const sc = statusConfig[shipmentStatus] || statusConfig["Ordered"];
+            const isSelected = selectedIds.has(order.id);
             return (
-              <Card key={order.id} className="overflow-hidden hover:shadow-lg transition-shadow border-border/60">
+              <Card key={order.id} className={`overflow-hidden hover:shadow-lg transition-shadow border-border/60 ${isSelected ? "ring-2 ring-primary" : ""}`}>
                 {/* Card Header */}
                 <div className="flex items-center justify-between px-4 py-3 bg-muted/40 border-b border-border/40">
                   <div className="flex items-center gap-2">
+                    <button onClick={() => toggleSelect(order.id)} className="shrink-0">
+                      {isSelected ? <CheckSquare className="h-4 w-4 text-primary" /> : <Square className="h-4 w-4 text-muted-foreground" />}
+                    </button>
                     <Hash className="h-3.5 w-3.5 text-muted-foreground" />
                     <span className="font-mono text-sm font-semibold">{order.order_number}</span>
                   </div>
@@ -333,7 +424,8 @@ export default function AdminOrders() {
               </Card>
             );
           })}
-        </div>
+          </div>
+        </>
       )}
 
       {/* Customer Profile Dialog */}
