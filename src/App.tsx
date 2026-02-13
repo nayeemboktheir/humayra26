@@ -36,6 +36,9 @@ import AdminWallets from "./pages/admin/AdminWallets";
 import AdminNotifications from "./pages/admin/AdminNotifications";
 import AdminWishlist from "./pages/admin/AdminWishlist";
 import AdminCustomers from "./pages/admin/AdminCustomers";
+import AdminAnalytics from "./pages/admin/AdminAnalytics";
+import AdminMessaging from "./pages/admin/AdminMessaging";
+import AdminSettings from "./pages/admin/AdminSettings";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
@@ -98,6 +101,9 @@ const App = () => (
             <Route path="/admin/notifications" element={<AdminRoute><AdminNotifications /></AdminRoute>} />
             <Route path="/admin/wishlist" element={<AdminRoute><AdminWishlist /></AdminRoute>} />
             <Route path="/admin/customers" element={<AdminRoute><AdminCustomers /></AdminRoute>} />
+            <Route path="/admin/analytics" element={<AdminRoute><AdminAnalytics /></AdminRoute>} />
+            <Route path="/admin/messaging" element={<AdminRoute><AdminMessaging /></AdminRoute>} />
+            <Route path="/admin/settings" element={<AdminRoute><AdminSettings /></AdminRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
