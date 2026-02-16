@@ -3,6 +3,40 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+async function translateTitles(titles: string[], apiKey: string): Promise<string[]> {
+  try {
+    const textsToTranslate = titles.join('\n---SEPARATOR---\n');
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash-lite',
+        messages: [
+          {
+            role: 'system',
+            content: `Translate from Russian/Chinese to natural English for e-commerce. Each input separated by ---SEPARATOR---. Return ONLY translated texts separated by ---SEPARATOR---. No numbering, no quotes. Keep brand names and model numbers as-is. If already English, return unchanged.`
+          },
+          { role: 'user', content: textsToTranslate }
+        ],
+        max_tokens: 2000,
+        temperature: 0.2,
+      }),
+    });
+
+    if (!response.ok) return titles;
+
+    const data = await response.json();
+    const translatedText = data.choices?.[0]?.message?.content || '';
+    const translations = translatedText.split('---SEPARATOR---').map((t: string) => t.trim());
+    return translations.length === titles.length ? translations : titles;
+  } catch {
+    return titles;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -26,8 +60,16 @@ Deno.serve(async (req) => {
       });
     }
 
+    const lovableKey = (Deno.env.get('LOVABLE_API_KEY') ?? '').trim();
+    if (!lovableKey) {
+      return new Response(JSON.stringify({ success: false, error: 'AI not configured' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     console.log('Image search: using AI to derive keywords...');
-    return await aiKeywordSearch(imageBase64, apiKey, page, pageSize);
+    return await aiKeywordSearch(imageBase64, apiKey, lovableKey, page, pageSize);
   } catch (error) {
     console.error('Error in image search:', error);
     return new Response(JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Failed to search by image' }), {
@@ -37,15 +79,7 @@ Deno.serve(async (req) => {
   }
 });
 
-async function aiKeywordSearch(imageBase64: string, apiKey: string, page: number, pageSize: number) {
-  const lovableKey = (Deno.env.get('LOVABLE_API_KEY') ?? '').trim();
-  if (!lovableKey) {
-    return new Response(JSON.stringify({ success: false, error: 'AI fallback not configured' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-
+async function aiKeywordSearch(imageBase64: string, apiKey: string, lovableKey: string, page: number, pageSize: number) {
   const b = imageBase64.slice(0, 20);
   const mime = b.startsWith('/9j/') ? 'image/jpeg' : b.startsWith('iVBOR') ? 'image/png' : b.startsWith('UklGR') ? 'image/webp' : 'image/jpeg';
   const dataUrl = `data:${mime};base64,${imageBase64}`;
@@ -129,6 +163,13 @@ async function aiKeywordSearch(imageBase64: string, apiKey: string, page: number
 
     const items = data?.Result?.Items?.Content || [];
     if (items.length > 0) {
+      // Translate titles before returning
+      const titles = items.map((item: any) => item?.Title || '');
+      const translated = await translateTitles(titles, lovableKey);
+      for (let i = 0; i < items.length; i++) {
+        if (translated[i]) items[i].Title = translated[i];
+      }
+
       return new Response(JSON.stringify({ success: true, data, meta: { method: 'ai_keyword', query: q, altQueries, provider: 'otapi' } }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
