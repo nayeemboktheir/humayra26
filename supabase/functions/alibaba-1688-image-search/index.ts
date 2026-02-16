@@ -3,6 +3,82 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+async function batchTranslate(texts: string[]): Promise<string[]> {
+  if (!texts.length) return [];
+  
+  const apiKey = Deno.env.get('LOVABLE_API_KEY');
+  if (!apiKey) return texts;
+
+  try {
+    const textsToTranslate = texts.join('\n---SEPARATOR---\n');
+    
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash-lite',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a translator. Translate the input from Chinese/Russian to natural English for e-commerce.
+
+Rules:
+- Each input is separated by ---SEPARATOR---
+- Return ONLY the translated texts, separated by ---SEPARATOR---
+- No numbering, no quotes, no bullets, no extra lines
+- Keep brand names, model numbers, units, and measurements as-is
+- If a line is already English, return it unchanged`
+          },
+          { role: 'user', content: textsToTranslate }
+        ],
+        max_tokens: 4000,
+        temperature: 0.2,
+      }),
+    });
+
+    if (!response.ok) return texts;
+
+    const data = await response.json();
+    const translatedText = data.choices?.[0]?.message?.content || '';
+    const translations = translatedText.split('---SEPARATOR---').map((t: string) => t.trim());
+
+    return translations.length === texts.length ? translations : texts;
+  } catch {
+    return texts;
+  }
+}
+
+function translateItems(items: any[]): Promise<any[]> {
+  if (!items.length) return Promise.resolve(items);
+  
+  const titles = items.map((item: any) => item?.Title || item?.OriginalTitle || '');
+  const locations = items.map((item: any) => item?.Location?.State || item?.Location?.City || '');
+  
+  const allTexts = [...titles, ...locations.filter(Boolean)];
+  
+  return batchTranslate(allTexts).then(translated => {
+    for (let i = 0; i < items.length; i++) {
+      if (translated[i]) items[i].Title = translated[i];
+    }
+    let locIdx = 0;
+    for (let i = 0; i < items.length; i++) {
+      const loc = items[i]?.Location?.State || items[i]?.Location?.City || '';
+      if (loc) {
+        const translatedLoc = translated[titles.length + locIdx];
+        if (translatedLoc && items[i].Location) {
+          if (items[i].Location.State) items[i].Location.State = translatedLoc;
+          else if (items[i].Location.City) items[i].Location.City = translatedLoc;
+        }
+        locIdx++;
+      }
+    }
+    return items;
+  });
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -26,8 +102,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // OTAPI doesn't have a direct image search method, so we use AI to extract keywords
-    // and then do a text search via OTAPI
     console.log('Image search: using AI to derive keywords...');
     return await aiKeywordSearch(imageBase64, apiKey, page, pageSize);
   } catch (error) {
@@ -131,6 +205,8 @@ async function aiKeywordSearch(imageBase64: string, apiKey: string, page: number
 
     const items = data?.Result?.Items?.Content || [];
     if (items.length > 0) {
+      // Translate items to English
+      await translateItems(items);
       return new Response(JSON.stringify({ success: true, data, meta: { method: 'ai_keyword', query: q, altQueries, provider: 'otapi' } }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
