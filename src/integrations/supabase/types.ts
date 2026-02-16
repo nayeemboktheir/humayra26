@@ -68,6 +68,60 @@ export type Database = {
         }
         Relationships: []
       }
+      category_products: {
+        Row: {
+          category_query: string
+          created_at: string
+          detail_url: string | null
+          extra_images: string[] | null
+          id: string
+          image_url: string
+          location: string | null
+          price: number
+          product_id: string
+          sales: number | null
+          stock: number | null
+          title: string
+          updated_at: string
+          vendor_name: string | null
+          weight: number | null
+        }
+        Insert: {
+          category_query: string
+          created_at?: string
+          detail_url?: string | null
+          extra_images?: string[] | null
+          id?: string
+          image_url: string
+          location?: string | null
+          price?: number
+          product_id: string
+          sales?: number | null
+          stock?: number | null
+          title: string
+          updated_at?: string
+          vendor_name?: string | null
+          weight?: number | null
+        }
+        Update: {
+          category_query?: string
+          created_at?: string
+          detail_url?: string | null
+          extra_images?: string[] | null
+          id?: string
+          image_url?: string
+          location?: string | null
+          price?: number
+          product_id?: string
+          sales?: number | null
+          stock?: number | null
+          title?: string
+          updated_at?: string
+          vendor_name?: string | null
+          weight?: number | null
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string

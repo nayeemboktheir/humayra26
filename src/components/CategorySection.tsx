@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronLeft, ChevronRight, Star } from "lucide-react";
-import { alibaba1688Api, Product1688 } from "@/lib/api/alibaba1688";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Product1688 } from "@/lib/api/alibaba1688";
+import { supabase } from "@/integrations/supabase/client";
 
 const CNY_TO_BDT = 17.5;
 const convertToBDT = (cny: number) => Math.round(cny * CNY_TO_BDT);
@@ -24,12 +24,12 @@ export default function CategorySection({ name, icon, query, onProductClick, onV
   const sectionRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Lazy load when section comes into view
+  // Lazy load when section comes into view - from DB cache
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting && !loaded && !loading) {
-          fetchProducts();
+          fetchFromCache();
         }
       },
       { rootMargin: "200px" }
@@ -39,13 +39,31 @@ export default function CategorySection({ name, icon, query, onProductClick, onV
     return () => observer.disconnect();
   }, [loaded, loading]);
 
-  const fetchProducts = async () => {
+  const fetchFromCache = async () => {
     setLoading(true);
     try {
-      const result = await alibaba1688Api.search(query, 1);
-      if (result.success && result.data) {
-        setProducts(result.data.items.slice(0, 12));
+      const { data, error } = await supabase
+        .from("category_products")
+        .select("*")
+        .eq("category_query", query)
+        .limit(12);
+
+      if (!error && data && data.length > 0) {
+        setProducts(data.map((row: any) => ({
+          num_iid: parseInt(String(row.product_id).replace(/^abb-/, ''), 10) || 0,
+          title: row.title,
+          pic_url: row.image_url,
+          price: Number(row.price) || 0,
+          sales: row.sales || undefined,
+          detail_url: row.detail_url || '',
+          location: row.location || '',
+          vendor_name: row.vendor_name || '',
+          stock: row.stock || undefined,
+          weight: row.weight ? Number(row.weight) : undefined,
+          extra_images: row.extra_images || [],
+        })));
       }
+      // If cache is empty, products stays empty - will show "No products available"
     } catch {
       // silently fail
     } finally {
@@ -60,7 +78,6 @@ export default function CategorySection({ name, icon, query, onProductClick, onV
 
   return (
     <section ref={sectionRef} className="mb-10">
-      {/* Section header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <span className="text-2xl">{icon}</span>
@@ -72,7 +89,6 @@ export default function CategorySection({ name, icon, query, onProductClick, onV
       </div>
       <div className="border-b border-primary/20 mb-4" />
 
-      {/* Products */}
       {loading ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -93,10 +109,7 @@ export default function CategorySection({ name, icon, query, onProductClick, onV
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <div
-            ref={scrollRef}
-            className="flex overflow-x-auto gap-3 pb-2 scrollbar-hide snap-x"
-          >
+          <div ref={scrollRef} className="flex overflow-x-auto gap-3 pb-2 scrollbar-hide snap-x">
             {products.map((product) => (
               <Card
                 key={product.num_iid}
