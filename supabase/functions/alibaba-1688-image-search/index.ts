@@ -3,110 +3,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-async function translateChunk(texts: string[], apiKey: string): Promise<string[]> {
-  const numbered = texts.map((t, i) => `${i + 1}. ${t}`).join('\n');
-
-  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'google/gemini-2.5-flash-lite',
-      messages: [
-        {
-          role: 'system',
-          content: `Translate each numbered line from Chinese/Russian to English for e-commerce.
-Return exactly the same number of numbered lines in the same format: "N. translated text"
-Keep brand names and model numbers as-is. If already English, return unchanged.`
-        },
-        { role: 'user', content: numbered }
-      ],
-      max_tokens: 4000,
-      temperature: 0.1,
-    }),
-  });
-
-  if (!response.ok) return texts;
-
-  const data = await response.json();
-  const content = data.choices?.[0]?.message?.content || '';
-  
-  const result = [...texts];
-  const lines = content.split('\n').filter((l: string) => l.trim());
-  for (const line of lines) {
-    const match = line.match(/^(\d+)\.\s*(.+)$/);
-    if (match) {
-      const idx = parseInt(match[1], 10) - 1;
-      if (idx >= 0 && idx < texts.length) {
-        result[idx] = match[2].trim();
-      }
-    }
-  }
-  return result;
-}
-
-async function batchTranslate(texts: string[]): Promise<string[]> {
-  if (!texts.length) return [];
-  
-  const apiKey = Deno.env.get('LOVABLE_API_KEY');
-  if (!apiKey) return texts;
-
-  try {
-    const CHUNK_SIZE = 15;
-    const result = [...texts];
-    const promises: Promise<void>[] = [];
-
-    for (let start = 0; start < texts.length; start += CHUNK_SIZE) {
-      const end = Math.min(start + CHUNK_SIZE, texts.length);
-      const chunk = texts.slice(start, end);
-      const startIdx = start;
-      
-      promises.push(
-        translateChunk(chunk, apiKey).then(translated => {
-          for (let i = 0; i < translated.length; i++) {
-            result[startIdx + i] = translated[i];
-          }
-        })
-      );
-    }
-
-    await Promise.all(promises);
-    return result;
-  } catch {
-    return texts;
-  }
-}
-
-function translateItems(items: any[]): Promise<any[]> {
-  if (!items.length) return Promise.resolve(items);
-  
-  const titles = items.map((item: any) => item?.Title || item?.OriginalTitle || '');
-  const locations = items.map((item: any) => item?.Location?.State || item?.Location?.City || '');
-  
-  const allTexts = [...titles, ...locations.filter(Boolean)];
-  
-  return batchTranslate(allTexts).then(translated => {
-    for (let i = 0; i < items.length; i++) {
-      if (translated[i]) items[i].Title = translated[i];
-    }
-    let locIdx = 0;
-    for (let i = 0; i < items.length; i++) {
-      const loc = items[i]?.Location?.State || items[i]?.Location?.City || '';
-      if (loc) {
-        const translatedLoc = translated[titles.length + locIdx];
-        if (translatedLoc && items[i].Location) {
-          if (items[i].Location.State) items[i].Location.State = translatedLoc;
-          else if (items[i].Location.City) items[i].Location.City = translatedLoc;
-        }
-        locIdx++;
-      }
-    }
-    return items;
-  });
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -233,8 +129,6 @@ async function aiKeywordSearch(imageBase64: string, apiKey: string, page: number
 
     const items = data?.Result?.Items?.Content || [];
     if (items.length > 0) {
-      // Translate items to English
-      await translateItems(items);
       return new Response(JSON.stringify({ success: true, data, meta: { method: 'ai_keyword', query: q, altQueries, provider: 'otapi' } }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
