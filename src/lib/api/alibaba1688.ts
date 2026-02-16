@@ -68,7 +68,7 @@ function getFeaturedValue(item: any, name: string): string {
 
 // Parse OTAPI search item into our Product1688 format
 function parseOtapiItem(item: any): Product1688 {
-  const price = item?.Price?.ConvertedPriceList?.Internal?.Price || 0;
+  const price = item?.Price?.OriginalPrice || item?.Price?.ConvertedPriceList?.Internal?.Price || 0;
   const picUrl = item?.MainPictureUrl || item?.Pictures?.[0]?.Url || '';
   const externalId = item?.Id || '';
   const numIid = parseInt(externalId.replace(/^abb-/, ''), 10) || 0;
