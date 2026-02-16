@@ -123,31 +123,40 @@ const Index = () => {
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
-  // Fetch trending products from database, fallback to hardcoded
+  // Prefetch all category products in one query + trending products
+  const [categoryProductsMap, setCategoryProductsMap] = useState<Record<string, any[]>>({});
+
   useEffect(() => {
-    const fetchTrending = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("trending_products")
-          .select("*")
-          .order("sold", { ascending: false });
-        if (!error && data && data.length > 0) {
-          setTrendingProducts(
-            data.map((p: any) => ({
-              id: p.product_id,
-              title: p.title,
-              image: p.image_url,
-              price: Number(p.price) || 0,
-              oldPrice: Number(p.old_price) || Number(p.price) || 0,
-              sold: Number(p.sold) || 0,
-            }))
-          );
+    const fetchAll = async () => {
+      // Fetch trending + all category products in parallel
+      const [trendingRes, categoryRes] = await Promise.all([
+        supabase.from("trending_products").select("*").order("sold", { ascending: false }),
+        supabase.from("category_products").select("*").order("created_at", { ascending: true }),
+      ]);
+
+      if (!trendingRes.error && trendingRes.data && trendingRes.data.length > 0) {
+        setTrendingProducts(
+          trendingRes.data.map((p: any) => ({
+            id: p.product_id,
+            title: p.title,
+            image: p.image_url,
+            price: Number(p.price) || 0,
+            oldPrice: Number(p.old_price) || Number(p.price) || 0,
+            sold: Number(p.sold) || 0,
+          }))
+        );
+      }
+
+      if (!categoryRes.error && categoryRes.data) {
+        const grouped: Record<string, any[]> = {};
+        for (const row of categoryRes.data) {
+          if (!grouped[row.category_query]) grouped[row.category_query] = [];
+          grouped[row.category_query].push(row);
         }
-      } catch {
-        // Keep fallback
+        setCategoryProductsMap(grouped);
       }
     };
-    fetchTrending();
+    fetchAll();
   }, []);
 
   const handleInstallClick = async () => {
@@ -635,6 +644,7 @@ const Index = () => {
                 name={cat.name}
                 icon={cat.icon}
                 query={cat.query}
+                cachedProducts={categoryProductsMap[cat.query] || null}
                 onProductClick={handleProductClick}
                 onViewAll={(q) => { setQuery(q); performSearch(q); }}
               />
