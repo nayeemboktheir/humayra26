@@ -330,7 +330,12 @@ const Index = () => {
   const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); };
   const handleDrop = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); dragCounterRef.current = 0; const files = e.dataTransfer.files; if (files.length > 0) validateAndSearchImage(files[0]); };
 
-  // No background translation - rely on API's language=en for speed
+  // Auto-translate titles in background after products render
+  useEffect(() => {
+    if (products.length > 0 && !isLoading && !isTranslatingTitles && Object.keys(translatedTitles).length === 0) {
+      handleTranslateTitles();
+    }
+  }, [products, isLoading]);
 
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
