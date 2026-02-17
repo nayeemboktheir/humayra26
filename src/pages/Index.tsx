@@ -234,19 +234,73 @@ const Index = () => {
 
   // State for cached category view
   const [activeCategoryView, setActiveCategoryView] = useState<{ query: string; name: string; icon: string } | null>(null);
+  const [categoryPage, setCategoryPage] = useState(1);
+  const [categoryProducts, setCategoryProducts] = useState<Product1688[]>([]);
+  const [categoryTotal, setCategoryTotal] = useState<number | null>(null);
+  const [isCategoryLoading, setIsCategoryLoading] = useState(false);
+
+  const CATEGORY_PAGE_SIZE = 40;
+  const categoryTotalPages = categoryTotal ? Math.ceil(categoryTotal / CATEGORY_PAGE_SIZE) : 0;
+
+  const loadCategoryPage = async (categoryQuery: string, page: number) => {
+    setIsCategoryLoading(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    try {
+      const result = await alibaba1688Api.search(categoryQuery, page, CATEGORY_PAGE_SIZE);
+      if (result.success && result.data) {
+        setCategoryProducts(result.data.items);
+        setCategoryTotal(result.data.total);
+        setCategoryPage(page);
+      } else {
+        toast.error(result.error || "Failed to load page");
+      }
+    } catch {
+      toast.error("Failed to load page");
+    } finally {
+      setIsCategoryLoading(false);
+    }
+  };
 
   const handleCategoryClick = (categoryQuery: string) => {
-    // Check if this is a known category with cached products
     const cat = categories.find(c => c.query === categoryQuery);
-    if (cat && categoryProductsMap[categoryQuery]?.length) {
+    if (cat) {
+      // Page 1 loads from cache
+      const cachedRows = categoryProductsMap[categoryQuery] || [];
+      const cachedProducts: Product1688[] = cachedRows.map((row: any) => ({
+        num_iid: parseInt(String(row.product_id).replace(/^abb-/, ''), 10) || 0,
+        title: row.title,
+        pic_url: row.image_url,
+        price: Number(row.price) || 0,
+        sales: row.sales || undefined,
+        detail_url: row.detail_url || '',
+        location: row.location || '',
+        vendor_name: row.vendor_name || '',
+        stock: row.stock || undefined,
+        weight: row.weight ? Number(row.weight) : undefined,
+        extra_images: row.extra_images || [],
+      }));
       setActiveCategoryView({ query: categoryQuery, name: cat.name, icon: cat.icon });
+      setCategoryProducts(cachedProducts);
+      setCategoryPage(1);
+      setCategoryTotal(null); // Will be set when user goes to page 2+
       setSearchParams({ category: categoryQuery }, { replace: true });
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
-      // Fall back to live search for non-cached queries
       setQuery(categoryQuery);
       performSearch(categoryQuery);
     }
+  };
+
+  const goToCategoryPage = (page: number) => {
+    if (!activeCategoryView || isCategoryLoading) return;
+    if (page === 1) {
+      // Go back to cached page 1
+      handleCategoryClick(activeCategoryView.query);
+      return;
+    }
+    setCategoryPage(page);
+    setSearchParams({ category: activeCategoryView.query, page: String(page) }, { replace: true });
+    loadCategoryPage(activeCategoryView.query, page);
   };
 
   const handleImageSearch = async (file: File) => {
@@ -436,7 +490,17 @@ const Index = () => {
       const catParam = searchParams.get('category');
       if (catParam && !activeCategoryView) {
         const cat = categories.find(c => c.query === catParam);
-        if (cat) setActiveCategoryView({ query: catParam, name: cat.name, icon: cat.icon });
+        if (cat) {
+          const catPageParam = searchParams.get('page');
+          const catPage = catPageParam ? parseInt(catPageParam) : 1;
+          if (catPage > 1) {
+            // Load from API for page 2+
+            setActiveCategoryView({ query: catParam, name: cat.name, icon: cat.icon });
+            loadCategoryPage(catParam, catPage);
+          } else {
+            handleCategoryClick(catParam);
+          }
+        }
       }
     }
   }, []);
@@ -460,21 +524,8 @@ const Index = () => {
 
   // Cached category view
   if (activeCategoryView) {
-    const cachedRows = categoryProductsMap[activeCategoryView.query] || [];
-    const cachedProducts: Product1688[] = cachedRows.map((row: any) => ({
-      num_iid: parseInt(String(row.product_id).replace(/^abb-/, ''), 10) || 0,
-      title: row.title,
-      pic_url: row.image_url,
-      price: Number(row.price) || 0,
-      sales: row.sales || undefined,
-      detail_url: row.detail_url || '',
-      location: row.location || '',
-      vendor_name: row.vendor_name || '',
-      stock: row.stock || undefined,
-      weight: row.weight ? Number(row.weight) : undefined,
-      extra_images: row.extra_images || [],
-    }));
-    const filteredCached = applyFilters(cachedProducts, filters, convertToBDT);
+    const displayProducts = applyFilters(categoryProducts, filters, convertToBDT);
+    const showPagination = categoryTotalPages > 1 || categoryPage === 1; // Always show nav since there are more pages on 1688
 
     return (
       <div className="min-h-screen bg-background">
@@ -503,13 +554,19 @@ const Index = () => {
             {/* Main area */}
             <div className="flex-1 min-w-0">
               {/* Category header */}
-              <div className="flex items-center gap-2 mb-4">
-                <Button variant="ghost" size="sm" onClick={handleBackToSearch} className="gap-1">
-                  <ChevronLeft className="h-4 w-4" /> Home
-                </Button>
-                <span className="text-2xl">{activeCategoryView.icon}</span>
-                <h2 className="text-xl font-bold">{activeCategoryView.name}</h2>
-                <span className="text-sm text-muted-foreground ml-2">({filteredCached.length} products)</span>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" size="sm" onClick={handleBackToSearch} className="gap-1">
+                    <ChevronLeft className="h-4 w-4" /> Home
+                  </Button>
+                  <span className="text-2xl">{activeCategoryView.icon}</span>
+                  <h2 className="text-xl font-bold">{activeCategoryView.name}</h2>
+                </div>
+                {categoryTotal && (
+                  <span className="text-sm text-muted-foreground">
+                    {categoryTotal.toLocaleString()} products · Page {categoryPage}
+                  </span>
+                )}
               </div>
               <div className="border-b border-primary/20 mb-4" />
 
@@ -529,42 +586,77 @@ const Index = () => {
                 </div>
               </div>
 
-              {filteredCached.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                  {filteredCached.map((product) => (
-                    <Card
-                      key={product.num_iid}
-                      className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow group"
-                      onClick={() => handleProductClick(product)}
-                    >
-                      <div className="aspect-square overflow-hidden bg-muted relative">
-                        <img
-                          src={product.pic_url}
-                          alt={product.title}
-                          referrerPolicy="no-referrer"
-                          loading="lazy"
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                          onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
-                        />
-                        <Badge className="absolute top-2 left-2 bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5">
-                          3% OFF
-                        </Badge>
-                      </div>
-                      <CardContent className="p-3 space-y-1.5">
-                        <h3 className="text-sm font-medium line-clamp-2 min-h-[2.5rem] leading-tight">{product.title}</h3>
-                        <div className="flex items-center gap-0.5">
-                          {[...Array(5)].map((_, i) => <Star key={i} className="h-3 w-3 fill-amber-400 text-amber-400" />)}
-                        </div>
-                        <div className="flex items-baseline gap-2">
-                          <span className="text-lg font-bold text-primary">৳{convertToBDT(product.price).toLocaleString()}</span>
-                        </div>
-                        {product.sales ? (
-                          <p className="text-[10px] text-muted-foreground">SOLD : {product.sales.toLocaleString()}</p>
-                        ) : null}
-                      </CardContent>
-                    </Card>
-                  ))}
+              {isCategoryLoading ? (
+                <div className="flex flex-col items-center justify-center py-20">
+                  <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
+                  <p className="text-muted-foreground">Loading page {categoryPage}...</p>
                 </div>
+              ) : displayProducts.length > 0 ? (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                    {displayProducts.map((product) => (
+                      <Card
+                        key={product.num_iid}
+                        className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow group"
+                        onClick={() => handleProductClick(product)}
+                      >
+                        <div className="aspect-square overflow-hidden bg-muted relative">
+                          <img
+                            src={product.pic_url}
+                            alt={product.title}
+                            referrerPolicy="no-referrer"
+                            loading="lazy"
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                            onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
+                          />
+                          <Badge className="absolute top-2 left-2 bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5">
+                            3% OFF
+                          </Badge>
+                        </div>
+                        <CardContent className="p-3 space-y-1.5">
+                          <h3 className="text-sm font-medium line-clamp-2 min-h-[2.5rem] leading-tight">{product.title}</h3>
+                          <div className="flex items-center gap-0.5">
+                            {[...Array(5)].map((_, i) => <Star key={i} className="h-3 w-3 fill-amber-400 text-amber-400" />)}
+                          </div>
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-lg font-bold text-primary">৳{convertToBDT(product.price).toLocaleString()}</span>
+                          </div>
+                          {product.sales ? (
+                            <p className="text-[10px] text-muted-foreground">SOLD : {product.sales.toLocaleString()}</p>
+                          ) : null}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+
+                  {/* Pagination */}
+                  <div className="flex items-center justify-center gap-1 mt-8 pb-4">
+                    <Button variant="outline" size="sm" onClick={() => goToCategoryPage(categoryPage - 1)} disabled={categoryPage <= 1 || isCategoryLoading}>
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    {(() => {
+                      const maxPage = categoryTotalPages > 0 ? categoryTotalPages : Math.max(categoryPage + 5, 25);
+                      const pages: (number | '...')[] = [];
+                      if (maxPage <= 7) {
+                        for (let i = 1; i <= maxPage; i++) pages.push(i);
+                      } else {
+                        pages.push(1);
+                        if (categoryPage > 3) pages.push('...');
+                        for (let i = Math.max(2, categoryPage - 1); i <= Math.min(maxPage - 1, categoryPage + 1); i++) pages.push(i);
+                        if (categoryPage < maxPage - 2) pages.push('...');
+                        pages.push(maxPage);
+                      }
+                      return pages.map((p, idx) =>
+                        p === '...' ? <span key={`e-${idx}`} className="px-2 text-muted-foreground">…</span> : (
+                          <Button key={p} variant={p === categoryPage ? "default" : "outline"} size="sm" className="min-w-[36px]" onClick={() => goToCategoryPage(p as number)} disabled={isCategoryLoading}>{p}</Button>
+                        )
+                      );
+                    })()}
+                    <Button variant="outline" size="sm" onClick={() => goToCategoryPage(categoryPage + 1)} disabled={isCategoryLoading || (categoryTotalPages > 0 && categoryPage >= categoryTotalPages)}>
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </>
               ) : (
                 <div className="text-center py-20"><p className="text-muted-foreground">No products in this category</p></div>
               )}
