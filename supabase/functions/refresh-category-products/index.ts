@@ -14,7 +14,7 @@ const CATEGORIES = [
   "tools home improvement", "school supplies",
 ];
 
-const PRODUCTS_PER_CATEGORY = 12;
+const PRODUCTS_PER_CATEGORY = 40;
 
 async function translateSingle(text: string, apiKey: string): Promise<string> {
   if (!text?.trim()) return text;

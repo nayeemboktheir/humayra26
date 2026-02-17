@@ -232,9 +232,21 @@ const Index = () => {
     performSearch(trimmed);
   };
 
+  // State for cached category view
+  const [activeCategoryView, setActiveCategoryView] = useState<{ query: string; name: string; icon: string } | null>(null);
+
   const handleCategoryClick = (categoryQuery: string) => {
-    setQuery(categoryQuery);
-    performSearch(categoryQuery);
+    // Check if this is a known category with cached products
+    const cat = categories.find(c => c.query === categoryQuery);
+    if (cat && categoryProductsMap[categoryQuery]?.length) {
+      setActiveCategoryView({ query: categoryQuery, name: cat.name, icon: cat.icon });
+      setSearchParams({ category: categoryQuery }, { replace: true });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      // Fall back to live search for non-cached queries
+      setQuery(categoryQuery);
+      performSearch(categoryQuery);
+    }
   };
 
   const handleImageSearch = async (file: File) => {
@@ -405,7 +417,7 @@ const Index = () => {
     finally { setIsLoadingProduct(false); }
   };
 
-  const handleBackToSearch = () => { setSelectedProduct(null); setSearchParams({}); };
+  const handleBackToSearch = () => { setSelectedProduct(null); setActiveCategoryView(null); setSearchParams({}); };
 
   // Load product or search from URL params on mount
   useEffect(() => {
@@ -420,6 +432,12 @@ const Index = () => {
     } else if (qParam && !hasSearched) {
       setQuery(qParam);
       performSearch(qParam, pageParam ? parseInt(pageParam) : 1);
+    } else {
+      const catParam = searchParams.get('category');
+      if (catParam && !activeCategoryView) {
+        const cat = categories.find(c => c.query === catParam);
+        if (cat) setActiveCategoryView({ query: catParam, name: cat.name, icon: cat.icon });
+      }
     }
   }, []);
 
@@ -436,6 +454,60 @@ const Index = () => {
       <div className="min-h-screen bg-background">
         <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} />
         <ProductDetail product={selectedProduct || undefined} isLoading={isLoadingProduct} onBack={handleBackToSearch} />
+      </div>
+    );
+  }
+
+  // Cached category view
+  if (activeCategoryView) {
+    const cachedRows = categoryProductsMap[activeCategoryView.query] || [];
+    const cachedProducts: Product1688[] = cachedRows.map((row: any) => ({
+      num_iid: parseInt(String(row.product_id).replace(/^abb-/, ''), 10) || 0,
+      title: row.title,
+      pic_url: row.image_url,
+      price: Number(row.price) || 0,
+      sales: row.sales || undefined,
+      detail_url: row.detail_url || '',
+      location: row.location || '',
+      vendor_name: row.vendor_name || '',
+      stock: row.stock || undefined,
+      weight: row.weight ? Number(row.weight) : undefined,
+      extra_images: row.extra_images || [],
+    }));
+    const filteredCached = applyFilters(cachedProducts, filters, convertToBDT);
+
+    return (
+      <div className="min-h-screen bg-background">
+        <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} />
+        <div className="px-3 sm:px-6 py-6">
+          <div className="flex gap-6">
+            <SearchFilters
+              filters={filters}
+              onFiltersChange={setFilters}
+              onCategorySearch={(q) => handleCategoryClick(q)}
+            />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-4">
+                <Button variant="ghost" size="sm" onClick={handleBackToSearch} className="gap-1">
+                  <ChevronLeft className="h-4 w-4" /> Back
+                </Button>
+                <span className="text-2xl">{activeCategoryView.icon}</span>
+                <h2 className="text-xl font-bold">{activeCategoryView.name}</h2>
+                <span className="text-sm text-muted-foreground ml-2">({filteredCached.length} products)</span>
+              </div>
+              {filteredCached.length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                  {filteredCached.map((product) => (
+                    <ProductCard key={product.num_iid} product={product} getDisplayTitle={(p) => p.title} onClick={() => handleProductClick(product)} />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-20"><p className="text-muted-foreground">No products in this category</p></div>
+              )}
+            </div>
+          </div>
+        </div>
+        <Footer />
       </div>
     );
   }
@@ -647,7 +719,7 @@ const Index = () => {
                 query={cat.query}
                 cachedProducts={categoryProductsMap[cat.query] || null}
                 onProductClick={handleProductClick}
-                onViewAll={(q) => { setQuery(q); performSearch(q); }}
+                onViewAll={(q) => handleCategoryClick(q)}
               />
             ))}
           </div>
