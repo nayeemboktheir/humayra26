@@ -10,6 +10,7 @@ import { Loader2, Search, ShoppingBag, Star, Store, ChevronLeft, ChevronRight, S
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
 import { alibaba1688Api, Product1688, ProductDetail1688 } from "@/lib/api/alibaba1688";
+import { supabase } from "@/integrations/supabase/client";
 
 export const ProductSearch = () => {
   const { toast } = useToast();
@@ -30,7 +31,13 @@ export const ProductSearch = () => {
     setProducts([]);
 
     try {
-      const response = await alibaba1688Api.search(query);
+      const response = await alibaba1688Api.search(
+        query,
+        1,
+        40,
+        // Background translation callback — updates titles once Gemini responds
+        (translatedItems) => setProducts(translatedItems),
+      );
 
       if (response.success && response.data) {
         setProducts(response.data.items);
@@ -86,17 +93,43 @@ export const ProductSearch = () => {
     setIsDetailsOpen(true);
     setIsLoadingDetails(true);
 
-    // Fetch full details in background
+    // Fetch full details in background (no translation blocking)
     try {
       const response = await alibaba1688Api.getProduct(product.num_iid);
       if (response.success && response.data) {
-        setSelectedProduct(response.data);
+        const detail = response.data;
+        setSelectedProduct(detail);
+        setIsLoadingDetails(false);
+
+        // Translate title + props in background — update once Gemini responds
+        const textsToTranslate: string[] = [detail.title];
+        const propStartIdx = 1;
+        detail.props.forEach(p => {
+          textsToTranslate.push(p.name);
+          textsToTranslate.push(p.value);
+        });
+
+        supabase.functions.invoke('translate-text', { body: { texts: textsToTranslate } })
+          .then(({ data: td }) => {
+            if (!td?.translations || td.translations.length !== textsToTranslate.length) return;
+            const translated = td.translations;
+            const translatedProps = detail.props.map((p, i) => ({
+              name: translated[propStartIdx + i * 2] || p.name,
+              value: translated[propStartIdx + i * 2 + 1] || p.value,
+            }));
+            setSelectedProduct(prev => prev ? {
+              ...prev,
+              title: translated[0] || prev.title,
+              props: translatedProps,
+            } : prev);
+          })
+          .catch(() => { /* keep originals */ });
+        return;
       }
     } catch (error) {
       console.error("Product details error:", error);
-    } finally {
-      setIsLoadingDetails(false);
     }
+    setIsLoadingDetails(false);
   };
 
   // Get all images from product
