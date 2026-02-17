@@ -239,20 +239,37 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
 
             {/* Price Block */}
             <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 rounded-xl p-5">
-              <div className="flex items-baseline gap-2">
-                <span className="text-sm font-medium text-primary">৳</span>
-                <span className="text-4xl font-extrabold text-primary tracking-tight">
-                  {convertToBDT(product.price).toLocaleString()}
-                </span>
-              </div>
-              <div className="text-sm text-muted-foreground mt-1.5">¥{product.price} CNY</div>
+              {(() => {
+                // Show price range if variants have different prices
+                const variantPrices = hasSkus
+                  ? [...new Set(product.configuredItems!.map(ci => ci.price))].sort((a, b) => a - b)
+                  : [];
+                const showRange = variantPrices.length > 1;
+                return (
+                  <>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-sm font-medium text-primary">৳</span>
+                      <span className="text-4xl font-extrabold text-primary tracking-tight">
+                        {showRange
+                          ? `${convertToBDT(variantPrices[0]).toLocaleString()} - ${convertToBDT(variantPrices[variantPrices.length - 1]).toLocaleString()}`
+                          : convertToBDT(product.price).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="text-sm text-muted-foreground mt-1.5">
+                      {showRange
+                        ? `¥${variantPrices[0]} - ¥${variantPrices[variantPrices.length - 1]} CNY`
+                        : `¥${product.price} CNY`}
+                    </div>
+                  </>
+                );
+              })()}
 
-              {/* Tiered pricing inline */}
+              {/* Quantity-based tiered pricing */}
               {getPriceRanges().length > 1 && (
-                <div className="flex gap-3 mt-3 pt-3 border-t border-primary/10">
+                <div className="flex gap-4 mt-3 pt-3 border-t border-primary/10">
                   {getPriceRanges().map((range, idx) => (
-                    <div key={idx} className="text-center">
-                      <div className="text-xs text-muted-foreground">≥{range.minQty} pcs</div>
+                    <div key={idx} className="text-center px-3 py-1.5 bg-background/50 rounded-lg">
+                      <div className="text-xs text-muted-foreground font-medium">≥{range.minQty} pcs</div>
                       <div className="font-bold text-primary text-sm">৳{range.priceBDT}</div>
                     </div>
                   ))}
@@ -294,13 +311,15 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                   </div>
                 </div>
               )}
-              <div className="flex items-center gap-2.5 p-3 bg-card border rounded-xl">
-                <MapPin className="h-4.5 w-4.5 text-primary flex-shrink-0" />
-                <div>
-                  <div className="text-[11px] text-muted-foreground uppercase tracking-wide">Origin</div>
-                  <div className="font-semibold text-sm">{translateLocation(product.location)}</div>
+              {product.location && (
+                <div className="flex items-center gap-2.5 p-3 bg-card border rounded-xl">
+                  <MapPin className="h-4.5 w-4.5 text-primary flex-shrink-0" />
+                  <div>
+                    <div className="text-[11px] text-muted-foreground uppercase tracking-wide">Origin</div>
+                    <div className="font-semibold text-sm">{translateLocation(product.location)}</div>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* ===== SKU Variant Table ===== */}
@@ -452,7 +471,12 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                   {ordering ? "Placing Order..." : "Buy Now"}
                 </Button>
 
-                <Button variant="outline" className="w-full h-11 rounded-xl font-semibold">
+                <Button variant="outline" className="w-full h-11 rounded-xl font-semibold" onClick={handleBuyNow} disabled={ordering}>
+                  <ShoppingCart className="w-4 h-4 mr-2" />
+                  Add to Cart
+                </Button>
+
+                <Button variant="ghost" className="w-full h-10 rounded-xl text-muted-foreground hover:text-foreground">
                   <MessageCircle className="w-4 h-4 mr-2" />
                   WhatsApp Order
                 </Button>

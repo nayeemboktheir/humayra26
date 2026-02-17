@@ -171,13 +171,16 @@ export const alibaba1688Api = {
 
       // Extract price range from ConfiguredItems
       const configuredItems = Array.isArray(item?.ConfiguredItems) ? item.ConfiguredItems : [];
-      const prices = configuredItems
-        .map((ci: any) => ci?.Price?.OriginalPrice)
-        .filter((p: any) => typeof p === 'number' && p > 0);
-      const uniquePrices = [...new Set(prices)].sort((a: number, b: number) => a - b);
-      const priceRange: number[][] | undefined = uniquePrices.length > 1
-        ? uniquePrices.map((p: number) => [1, p])
-        : undefined;
+      
+      // Parse price ranges from QuantityRanges if available (real quantity-based tiers)
+      const quantityRanges = Array.isArray(item?.QuantityRanges) ? item.QuantityRanges : [];
+      let priceRange: number[][] | undefined;
+      if (quantityRanges.length > 1) {
+        priceRange = quantityRanges
+          .filter((qr: any) => qr?.MinQuantity && qr?.Price?.OriginalPrice)
+          .map((qr: any) => [qr.MinQuantity, qr.Price.OriginalPrice]);
+      }
+      // Don't show variant price differences as "tiered pricing"
 
       // Pictures
       const pics = Array.isArray(item?.Pictures) ? item.Pictures : [];
