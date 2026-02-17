@@ -479,26 +479,90 @@ const Index = () => {
     return (
       <div className="min-h-screen bg-background">
         <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} />
-        <div className="px-3 sm:px-6 py-6">
-          <div className="flex gap-6">
-            <SearchFilters
-              filters={filters}
-              onFiltersChange={setFilters}
-              onCategorySearch={(q) => handleCategoryClick(q)}
-            />
+        <div className="px-3 sm:px-6">
+          <div className="flex gap-6 mt-4">
+            {/* Category Sidebar - desktop only */}
+            <aside className="hidden lg:block w-56 shrink-0">
+              <div className="bg-card rounded-xl border p-4 sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto scrollbar-hide">
+                <h2 className="text-lg font-bold text-primary mb-4">Category</h2>
+                <nav className="space-y-0.5">
+                  {categories.map((cat) => (
+                    <button
+                      key={cat.name}
+                      onClick={() => handleCategoryClick(cat.query)}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors text-left ${cat.query === activeCategoryView.query ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'}`}
+                    >
+                      <span className="text-lg">{cat.icon}</span>
+                      <span className="capitalize">{cat.name}</span>
+                    </button>
+                  ))}
+                </nav>
+              </div>
+            </aside>
+
+            {/* Main area */}
             <div className="flex-1 min-w-0">
+              {/* Category header */}
               <div className="flex items-center gap-2 mb-4">
                 <Button variant="ghost" size="sm" onClick={handleBackToSearch} className="gap-1">
-                  <ChevronLeft className="h-4 w-4" /> Back
+                  <ChevronLeft className="h-4 w-4" /> Home
                 </Button>
                 <span className="text-2xl">{activeCategoryView.icon}</span>
                 <h2 className="text-xl font-bold">{activeCategoryView.name}</h2>
                 <span className="text-sm text-muted-foreground ml-2">({filteredCached.length} products)</span>
               </div>
+              <div className="border-b border-primary/20 mb-4" />
+
+              {/* Mobile categories */}
+              <div className="lg:hidden mb-6">
+                <div className="flex overflow-x-auto gap-3 pb-2 scrollbar-hide">
+                  {categories.map((cat) => (
+                    <button
+                      key={cat.name}
+                      onClick={() => handleCategoryClick(cat.query)}
+                      className={`flex flex-col items-center gap-1 shrink-0 p-2 rounded-lg transition-colors min-w-[72px] ${cat.query === activeCategoryView.query ? 'bg-primary/10' : 'hover:bg-secondary'}`}
+                    >
+                      <span className="text-2xl">{cat.icon}</span>
+                      <span className="text-[10px] text-muted-foreground text-center leading-tight capitalize">{cat.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {filteredCached.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                   {filteredCached.map((product) => (
-                    <ProductCard key={product.num_iid} product={product} getDisplayTitle={(p) => p.title} onClick={() => handleProductClick(product)} />
+                    <Card
+                      key={product.num_iid}
+                      className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow group"
+                      onClick={() => handleProductClick(product)}
+                    >
+                      <div className="aspect-square overflow-hidden bg-muted relative">
+                        <img
+                          src={product.pic_url}
+                          alt={product.title}
+                          referrerPolicy="no-referrer"
+                          loading="lazy"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                          onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
+                        />
+                        <Badge className="absolute top-2 left-2 bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5">
+                          3% OFF
+                        </Badge>
+                      </div>
+                      <CardContent className="p-3 space-y-1.5">
+                        <h3 className="text-sm font-medium line-clamp-2 min-h-[2.5rem] leading-tight">{product.title}</h3>
+                        <div className="flex items-center gap-0.5">
+                          {[...Array(5)].map((_, i) => <Star key={i} className="h-3 w-3 fill-amber-400 text-amber-400" />)}
+                        </div>
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-lg font-bold text-primary">৳{convertToBDT(product.price).toLocaleString()}</span>
+                        </div>
+                        {product.sales ? (
+                          <p className="text-[10px] text-muted-foreground">SOLD : {product.sales.toLocaleString()}</p>
+                        ) : null}
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
               ) : (
