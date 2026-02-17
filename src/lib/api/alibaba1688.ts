@@ -95,8 +95,26 @@ function parseOtapiItem(item: any): Product1688 {
   };
 }
 
+// Translate an array of titles via the translate-text edge function (fire & forget style)
+async function translateTitlesAsync(titles: string[]): Promise<string[]> {
+  try {
+    const { data, error } = await supabase.functions.invoke('translate-text', {
+      body: { texts: titles },
+    });
+    if (error || !data?.translations) return titles;
+    return data.translations.length === titles.length ? data.translations : titles;
+  } catch {
+    return titles;
+  }
+}
+
 export const alibaba1688Api = {
-  async search(query: string, page = 1, pageSize = 40): Promise<ApiResponse<{ items: Product1688[]; total: number }>> {
+  async search(
+    query: string,
+    page = 1,
+    pageSize = 40,
+    onTranslated?: (items: Product1688[]) => void,
+  ): Promise<ApiResponse<{ items: Product1688[]; total: number }>> {
     try {
       const { data, error } = await supabase.functions.invoke('alibaba-1688-search', {
         body: { query, page, pageSize },
@@ -107,13 +125,23 @@ export const alibaba1688Api = {
 
       const rawItems = data.data?.Result?.Items?.Content || [];
       const total = data.data?.Result?.Items?.TotalCount || 0;
+      const items = rawItems.map(parseOtapiItem);
+
+      // Fire translation in background and call onTranslated when ready
+      if (onTranslated && items.length > 0) {
+        const titles = items.map((p: Product1688) => p.title);
+        translateTitlesAsync(titles).then((translated) => {
+          const translatedItems = items.map((p: Product1688, i: number) => ({
+            ...p,
+            title: translated[i] || p.title,
+          }));
+          onTranslated(translatedItems);
+        });
+      }
 
       return {
         success: true,
-        data: {
-          items: rawItems.map(parseOtapiItem),
-          total,
-        },
+        data: { items, total },
       };
     } catch (error) {
       console.error('Error searching 1688:', error);
@@ -121,7 +149,12 @@ export const alibaba1688Api = {
     }
   },
 
-  async searchByImage(imageBase64: string, page = 1, pageSize = 40): Promise<ApiResponse<{ items: Product1688[]; total: number }>> {
+  async searchByImage(
+    imageBase64: string,
+    page = 1,
+    pageSize = 40,
+    onTranslated?: (items: Product1688[]) => void,
+  ): Promise<ApiResponse<{ items: Product1688[]; total: number }>> {
     try {
       const { data, error } = await supabase.functions.invoke('alibaba-1688-image-search', {
         body: { imageBase64, page, pageSize },
@@ -132,13 +165,22 @@ export const alibaba1688Api = {
 
       const rawItems = data.data?.Result?.Items?.Content || [];
       const total = data.data?.Result?.Items?.TotalCount || 0;
+      const items = rawItems.map(parseOtapiItem);
+
+      if (onTranslated && items.length > 0) {
+        const titles = items.map((p: Product1688) => p.title);
+        translateTitlesAsync(titles).then((translated) => {
+          const translatedItems = items.map((p: Product1688, i: number) => ({
+            ...p,
+            title: translated[i] || p.title,
+          }));
+          onTranslated(translatedItems);
+        });
+      }
 
       return {
         success: true,
-        data: {
-          items: rawItems.map(parseOtapiItem),
-          total,
-        },
+        data: { items, total },
       };
     } catch (error) {
       console.error('Error searching 1688 by image:', error);
