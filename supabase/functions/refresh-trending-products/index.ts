@@ -5,7 +5,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Search queries to pull trending products from different categories
 const TRENDING_QUERIES = [
   "best selling products",
   "popular stationery",
@@ -16,6 +15,50 @@ const TRENDING_QUERIES = [
 
 const MAX_PRODUCTS = 15;
 
+async function translateSingle(text: string, apiKey: string): Promise<string> {
+  if (!text?.trim()) return text;
+  try {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash-lite',
+        messages: [
+          {
+            role: 'system',
+            content: 'Translate the following product title to natural English for e-commerce. Return ONLY the translated title, nothing else. Keep brand names, model numbers as-is. If already English, return unchanged.'
+          },
+          { role: 'user', content: text }
+        ],
+        max_tokens: 300,
+        temperature: 0.1,
+      }),
+    });
+    if (!response.ok) return text;
+    const data = await response.json();
+    const result = (data.choices?.[0]?.message?.content || '').trim();
+    return result || text;
+  } catch {
+    return text;
+  }
+}
+
+async function translateBatch(titles: string[], apiKey: string): Promise<string[]> {
+  const results: string[] = new Array(titles.length);
+  const PARALLEL = 4;
+  for (let i = 0; i < titles.length; i += PARALLEL) {
+    const batch = titles.slice(i, i + PARALLEL);
+    const translated = await Promise.all(batch.map(t => translateSingle(t, apiKey)));
+    for (let j = 0; j < translated.length; j++) {
+      results[i + j] = translated[j];
+    }
+  }
+  return results;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -25,6 +68,7 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const otapiKey = Deno.env.get("OTCOMMERCE_API_KEY");
+    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
 
     if (!otapiKey) {
       return new Response(
@@ -37,7 +81,6 @@ Deno.serve(async (req) => {
 
     console.log("Refreshing trending products...");
 
-    // Collect products from multiple search queries
     const allProducts: Array<{
       product_id: string;
       title: string;
@@ -72,7 +115,6 @@ Deno.serve(async (req) => {
           const externalId = item?.Id || "";
           if (!externalId || seenIds.has(externalId)) continue;
 
-          // Validate item is accessible by checking it exists
           const picUrl = item?.MainPictureUrl || item?.Pictures?.[0]?.Url || "";
           if (!picUrl) continue;
 
@@ -104,6 +146,19 @@ Deno.serve(async (req) => {
         JSON.stringify({ success: true, message: "No new products found, kept existing" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Translate titles to English
+    if (lovableKey) {
+      console.log(`Translating ${allProducts.length} trending product titles...`);
+      const titles = allProducts.map(p => p.title);
+      const translated = await translateBatch(titles, lovableKey);
+      for (let i = 0; i < allProducts.length; i++) {
+        allProducts[i].title = translated[i];
+      }
+      console.log("Translation complete");
+    } else {
+      console.warn("LOVABLE_API_KEY not set, skipping translation");
     }
 
     // Replace all trending products atomically
