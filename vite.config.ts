@@ -20,9 +20,9 @@ export default defineConfig(({ mode }) => ({
       registerType: "autoUpdate",
       includeAssets: ["favicon.ico", "robots.txt"],
       manifest: {
-        name: "1688 Product Search",
-        short_name: "1688 Search",
-        description: "Search and browse 1688 wholesale products with prices in BDT",
+        name: "TradeOn Global",
+        short_name: "TradeOn",
+        description: "TradeOn Global - Search and browse wholesale products with prices in BDT",
         theme_color: "#e63362",
         background_color: "#fafafa",
         display: "standalone",
