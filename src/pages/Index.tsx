@@ -152,10 +152,16 @@ const Index = () => {
   useEffect(() => {
     const fetchAll = async () => {
       // Fetch trending + all category products in parallel
-      const [trendingRes, categoryRes] = await Promise.all([
+      const [trendingRes, categoryRes1] = await Promise.all([
         supabase.from("trending_products").select("*").order("sold", { ascending: false }),
-        supabase.from("category_products").select("*").order("created_at", { ascending: true }),
+        supabase.from("category_products").select("*").order("created_at", { ascending: true }).range(0, 999),
       ]);
+      // Fetch remaining category products beyond the 1000-row limit
+      const categoryRes2 = await supabase.from("category_products").select("*").order("created_at", { ascending: true }).range(1000, 1999);
+      const allCategoryData = [
+        ...(categoryRes1.data || []),
+        ...(categoryRes2.data || []),
+      ];
 
       if (!trendingRes.error && trendingRes.data && trendingRes.data.length > 0) {
         setTrendingProducts(
@@ -170,9 +176,9 @@ const Index = () => {
         );
       }
 
-      if (!categoryRes.error && categoryRes.data) {
+      if (allCategoryData.length > 0) {
         const grouped: Record<string, any[]> = {};
-        for (const row of categoryRes.data) {
+        for (const row of allCategoryData) {
           if (!grouped[row.category_query]) grouped[row.category_query] = [];
           grouped[row.category_query].push(row);
         }
@@ -261,7 +267,7 @@ const Index = () => {
   const [categoryTotal, setCategoryTotal] = useState<number | null>(null);
   const [isCategoryLoading, setIsCategoryLoading] = useState(false);
 
-  const CATEGORY_PAGE_SIZE = 40;
+  const CATEGORY_PAGE_SIZE = 50;
   const categoryTotalPages = categoryTotal ? Math.ceil(categoryTotal / CATEGORY_PAGE_SIZE) : 0;
 
   const loadCategoryPage = async (categoryQuery: string, page: number) => {
