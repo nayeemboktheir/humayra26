@@ -284,12 +284,14 @@ const Index = () => {
   const [categoryProducts, setCategoryProducts] = useState<Product1688[]>([]);
   const [categoryTotal, setCategoryTotal] = useState<number | null>(null);
   const [isCategoryLoading, setIsCategoryLoading] = useState(false);
+  const [visibleCategoryCount, setVisibleCategoryCount] = useState<number>(Infinity);
 
   const CATEGORY_PAGE_SIZE = 50;
   const categoryTotalPages = categoryTotal ? Math.ceil(categoryTotal / CATEGORY_PAGE_SIZE) : 0;
 
   const loadCategoryPage = async (categoryQuery: string, page: number) => {
     setIsCategoryLoading(true);
+    setVisibleCategoryCount(0);
     window.scrollTo({ top: 0, behavior: 'smooth' });
     try {
       const result = await alibaba1688Api.search(categoryQuery, page, CATEGORY_PAGE_SIZE);
@@ -297,12 +299,23 @@ const Index = () => {
         setCategoryProducts(result.data.items);
         setCategoryTotal(result.data.total);
         setCategoryPage(page);
+        // Progressive reveal: show first row instantly, then add rows
+        const cols = window.innerWidth >= 1280 ? 6 : window.innerWidth >= 1024 ? 5 : window.innerWidth >= 768 ? 4 : window.innerWidth >= 640 ? 3 : 2;
+        const totalItems = result.data.items.length;
+        setVisibleCategoryCount(cols); // First row instant
+        setIsCategoryLoading(false);
+        // Reveal remaining rows progressively
+        for (let shown = cols * 2; shown <= totalItems; shown += cols) {
+          await new Promise(r => setTimeout(r, 60));
+          setVisibleCategoryCount(shown);
+        }
+        setVisibleCategoryCount(Infinity); // Show all
       } else {
         toast.error(result.error || "Failed to load page");
+        setIsCategoryLoading(false);
       }
     } catch {
       toast.error("Failed to load page");
-    } finally {
       setIsCategoryLoading(false);
     }
   };
@@ -328,7 +341,8 @@ const Index = () => {
       setActiveCategoryView({ query: categoryQuery, name: cat.name, icon: cat.icon });
       setCategoryProducts(cachedProducts);
       setCategoryPage(1);
-      setCategoryTotal(null); // Will be set when user goes to page 2+
+      setCategoryTotal(null);
+      setVisibleCategoryCount(Infinity);
       setSearchParams({ category: categoryQuery }, { replace: true });
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
@@ -637,10 +651,10 @@ const Index = () => {
               ) : displayProducts.length > 0 ? (
                 <>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                    {displayProducts.map((product) => (
+                    {displayProducts.slice(0, visibleCategoryCount).map((product) => (
                       <Card
                         key={product.num_iid}
-                        className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow group"
+                        className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow group animate-fade-in"
                         onClick={() => handleProductClick(product)}
                       >
                         <div className="aspect-square overflow-hidden bg-muted relative">
@@ -670,6 +684,12 @@ const Index = () => {
                         </CardContent>
                       </Card>
                     ))}
+                    {/* Skeleton placeholders for products not yet revealed */}
+                    {visibleCategoryCount < displayProducts.length && (
+                      Array.from({ length: Math.min(6, displayProducts.length - visibleCategoryCount) }).map((_, i) => (
+                        <ProductCardSkeleton key={`skel-${i}`} />
+                      ))
+                    )}
                   </div>
 
                   {/* Pagination */}
