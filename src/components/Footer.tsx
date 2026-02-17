@@ -2,6 +2,101 @@ import { useNavigate } from "react-router-dom";
 import { MapPin, Mail, Phone } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
+const paymentMethods = [
+  {
+    name: "VISA",
+    bg: "#1A1F71",
+    content: (
+      <span style={{ fontFamily: "serif", fontStyle: "italic", fontWeight: 900, fontSize: 13, letterSpacing: -0.5, color: "#fff" }}>
+        VISA
+      </span>
+    ),
+  },
+  {
+    name: "Mastercard",
+    bg: "#fff",
+    content: (
+      <svg viewBox="0 0 38 24" width="38" height="24">
+        <circle cx="15" cy="12" r="9" fill="#EB001B" />
+        <circle cx="23" cy="12" r="9" fill="#F79E1B" />
+        <path d="M19 5.5a9 9 0 0 1 0 13 9 9 0 0 1 0-13z" fill="#FF5F00" />
+      </svg>
+    ),
+  },
+  {
+    name: "AMEX",
+    bg: "#007BC1",
+    content: (
+      <span style={{ fontFamily: "Arial", fontWeight: 900, fontSize: 10, color: "#fff", letterSpacing: 0.5 }}>
+        AMEX
+      </span>
+    ),
+  },
+  {
+    name: "bKash",
+    bg: "#E2136E",
+    content: (
+      <span style={{ fontFamily: "Arial", fontWeight: 900, fontSize: 11, color: "#fff" }}>
+        bKash
+      </span>
+    ),
+  },
+  {
+    name: "Nagad",
+    bg: "#F6A724",
+    content: (
+      <span style={{ fontFamily: "Arial", fontWeight: 900, fontSize: 11, color: "#1a1a1a" }}>
+        Nagad
+      </span>
+    ),
+  },
+  {
+    name: "Rocket",
+    bg: "#8B1D8B",
+    content: (
+      <span style={{ fontFamily: "Arial", fontWeight: 900, fontSize: 10, color: "#fff" }}>
+        Rocket
+      </span>
+    ),
+  },
+  {
+    name: "DBBL",
+    bg: "#004B87",
+    content: (
+      <span style={{ fontFamily: "Arial", fontWeight: 900, fontSize: 10, color: "#fff" }}>
+        DBBL
+      </span>
+    ),
+  },
+  {
+    name: "City Bank",
+    bg: "#C8102E",
+    content: (
+      <span style={{ fontFamily: "Arial", fontWeight: 900, fontSize: 9, color: "#fff" }}>
+        City Bank
+      </span>
+    ),
+  },
+  {
+    name: "EBL",
+    bg: "#00843D",
+    content: (
+      <span style={{ fontFamily: "Arial", fontWeight: 900, fontSize: 11, color: "#fff" }}>
+        EBL
+      </span>
+    ),
+  },
+  {
+    name: "AB Bank",
+    bg: "#003087",
+    content: (
+      <span style={{ fontFamily: "Arial", fontWeight: 900, fontSize: 9, color: "#fff" }}>
+        AB Bank
+      </span>
+    ),
+  },
+];
+
 const Footer = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -93,12 +188,17 @@ const Footer = () => {
 
         {/* Payment Methods */}
         <div className="border-t mt-8 pt-6">
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span className="font-medium mr-2">Pay With</span>
-            {["VISA", "Mastercard", "AMEX", "bKash", "Nagad", "Rocket", "DBBL", "City Bank", "EBL", "AB Bank"].map((method) => (
-              <span key={method} className="px-2 py-1 bg-secondary rounded text-[10px] font-medium text-secondary-foreground">
-                {method}
-              </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-muted-foreground mr-1">Pay With</span>
+            {paymentMethods.map((method) => (
+              <div
+                key={method.name}
+                title={method.name}
+                className="h-8 px-2.5 rounded flex items-center justify-center shadow-sm border border-black/10 min-w-[48px]"
+                style={{ backgroundColor: method.bg }}
+              >
+                {method.content}
+              </div>
             ))}
           </div>
         </div>
