@@ -286,7 +286,7 @@ const Index = () => {
   const [isCategoryLoading, setIsCategoryLoading] = useState(false);
   const [visibleCategoryCount, setVisibleCategoryCount] = useState<number>(Infinity);
 
-  const CATEGORY_PAGE_SIZE = 50;
+  const CATEGORY_PAGE_SIZE = 40;
   const categoryTotalPages = categoryTotal ? Math.ceil(categoryTotal / CATEGORY_PAGE_SIZE) : 0;
 
   const loadCategoryPage = async (categoryQuery: string, page: number) => {
