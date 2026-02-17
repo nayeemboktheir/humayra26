@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { alibaba1688Api, Product1688, ProductDetail1688 } from "@/lib/api/alibaba1688";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,6 +14,27 @@ import Footer from "@/components/Footer";
 import { useAuth } from "@/contexts/AuthContext";
 import SearchFilters, { SearchFilterValues, getDefaultFilters, applyFilters } from "@/components/SearchFilters";
 import CategorySection from "@/components/CategorySection";
+
+const ProductCardSkeleton = () => (
+  <Card className="overflow-hidden">
+    <Skeleton className="aspect-square w-full" />
+    <CardContent className="p-3 space-y-2">
+      <Skeleton className="h-4 w-full" />
+      <Skeleton className="h-4 w-3/4" />
+      <Skeleton className="h-3 w-20" />
+      <Skeleton className="h-5 w-24" />
+      <Skeleton className="h-3 w-16" />
+    </CardContent>
+  </Card>
+);
+
+const ProductGridSkeleton = ({ count = 12 }: { count?: number }) => (
+  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 animate-fade-in">
+    {Array.from({ length: count }).map((_, i) => (
+      <ProductCardSkeleton key={i} />
+    ))}
+  </div>
+);
 
 const CNY_TO_BDT = 17.5;
 const convertToBDT = (cny: number) => Math.round(cny * CNY_TO_BDT);
@@ -587,10 +609,7 @@ const Index = () => {
               </div>
 
               {isCategoryLoading ? (
-                <div className="flex flex-col items-center justify-center py-20">
-                  <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-                  <p className="text-muted-foreground">Loading page {categoryPage}...</p>
-                </div>
+                <ProductGridSkeleton count={18} />
               ) : displayProducts.length > 0 ? (
                 <>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
@@ -695,10 +714,7 @@ const Index = () => {
             {/* Results */}
             <div className="flex-1 min-w-0">
               {isLoading ? (
-                <div className="flex flex-col items-center justify-center py-20">
-                  <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-                  <p className="text-muted-foreground">Searching products...</p>
-                </div>
+                <ProductGridSkeleton count={16} />
               ) : filteredProducts.length > 0 ? (
                 <>
                   <div className="flex items-center justify-between mb-4">

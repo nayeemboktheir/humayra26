@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -101,9 +102,52 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
 
   if (!product && isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center py-20">
-        <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-        <p className="text-muted-foreground">Loading product details...</p>
+      <div className="min-h-screen bg-background animate-fade-in">
+        <div className="border-b bg-card">
+          <div className="container mx-auto px-4 max-w-7xl">
+            <div className="flex items-center gap-2 py-3">
+              <Skeleton className="h-4 w-12" />
+              <Skeleton className="h-4 w-4" />
+              <Skeleton className="h-4 w-24" />
+            </div>
+          </div>
+        </div>
+        <div className="container mx-auto px-4 py-6 max-w-7xl">
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr] lg:grid-cols-[420px_1fr_320px] gap-4 md:gap-6 lg:gap-8">
+            {/* Image skeleton */}
+            <div className="space-y-3">
+              <Skeleton className="aspect-square w-full rounded-xl" />
+              <div className="flex gap-2">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Skeleton key={i} className="w-[72px] h-[72px] rounded-lg flex-shrink-0" />
+                ))}
+              </div>
+            </div>
+            {/* Info skeleton */}
+            <div className="space-y-4">
+              <Skeleton className="h-7 w-full" />
+              <Skeleton className="h-5 w-3/4" />
+              <div className="flex gap-4">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+              <Skeleton className="h-24 w-full rounded-xl" />
+              <div className="grid grid-cols-2 gap-2">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-16 rounded-xl" />
+                ))}
+              </div>
+              <Skeleton className="h-6 w-32" />
+              <Skeleton className="h-48 w-full rounded-lg" />
+            </div>
+            {/* Sidebar skeleton */}
+            <div className="space-y-4 md:col-span-2 lg:col-span-1">
+              <Skeleton className="h-72 w-full rounded-lg" />
+              <Skeleton className="h-32 w-full rounded-lg" />
+              <Skeleton className="h-40 w-full rounded-lg" />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
