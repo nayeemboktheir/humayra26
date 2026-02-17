@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Loader2, ArrowLeft, Play, ShoppingCart, MessageCircle, ExternalLink,
   Star, MapPin, Truck, Package, Box, Weight, Minus, Plus, ChevronDown,
@@ -386,25 +387,6 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                 </Card>
               </div>
             )}
-
-            {/* Specifications Table */}
-            {displayProps.length > 0 && (
-              <div className="space-y-3">
-                <h3 className="font-semibold text-base">Product Specifications</h3>
-                <Card>
-                  <CardContent className="p-0">
-                    <div className="divide-y">
-                      {displayProps.map((prop, index) => (
-                        <div key={index} className="flex py-3 px-4 hover:bg-muted/30 transition-colors">
-                          <span className="w-2/5 text-muted-foreground text-sm">{prop.name}</span>
-                          <span className="w-3/5 font-medium text-sm">{prop.value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
           </div>
 
           {/* ===== RIGHT: Sidebar ===== */}
@@ -531,79 +513,129 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
           </div>
         </div>
 
-        {/* ===== Product Description Images ===== */}
-        {product.desc_img && product.desc_img.length > 0 && (
-          <div className="mt-10">
-            <h2 className="text-xl font-bold mb-4">Product Description</h2>
-            <div className="space-y-3 max-w-3xl">
-              {product.desc_img.map((img, index) => (
-                <img
-                  key={index}
-                  src={img}
-                  alt={`Product detail ${index + 1}`}
-                  referrerPolicy="no-referrer"
-                  className="w-full rounded-lg border"
-                  loading="lazy"
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                />
-              ))}
-            </div>
-          </div>
-        )}
+        {/* ===== Tabs Section: Specifications | Product Description | Reviews ===== */}
+        <div className="mt-10">
+          <Tabs defaultValue="specs">
+            <TabsList className="w-full justify-start border-b rounded-none bg-transparent h-auto p-0 gap-0">
+              <TabsTrigger
+                value="specs"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-6 py-3 text-sm font-medium"
+              >
+                Specifications
+              </TabsTrigger>
+              <TabsTrigger
+                value="description"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-6 py-3 text-sm font-medium"
+              >
+                Product Description
+              </TabsTrigger>
+              <TabsTrigger
+                value="reviews"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-6 py-3 text-sm font-medium"
+              >
+                Reviews
+              </TabsTrigger>
+            </TabsList>
 
-        {/* ===== Seller Info ===== */}
+            {/* Specifications Tab */}
+            <TabsContent value="specs" className="mt-0">
+              {displayProps.length > 0 ? (
+                <div className="border rounded-b-lg overflow-hidden">
+                  <table className="w-full text-sm">
+                    <tbody>
+                      {displayProps.map((prop, index) => (
+                        <tr key={index} className="border-b last:border-b-0">
+                          <td className="py-3.5 px-5 bg-muted/30 font-medium text-muted-foreground w-1/3 align-top">
+                            {prop.name}
+                          </td>
+                          <td className="py-3.5 px-5">
+                            {prop.value}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-sm py-12 text-center">No specifications available</p>
+              )}
+            </TabsContent>
+
+            {/* Product Description Tab */}
+            <TabsContent value="description" className="mt-0">
+              {product.desc_img && product.desc_img.length > 0 ? (
+                <div className="space-y-3 py-6 max-w-4xl">
+                  {product.desc_img.map((img, index) => (
+                    <img
+                      key={index}
+                      src={img}
+                      alt={`Product detail ${index + 1}`}
+                      referrerPolicy="no-referrer"
+                      className="w-full rounded-lg border"
+                      loading="lazy"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-sm py-12 text-center">No product description images available</p>
+              )}
+            </TabsContent>
+
+            {/* Reviews Tab */}
+            <TabsContent value="reviews" className="mt-0">
+              <div className="py-12 text-center">
+                <p className="text-muted-foreground text-sm">No reviews yet for this product.</p>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {/* ===== Seller Info (below tabs) ===== */}
         {product.seller_info && (
-          <div className="mt-10 mb-8">
-            <h2 className="text-xl font-bold mb-4">Seller Information</h2>
-            <Card className="max-w-lg">
-              <CardContent className="p-5 space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+          <div className="mt-8 mb-8">
+            <Card className="max-w-2xl">
+              <CardContent className="p-5">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
                     <span className="text-xl font-bold text-primary">
                       {(product.seller_info.shop_name || 'S')[0].toUpperCase()}
                     </span>
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <div className="font-semibold text-base">{product.seller_info.shop_name || "1688 Seller"}</div>
-                    <Badge variant="secondary" className="text-xs mt-0.5">Verified Supplier</Badge>
+                    <div className="flex items-center gap-3 mt-1">
+                      <Badge variant="secondary" className="text-xs">Verified Supplier</Badge>
+                      {product.location && (
+                        <span className="text-sm text-muted-foreground flex items-center gap-1">
+                          <MapPin className="h-3 w-3" />
+                          {translateLocation(product.location)}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
-
-                <Separator />
-
-                <div className="grid grid-cols-3 gap-4 text-sm">
-                  {product.seller_info.item_score && (
-                    <div className="text-center">
-                      <div className="flex items-center justify-center gap-1 mb-1">
-                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                        <span className="font-bold">{product.seller_info.item_score}</span>
-                      </div>
-                      <div className="text-xs text-muted-foreground">Product</div>
+                  {(product.seller_info.item_score || product.seller_info.delivery_score || product.seller_info.composite_score) && (
+                    <div className="flex gap-5">
+                      {product.seller_info.item_score && (
+                        <div className="text-center">
+                          <div className="flex items-center gap-1"><Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" /><span className="font-bold text-sm">{product.seller_info.item_score}</span></div>
+                          <div className="text-[11px] text-muted-foreground">Product</div>
+                        </div>
+                      )}
+                      {product.seller_info.delivery_score && (
+                        <div className="text-center">
+                          <div className="flex items-center gap-1"><Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" /><span className="font-bold text-sm">{product.seller_info.delivery_score}</span></div>
+                          <div className="text-[11px] text-muted-foreground">Delivery</div>
+                        </div>
+                      )}
+                      {product.seller_info.composite_score && (
+                        <div className="text-center">
+                          <div className="flex items-center gap-1"><Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" /><span className="font-bold text-sm">{product.seller_info.composite_score}</span></div>
+                          <div className="text-[11px] text-muted-foreground">Overall</div>
+                        </div>
+                      )}
                     </div>
                   )}
-                  {product.seller_info.delivery_score && (
-                    <div className="text-center">
-                      <div className="flex items-center justify-center gap-1 mb-1">
-                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                        <span className="font-bold">{product.seller_info.delivery_score}</span>
-                      </div>
-                      <div className="text-xs text-muted-foreground">Delivery</div>
-                    </div>
-                  )}
-                  {product.seller_info.composite_score && (
-                    <div className="text-center">
-                      <div className="flex items-center justify-center gap-1 mb-1">
-                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                        <span className="font-bold">{product.seller_info.composite_score}</span>
-                      </div>
-                      <div className="text-xs text-muted-foreground">Overall</div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="text-sm text-muted-foreground flex items-center gap-1.5">
-                  <MapPin className="h-3.5 w-3.5" />
-                  {translateLocation(product.location)}
                 </div>
               </CardContent>
             </Card>
