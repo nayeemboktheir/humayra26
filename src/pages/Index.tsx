@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { alibaba1688Api, Product1688, ProductDetail1688 } from "@/lib/api/alibaba1688";
 import { supabase } from "@/integrations/supabase/client";
 import ProductDetail from "@/components/ProductDetail";
+import Footer from "@/components/Footer";
 import { useAuth } from "@/contexts/AuthContext";
 import SearchFilters, { SearchFilterValues, getDefaultFilters, applyFilters } from "@/components/SearchFilters";
 import CategorySection from "@/components/CategorySection";
@@ -653,50 +654,7 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Footer */}
-      <footer className="border-t bg-card mt-8">
-        <div className="px-3 sm:px-6 py-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            <div>
-              <h3 className="font-bold mb-3">Quick Links</h3>
-              <div className="space-y-2 text-sm text-muted-foreground">
-                <button onClick={() => handleCategoryClick("shoes")} className="block hover:text-foreground">Shoes</button>
-                <button onClick={() => handleCategoryClick("bag")} className="block hover:text-foreground">Bags</button>
-                <button onClick={() => handleCategoryClick("electronics")} className="block hover:text-foreground">Electronics</button>
-              </div>
-            </div>
-            <div>
-              <h3 className="font-bold mb-3">Services</h3>
-              <div className="space-y-2 text-sm text-muted-foreground">
-                <p>Buy & Ship for me</p>
-                <p>Ship for me</p>
-                <p>RFQ Management</p>
-              </div>
-            </div>
-            <div>
-              <h3 className="font-bold mb-3">Support</h3>
-              <div className="space-y-2 text-sm text-muted-foreground">
-                <p>How to Order</p>
-                <p>Shipping Policy</p>
-                <p>Contact Us</p>
-              </div>
-            </div>
-            <div>
-              <h3 className="font-bold mb-3">Account</h3>
-              <div className="space-y-2 text-sm text-muted-foreground">
-                <button onClick={() => navigate(user ? "/dashboard" : "/auth")} className="block hover:text-foreground">
-                  {user ? "Dashboard" : "Sign In"}
-                </button>
-                <button onClick={() => navigate("/dashboard/orders")} className="block hover:text-foreground">My Orders</button>
-                <button onClick={() => navigate("/dashboard/wishlist")} className="block hover:text-foreground">Wishlist</button>
-              </div>
-            </div>
-          </div>
-          <div className="border-t mt-6 pt-6 text-center text-sm text-muted-foreground">
-            <p>© 2025 China Online BD - Wholesale from 1688.com to Bangladesh</p>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 };
@@ -709,7 +667,7 @@ const SiteHeader = ({ query, setQuery, handleSearch, isLoading, handleImageButto
       <div className="flex items-center gap-4 h-16">
         {/* Logo */}
         <button onClick={() => { setQuery(""); window.location.href = "/"; }} className="shrink-0">
-          <h1 className="text-xl font-bold text-primary">Humayra Trade</h1>
+          <h1 className="text-xl font-bold text-primary">TradeOn Global</h1>
         </button>
 
         {/* Search */}

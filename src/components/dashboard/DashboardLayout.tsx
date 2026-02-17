@@ -125,7 +125,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
     <div className="flex flex-col h-full">
       <div className="p-4 border-b">
         <h2 className="font-bold text-lg text-foreground cursor-pointer" onClick={() => navigate("/")}>
-          Humayra Trade
+          TradeOn Global
         </h2>
         <p className="text-xs text-muted-foreground truncate mt-1">{user?.email}</p>
       </div>
