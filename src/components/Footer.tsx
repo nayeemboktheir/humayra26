@@ -20,15 +20,15 @@ const Footer = () => {
                   <MapPin className="h-4 w-4 text-primary" />
                   HEAD OFFICE:
                 </div>
-                <p className="text-muted-foreground ml-6">House - 07, Road - 2/A, Sector - 4, Uttara, Dhaka - 1230</p>
+                <p className="text-muted-foreground ml-6">House 16, Road 07, Nikunja-02, Dhaka, Bangladesh, 1229</p>
               </div>
               <div>
                 <div className="flex items-center gap-2 font-semibold text-foreground">
                   <Mail className="h-4 w-4 text-primary" />
                   EMAIL:
                 </div>
-                <a href="mailto:info@tradeon.global" className="text-muted-foreground ml-6 hover:text-primary transition-colors">
-                  info@tradeon.global
+                <a href="mailto:info@TradeOn.global" className="text-muted-foreground ml-6 hover:text-primary transition-colors">
+                  info@TradeOn.global
                 </a>
               </div>
               <div>
@@ -36,8 +36,8 @@ const Footer = () => {
                   <Phone className="h-4 w-4 text-primary" />
                   PHONE:
                 </div>
-                <a href="tel:+8801811677154" className="text-muted-foreground ml-6 hover:text-primary transition-colors">
-                  +8801811677154
+                <a href="tel:+8801898889950" className="text-muted-foreground ml-6 hover:text-primary transition-colors">
+                  01898-889950
                 </a>
               </div>
             </div>
