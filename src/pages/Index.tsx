@@ -148,23 +148,13 @@ const Index = () => {
 
   // Prefetch all category products in one query + trending products
   const [categoryProductsMap, setCategoryProductsMap] = useState<Record<string, any[]>>({});
-  const [isHomeLoading, setIsHomeLoading] = useState(true);
+  const [isTrendingLoaded, setIsTrendingLoaded] = useState(false);
+  const [loadedCategoryCount, setLoadedCategoryCount] = useState(0);
 
   useEffect(() => {
-    const fetchAll = async () => {
-      setIsHomeLoading(true);
-      // Fetch trending + all category products in parallel
-      const [trendingRes, categoryRes1] = await Promise.all([
-        supabase.from("trending_products").select("*").order("sold", { ascending: false }),
-        supabase.from("category_products").select("*").order("created_at", { ascending: true }).range(0, 999),
-      ]);
-      // Fetch remaining category products beyond the 1000-row limit
-      const categoryRes2 = await supabase.from("category_products").select("*").order("created_at", { ascending: true }).range(1000, 1999);
-      const allCategoryData = [
-        ...(categoryRes1.data || []),
-        ...(categoryRes2.data || []),
-      ];
-
+    // Step 1: Load trending products first (instant display)
+    const fetchTrending = async () => {
+      const trendingRes = await supabase.from("trending_products").select("*").order("sold", { ascending: false });
       if (!trendingRes.error && trendingRes.data && trendingRes.data.length > 0) {
         setTrendingProducts(
           trendingRes.data.map((p: any) => ({
@@ -177,6 +167,19 @@ const Index = () => {
           }))
         );
       }
+      setIsTrendingLoaded(true);
+    };
+
+    // Step 2: Load categories progressively (serial batches so sections appear one-by-one)
+    const fetchCategories = async () => {
+      const [categoryRes1, categoryRes2] = await Promise.all([
+        supabase.from("category_products").select("*").order("created_at", { ascending: true }).range(0, 999),
+        supabase.from("category_products").select("*").order("created_at", { ascending: true }).range(1000, 1999),
+      ]);
+      const allCategoryData = [
+        ...(categoryRes1.data || []),
+        ...(categoryRes2.data || []),
+      ];
 
       if (allCategoryData.length > 0) {
         const grouped: Record<string, any[]> = {};
@@ -184,11 +187,23 @@ const Index = () => {
           if (!grouped[row.category_query]) grouped[row.category_query] = [];
           grouped[row.category_query].push(row);
         }
-        setCategoryProductsMap(grouped);
+        // Progressive reveal: add categories one by one with small delays
+        const categoryKeys = categories.map(c => c.query).filter(q => grouped[q]);
+        const buildMap: Record<string, any[]> = {};
+        for (let i = 0; i < categoryKeys.length; i++) {
+          buildMap[categoryKeys[i]] = grouped[categoryKeys[i]];
+          setCategoryProductsMap({ ...buildMap });
+          setLoadedCategoryCount(i + 1);
+          // Small stagger so each category animates in
+          if (i < categoryKeys.length - 1) {
+            await new Promise(r => setTimeout(r, 80));
+          }
+        }
       }
-      setIsHomeLoading(false);
     };
-    fetchAll();
+
+    // Fire trending first, then categories after
+    fetchTrending().then(fetchCategories);
   }, []);
 
   const handleInstallClick = async () => {
@@ -846,103 +861,98 @@ const Index = () => {
               </div>
             </div>
 
-            {isHomeLoading ? (
-              /* Homepage skeleton loader */
-              <>
-                {/* Trending skeleton */}
-                <section className="mb-10">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Skeleton className="h-6 w-6 rounded-full" />
-                    <Skeleton className="h-6 w-48" />
-                  </div>
-                  <div className="border-b border-primary/20 mb-4" />
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                    {Array.from({ length: 6 }).map((_, i) => <ProductCardSkeleton key={i} />)}
-                  </div>
-                </section>
-                {/* Category skeletons */}
-                {[1, 2, 3].map((s) => (
-                  <section key={s} className="mb-10">
-                    <div className="flex items-center gap-2 mb-4">
-                      <Skeleton className="h-6 w-6 rounded-full" />
-                      <Skeleton className="h-6 w-36" />
-                    </div>
-                    <div className="border-b border-primary/20 mb-4" />
-                    <div className="flex gap-3 overflow-hidden">
-                      {Array.from({ length: 6 }).map((_, i) => (
-                        <div key={i} className="shrink-0 w-[160px] sm:w-[180px]">
-                          <Skeleton className="aspect-square w-full rounded-t-lg" />
-                          <div className="p-2.5 space-y-1.5">
-                            <Skeleton className="h-3 w-full" />
-                            <Skeleton className="h-3 w-3/4" />
-                            <Skeleton className="h-4 w-20" />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                ))}
-              </>
+            {/* Trending Products - shows skeleton until loaded, then real data */}
+            {!isTrendingLoaded ? (
+              <section className="mb-10">
+                <div className="flex items-center gap-2 mb-4">
+                  <Skeleton className="h-6 w-6 rounded-full" />
+                  <Skeleton className="h-6 w-48" />
+                </div>
+                <div className="border-b border-primary/20 mb-4" />
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                  {Array.from({ length: 6 }).map((_, i) => <ProductCardSkeleton key={i} />)}
+                </div>
+              </section>
             ) : (
-              <>
-                {/* Trending Products */}
-                <section className="mb-10">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Heart className="h-6 w-6 text-primary fill-primary" />
-                    <h2 className="text-xl font-bold">Trending Products</h2>
-                  </div>
-                  <div className="border-b border-primary/20 mb-4" />
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                    {trendingProducts.map((product) => (
-                      <Card
-                        key={product.id}
-                        className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow group"
-                        onClick={() => handleTrendingClick(product.id)}
-                      >
-                        <div className="aspect-square overflow-hidden bg-muted relative">
-                          <img
-                            src={product.image}
-                            alt={product.title}
-                            referrerPolicy="no-referrer"
-                            loading="lazy"
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                            onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
-                          />
-                          <Badge className="absolute top-2 left-2 bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5">
-                            3% OFF
-                          </Badge>
+              <section className="mb-10 animate-fade-in">
+                <div className="flex items-center gap-2 mb-4">
+                  <Heart className="h-6 w-6 text-primary fill-primary" />
+                  <h2 className="text-xl font-bold">Trending Products</h2>
+                </div>
+                <div className="border-b border-primary/20 mb-4" />
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                  {trendingProducts.map((product) => (
+                    <Card
+                      key={product.id}
+                      className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow group"
+                      onClick={() => handleTrendingClick(product.id)}
+                    >
+                      <div className="aspect-square overflow-hidden bg-muted relative">
+                        <img
+                          src={product.image}
+                          alt={product.title}
+                          referrerPolicy="no-referrer"
+                          loading="lazy"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                          onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
+                        />
+                        <Badge className="absolute top-2 left-2 bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5">
+                          3% OFF
+                        </Badge>
+                      </div>
+                      <CardContent className="p-3 space-y-1.5">
+                        <h3 className="text-sm font-medium line-clamp-2 min-h-[2.5rem] leading-tight">{product.title}</h3>
+                        <div className="flex items-center gap-0.5">
+                          {[...Array(5)].map((_, i) => <Star key={i} className="h-3 w-3 fill-amber-400 text-amber-400" />)}
                         </div>
-                        <CardContent className="p-3 space-y-1.5">
-                          <h3 className="text-sm font-medium line-clamp-2 min-h-[2.5rem] leading-tight">{product.title}</h3>
-                          <div className="flex items-center gap-0.5">
-                            {[...Array(5)].map((_, i) => <Star key={i} className="h-3 w-3 fill-amber-400 text-amber-400" />)}
-                          </div>
-                          <div className="flex items-baseline gap-2">
-                            <span className="text-lg font-bold text-primary">৳{product.price}</span>
-                            {product.oldPrice > product.price && (
-                              <span className="text-xs text-muted-foreground line-through">৳{product.oldPrice}</span>
-                            )}
-                          </div>
-                          <p className="text-[10px] text-muted-foreground">SOLD : {product.sold.toLocaleString()}</p>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </section>
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-lg font-bold text-primary">৳{product.price}</span>
+                          {product.oldPrice > product.price && (
+                            <span className="text-xs text-muted-foreground line-through">৳{product.oldPrice}</span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">SOLD : {product.sold.toLocaleString()}</p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </section>
+            )}
 
-                {/* Category-wise product sections */}
-                {categories.map((cat) => (
-                  <CategorySection
-                    key={cat.name}
-                    name={cat.name}
-                    icon={cat.icon}
-                    query={cat.query}
-                    cachedProducts={categoryProductsMap[cat.query] || null}
-                    onProductClick={handleProductClick}
-                    onViewAll={(q) => handleCategoryClick(q)}
-                  />
-                ))}
-              </>
+            {/* Category-wise product sections - appear progressively */}
+            {categories.map((cat) => (
+              <CategorySection
+                key={cat.name}
+                name={cat.name}
+                icon={cat.icon}
+                query={cat.query}
+                cachedProducts={categoryProductsMap[cat.query] || null}
+                onProductClick={handleProductClick}
+                onViewAll={(q) => handleCategoryClick(q)}
+              />
+            ))}
+
+            {/* Category loading skeletons for sections not yet loaded */}
+            {isTrendingLoaded && loadedCategoryCount < categories.length && (
+              <section className="mb-10">
+                <div className="flex items-center gap-2 mb-4">
+                  <Skeleton className="h-6 w-6 rounded-full" />
+                  <Skeleton className="h-6 w-36" />
+                </div>
+                <div className="border-b border-primary/20 mb-4" />
+                <div className="flex gap-3 overflow-hidden">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="shrink-0 w-[160px] sm:w-[180px]">
+                      <Skeleton className="aspect-square w-full rounded-t-lg" />
+                      <div className="p-2.5 space-y-1.5">
+                        <Skeleton className="h-3 w-full" />
+                        <Skeleton className="h-3 w-3/4" />
+                        <Skeleton className="h-4 w-20" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
             )}
           </div>
         </div>

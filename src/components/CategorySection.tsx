@@ -42,7 +42,7 @@ export default function CategorySection({ name, icon, query, cachedProducts, onP
   if (!cachedProducts || products.length === 0) return null;
 
   return (
-    <section className="mb-10">
+    <section className="mb-10 animate-fade-in">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <span className="text-2xl">{icon}</span>
