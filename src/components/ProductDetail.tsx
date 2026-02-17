@@ -164,10 +164,10 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
 
       <div className="container mx-auto px-4 py-6 max-w-7xl">
         {/* Main 3-column Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-[460px_1fr_340px] gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr] lg:grid-cols-[420px_1fr_320px] gap-4 md:gap-6 lg:gap-8">
 
           {/* ===== LEFT: Image Gallery ===== */}
-          <div className="space-y-3">
+          <div className="space-y-3 md:col-span-1">
             <div className="relative aspect-square rounded-xl overflow-hidden bg-muted border shadow-sm">
               {showVideo && product.video ? (
                 <video src={product.video} controls autoPlay className="w-full h-full object-contain" />
@@ -221,9 +221,9 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
           </div>
 
           {/* ===== CENTER: Product Info ===== */}
-          <div className="space-y-5">
+          <div className="space-y-4 md:space-y-5 md:col-span-1">
             {/* Title */}
-            <h1 className="text-2xl font-bold leading-tight tracking-tight">{product.title}</h1>
+            <h1 className="text-lg md:text-2xl font-bold leading-tight tracking-tight">{product.title}</h1>
 
             {/* Sold + Store row */}
             <div className="flex items-center gap-4 flex-wrap">
@@ -239,7 +239,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
             </div>
 
             {/* Price Block */}
-            <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 rounded-xl p-5">
+            <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 rounded-xl p-3 md:p-5">
               {(() => {
                 // Show price range if variants have different prices
                 const variantPrices = hasSkus
@@ -250,7 +250,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                   <>
                     <div className="flex items-baseline gap-1">
                       <span className="text-sm font-medium text-primary">৳</span>
-                      <span className="text-4xl font-extrabold text-primary tracking-tight">
+                      <span className="text-2xl md:text-4xl font-extrabold text-primary tracking-tight">
                         {showRange
                           ? `${convertToBDT(variantPrices[0]).toLocaleString()} - ${convertToBDT(variantPrices[variantPrices.length - 1]).toLocaleString()}`
                           : convertToBDT(product.price).toLocaleString()}
@@ -288,36 +288,36 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
             </div>
 
             {/* Quick Info Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="flex items-center gap-2.5 p-3 bg-card border rounded-xl">
-                <Package className="h-4.5 w-4.5 text-primary flex-shrink-0" />
-                <div>
-                  <div className="text-[11px] text-muted-foreground uppercase tracking-wide">Stock</div>
-                  <div className="font-semibold text-sm">{product.num || 'Available'}</div>
+            <div className="grid grid-cols-2 gap-2 md:gap-3">
+              <div className="flex items-center gap-2 p-2.5 md:p-3 bg-card border rounded-xl">
+                <Package className="h-4 w-4 text-primary flex-shrink-0" />
+                <div className="min-w-0">
+                  <div className="text-[10px] md:text-[11px] text-muted-foreground uppercase tracking-wide">Stock</div>
+                  <div className="font-semibold text-xs md:text-sm truncate">{product.num || 'Available'}</div>
                 </div>
               </div>
-              <div className="flex items-center gap-2.5 p-3 bg-card border rounded-xl">
-                <Box className="h-4.5 w-4.5 text-primary flex-shrink-0" />
-                <div>
-                  <div className="text-[11px] text-muted-foreground uppercase tracking-wide">Min Order</div>
-                  <div className="font-semibold text-sm">{product.min_num} pcs</div>
+              <div className="flex items-center gap-2 p-2.5 md:p-3 bg-card border rounded-xl">
+                <Box className="h-4 w-4 text-primary flex-shrink-0" />
+                <div className="min-w-0">
+                  <div className="text-[10px] md:text-[11px] text-muted-foreground uppercase tracking-wide">Min Order</div>
+                  <div className="font-semibold text-xs md:text-sm">{product.min_num} pcs</div>
                 </div>
               </div>
               {product.item_weight && (
-                <div className="flex items-center gap-2.5 p-3 bg-card border rounded-xl">
-                  <Weight className="h-4.5 w-4.5 text-primary flex-shrink-0" />
-                  <div>
-                    <div className="text-[11px] text-muted-foreground uppercase tracking-wide">Weight</div>
-                    <div className="font-semibold text-sm">{product.item_weight} kg</div>
+                <div className="flex items-center gap-2 p-2.5 md:p-3 bg-card border rounded-xl">
+                  <Weight className="h-4 w-4 text-primary flex-shrink-0" />
+                  <div className="min-w-0">
+                    <div className="text-[10px] md:text-[11px] text-muted-foreground uppercase tracking-wide">Weight</div>
+                    <div className="font-semibold text-xs md:text-sm">{product.item_weight} kg</div>
                   </div>
                 </div>
               )}
               {product.location && (
-                <div className="flex items-center gap-2.5 p-3 bg-card border rounded-xl">
-                  <MapPin className="h-4.5 w-4.5 text-primary flex-shrink-0" />
-                  <div>
-                    <div className="text-[11px] text-muted-foreground uppercase tracking-wide">Origin</div>
-                    <div className="font-semibold text-sm">{translateLocation(product.location)}</div>
+                <div className="flex items-center gap-2 p-2.5 md:p-3 bg-card border rounded-xl">
+                  <MapPin className="h-4 w-4 text-primary flex-shrink-0" />
+                  <div className="min-w-0">
+                    <div className="text-[10px] md:text-[11px] text-muted-foreground uppercase tracking-wide">Origin</div>
+                    <div className="font-semibold text-xs md:text-sm truncate">{translateLocation(product.location)}</div>
                   </div>
                 </div>
               )}
@@ -390,7 +390,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
           </div>
 
           {/* ===== RIGHT: Sidebar ===== */}
-          <div className="space-y-4 lg:sticky lg:top-4 lg:self-start">
+          <div className="space-y-4 md:col-span-2 lg:col-span-1 lg:sticky lg:top-4 lg:self-start">
             {/* Shipping Card */}
             <Card className="shadow-sm">
               <CardContent className="p-5 space-y-4">
@@ -516,7 +516,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
         {/* ===== Tabs Section: Specifications | Product Description | Reviews ===== */}
         <div className="mt-10">
           <Tabs defaultValue="specs">
-            <TabsList className="w-full justify-start border-b rounded-none bg-transparent h-auto p-0 gap-0">
+            <TabsList className="w-full justify-start border-b rounded-none bg-transparent h-auto p-0 gap-0 overflow-x-auto scrollbar-hide">
               <TabsTrigger
                 value="specs"
                 className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-6 py-3 text-sm font-medium"
