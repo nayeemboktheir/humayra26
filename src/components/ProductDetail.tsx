@@ -1,11 +1,14 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, ArrowLeft, Play, ShoppingCart, MessageCircle, ExternalLink, Star, MapPin, Truck, Package, Box, Weight, ChevronLeft, ChevronRight, Minus, Plus, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  Loader2, ArrowLeft, Play, ShoppingCart, MessageCircle, ExternalLink,
+  Star, MapPin, Truck, Package, Box, Weight, Minus, Plus, ChevronDown,
+  ChevronUp, ShieldCheck, Clock, Search, ArrowDownUp, Lock
+} from "lucide-react";
 import { ProductDetail1688 } from "@/lib/api/alibaba1688";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,28 +17,7 @@ import { toast } from "@/hooks/use-toast";
 const CNY_TO_BDT = 17.5;
 const convertToBDT = (cny: number) => Math.round(cny * CNY_TO_BDT);
 
-const propNameTranslations: Record<string, string> = {
-  "品牌": "Brand", "型号": "Model", "货号": "Item No.", "产地": "Origin",
-  "货源类别": "Stock Type", "类型": "Category", "颜色": "Color", "重量": "Weight",
-  "材质": "Material", "适用场景": "Application", "功能": "Function", "规格": "Specification",
-  "包装": "Packaging", "风格": "Style", "图案": "Pattern", "适用人群": "Suitable For",
-  "尺寸（直径 x 长度）": "Size", "是否支持一件代发": "Dropshipping", "售后服务": "Warranty",
-};
-
-const propValueTranslations: Record<string, string> = {
-  "中性": "Generic", "CN": "China", "现货": "In Stock", "黑色": "Black",
-  "白色": "White", "红色": "Red", "蓝色": "Blue", "绿色": "Green",
-  "支持": "Supported", "不支持": "Not Supported", "是": "Yes", "否": "No",
-};
-
-const locationTranslations: Record<string, string> = {
-  "广东省深圳市": "Shenzhen, China", "广东省广州市": "Guangzhou, China",
-  "浙江省杭州市": "Hangzhou, China", "浙江省义乌市": "Yiwu, China",
-  "上海市": "Shanghai, China", "北京市": "Beijing, China",
-};
-
 const translateLocation = (location: string): string => {
-  if (locationTranslations[location]) return locationTranslations[location];
   if (location.includes("省") || location.includes("市")) return "China";
   return location;
 };
@@ -81,14 +63,12 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
     const unitPrice = totalQty > 0 ? Math.round(totalPrice / totalQty) : 0;
     const orderNumber = `HT-${Date.now().toString(36).toUpperCase()}`;
 
-    // Build notes with SKU details
     let notes = '';
     if (hasSkus) {
       const selectedSkus = product.configuredItems!.filter(sku => (skuQuantities[sku.id] || 0) > 0);
       notes = selectedSkus.map(sku => `${sku.title}: ${skuQuantities[sku.id]} pcs × ৳${convertToBDT(sku.price)}`).join('\n');
     }
 
-    // Build URLs
     const productUrl = `${window.location.origin}/?product=${product.num_iid}`;
     const sourceUrl = `https://detail.1688.com/offer/${product.num_iid}.html`;
 
@@ -135,10 +115,15 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
     );
   }
 
-  console.log('ProductDetail props count:', product.props?.length, product.props);
-
   const images = product.item_imgs?.map((img) => img.url) || [product.pic_url];
   const displayProps = product.props?.slice(0, 15) || [];
+  const hasSkus = product.configuredItems && product.configuredItems.length > 0;
+  const totalSelectedQty = hasSkus
+    ? Object.values(skuQuantities).reduce((a, b) => a + b, 0)
+    : quantity;
+  const totalSelectedPrice = hasSkus
+    ? product.configuredItems!.reduce((sum, sku) => sum + convertToBDT(sku.price) * (skuQuantities[sku.id] || 0), 0)
+    : convertToBDT(product.price) * quantity;
 
   const getPriceRanges = () => {
     if (!product.priceRange || product.priceRange.length === 0) {
@@ -157,24 +142,32 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
           Loading full details...
         </div>
       )}
-      <div className="container mx-auto px-4 py-4 max-w-7xl">
-        {/* Breadcrumb */}
-        {onBack && (
-          <div className="flex items-center gap-2 mb-4 text-sm text-muted-foreground">
-            <button onClick={onBack} className="hover:text-foreground transition-colors flex items-center gap-1">
-              <ArrowLeft className="h-3.5 w-3.5" />
-              Home
-            </button>
-            <span>›</span>
-            <span className="text-foreground">Product Details</span>
-          </div>
-        )}
 
-        {/* Main Layout: Image | Info | Sidebar */}
-        <div className="grid grid-cols-1 lg:grid-cols-[420px_1fr_320px] gap-6">
-          {/* LEFT: Image Gallery */}
+      {/* Breadcrumb */}
+      <div className="border-b bg-card">
+        <div className="container mx-auto px-4 max-w-7xl">
+          <div className="flex items-center gap-2 py-3 text-sm text-muted-foreground">
+            {onBack ? (
+              <button onClick={onBack} className="hover:text-foreground transition-colors flex items-center gap-1">
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Home
+              </button>
+            ) : (
+              <span>Home</span>
+            )}
+            <span className="text-muted-foreground/50">›</span>
+            <span className="text-foreground font-medium">Product Details</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="container mx-auto px-4 py-6 max-w-7xl">
+        {/* Main 3-column Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-[460px_1fr_340px] gap-8">
+
+          {/* ===== LEFT: Image Gallery ===== */}
           <div className="space-y-3">
-            <div className="relative aspect-square rounded-lg overflow-hidden bg-muted border">
+            <div className="relative aspect-square rounded-xl overflow-hidden bg-muted border shadow-sm">
               {showVideo && product.video ? (
                 <video src={product.video} controls autoPlay className="w-full h-full object-contain" />
               ) : (
@@ -182,29 +175,31 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                   src={images[selectedImage]}
                   alt={product.title}
                   referrerPolicy="no-referrer"
-                  className="w-full h-full object-contain"
+                  className="w-full h-full object-contain transition-transform duration-300"
                   onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
                 />
               )}
               {product.video && (
                 <button
                   onClick={() => setShowVideo(!showVideo)}
-                  className="absolute bottom-3 right-3 bg-foreground/80 text-background px-3 py-1.5 rounded-full flex items-center gap-1.5 text-sm hover:bg-foreground transition-colors"
+                  className="absolute bottom-3 right-3 bg-foreground/80 backdrop-blur-sm text-background px-3 py-1.5 rounded-full flex items-center gap-1.5 text-sm hover:bg-foreground transition-colors shadow-md"
                 >
                   <Play className="w-3.5 h-3.5" />
-                  {showVideo ? "Images" : "Video"}
+                  {showVideo ? "Photos" : "Video"}
                 </button>
               )}
             </div>
 
-            {/* Thumbnails */}
-            <div className="flex gap-1.5 overflow-x-auto pb-1">
+            {/* Thumbnail Strip */}
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
               {images.map((img, idx) => (
                 <button
                   key={idx}
                   onClick={() => { setSelectedImage(idx); setShowVideo(false); }}
-                  className={`flex-shrink-0 w-16 h-16 rounded overflow-hidden border-2 transition-all ${
-                    selectedImage === idx && !showVideo ? "border-primary" : "border-transparent hover:border-muted-foreground/30"
+                  className={`flex-shrink-0 w-[72px] h-[72px] rounded-lg overflow-hidden border-2 transition-all ${
+                    selectedImage === idx && !showVideo
+                      ? "border-primary ring-2 ring-primary/20"
+                      : "border-border hover:border-primary/40"
                   }`}
                 >
                   <img src={img} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover"
@@ -214,8 +209,8 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
               {product.video && (
                 <button
                   onClick={() => setShowVideo(true)}
-                  className={`flex-shrink-0 w-16 h-16 rounded overflow-hidden border-2 bg-muted flex items-center justify-center transition-all ${
-                    showVideo ? "border-primary" : "border-transparent hover:border-muted-foreground/30"
+                  className={`flex-shrink-0 w-[72px] h-[72px] rounded-lg overflow-hidden border-2 bg-muted flex items-center justify-center transition-all ${
+                    showVideo ? "border-primary ring-2 ring-primary/20" : "border-border hover:border-primary/40"
                   }`}
                 >
                   <Play className="h-6 w-6 text-primary" />
@@ -224,233 +219,276 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
             </div>
           </div>
 
-          {/* CENTER: Product Info */}
-          <div className="space-y-4">
+          {/* ===== CENTER: Product Info ===== */}
+          <div className="space-y-5">
             {/* Title */}
-            <h1 className="text-xl font-semibold leading-snug">{product.title}</h1>
+            <h1 className="text-2xl font-bold leading-tight tracking-tight">{product.title}</h1>
 
-            {/* Rating & Store */}
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-0.5">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                ))}
-                <span className="text-sm font-medium ml-1">5</span>
-              </div>
+            {/* Sold + Store row */}
+            <div className="flex items-center gap-4 flex-wrap">
+              {product.total_sold && (
+                <span className="text-sm text-muted-foreground">
+                  <span className="font-semibold text-foreground">{product.total_sold.toLocaleString()}</span> Sold
+                </span>
+              )}
               <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <span className="inline-block w-4 h-4 rounded-full overflow-hidden bg-red-500 text-[8px] text-white flex items-center justify-center font-bold">CN</span>
-                China Store
+                <span className="inline-flex items-center justify-center w-5 h-5 rounded-full overflow-hidden bg-red-500 text-[9px] text-white font-bold flex-shrink-0">CN</span>
+                <span>China Store</span>
               </div>
             </div>
 
-            {/* Price */}
-            <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
-              <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-bold text-primary">৳ {convertToBDT(product.price).toLocaleString()}</span>
+            {/* Price Block */}
+            <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 rounded-xl p-5">
+              <div className="flex items-baseline gap-2">
+                <span className="text-sm font-medium text-primary">৳</span>
+                <span className="text-4xl font-extrabold text-primary tracking-tight">
+                  {convertToBDT(product.price).toLocaleString()}
+                </span>
               </div>
-              <div className="text-sm text-muted-foreground mt-1">¥{product.price} CNY</div>
+              <div className="text-sm text-muted-foreground mt-1.5">¥{product.price} CNY</div>
+
+              {/* Tiered pricing inline */}
+              {getPriceRanges().length > 1 && (
+                <div className="flex gap-3 mt-3 pt-3 border-t border-primary/10">
+                  {getPriceRanges().map((range, idx) => (
+                    <div key={idx} className="text-center">
+                      <div className="text-xs text-muted-foreground">≥{range.minQty} pcs</div>
+                      <div className="font-bold text-primary text-sm">৳{range.priceBDT}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Service */}
-            <div className="flex items-center gap-2 text-sm">
-              <span className="font-medium">Service:</span>
-              <span className="text-muted-foreground">Ships within 48 hours</span>
+            <div className="flex items-center gap-3 text-sm">
+              <span className="font-semibold">Service:</span>
+              <div className="flex items-center gap-1.5 text-muted-foreground">
+                <Clock className="h-3.5 w-3.5" />
+                Ships within 48 hours
+              </div>
             </div>
 
-            {/* SKU Variant Table */}
-            {product.configuredItems && product.configuredItems.length > 0 && (
-              <div>
-                <h3 className="text-sm font-medium mb-2">Specification: Selected Good Products</h3>
-                <div className="border rounded-lg overflow-hidden">
-                  {/* Table header */}
-                  <div className="grid grid-cols-[48px_1fr_100px_80px_120px] gap-2 px-3 py-2 bg-muted/50 text-xs font-medium text-muted-foreground border-b">
-                    <span></span>
-                    <span>Variant</span>
-                    <span className="text-right">Price</span>
-                    <span className="text-right">Stock</span>
-                    <span className="text-center">Quantity</span>
-                  </div>
-                  {/* Table rows */}
-                  {(showAllSkus ? product.configuredItems : product.configuredItems.slice(0, 5)).map((sku) => (
-                    <div key={sku.id} className="grid grid-cols-[48px_1fr_100px_80px_120px] gap-2 px-3 py-2 border-b last:border-b-0 items-center">
-                      <div className="w-10 h-10 rounded overflow-hidden bg-muted flex-shrink-0">
-                        {sku.imageUrl ? (
-                          <img src={sku.imageUrl} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover"
-                            onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
-                        ) : (
-                          <div className="w-full h-full bg-muted" />
-                        )}
-                      </div>
-                      <span className="text-sm truncate">{sku.title || '—'}</span>
-                      <span className="text-sm font-medium text-right">৳{convertToBDT(sku.price).toLocaleString()}</span>
-                      <span className="text-sm text-muted-foreground text-right">{sku.stock.toLocaleString()}</span>
-                      <div className="flex items-center justify-center gap-1">
-                        <Button variant="outline" size="icon" className="h-6 w-6"
-                          onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: Math.max(0, (prev[sku.id] || 0) - 1) }))}>
-                          <Minus className="h-3 w-3" />
-                        </Button>
-                        <span className="w-6 text-center text-sm">{skuQuantities[sku.id] || 0}</span>
-                        <Button variant="outline" size="icon" className="h-6 w-6"
-                          onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: (prev[sku.id] || 0) + 1 }))}>
-                          <Plus className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                  {/* Show more toggle */}
-                  {product.configuredItems.length > 5 && (
-                    <button
-                      onClick={() => setShowAllSkus(!showAllSkus)}
-                      className="w-full py-2 text-sm text-muted-foreground hover:text-foreground flex items-center justify-center gap-1 border-t"
-                    >
-                      {showAllSkus ? <>Show Less <ChevronUp className="h-3.5 w-3.5" /></> : <>Show More <ChevronDown className="h-3.5 w-3.5" /></>}
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Tiered Pricing (fallback when no SKU variants) */}
-            {(!product.configuredItems || product.configuredItems.length === 0) && getPriceRanges().length > 1 && (
-              <div>
-                <h3 className="text-sm font-medium mb-2">Price by Quantity:</h3>
-                <div className="flex gap-2 overflow-x-auto">
-                  {getPriceRanges().map((range, idx) => (
-                    <div key={idx} className="flex-shrink-0 bg-muted rounded-lg p-3 text-center min-w-[90px]">
-                      <div className="text-xs text-muted-foreground">≥{range.minQty} pcs</div>
-                      <div className="font-bold text-primary">৳{range.priceBDT}</div>
-                      <div className="text-xs text-muted-foreground">¥{range.priceCNY}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Quick Info */}
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div className="flex items-center gap-2 p-2.5 bg-muted/50 rounded-lg">
-                <Package className="h-4 w-4 text-muted-foreground" />
+            {/* Quick Info Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="flex items-center gap-2.5 p-3 bg-card border rounded-xl">
+                <Package className="h-4.5 w-4.5 text-primary flex-shrink-0" />
                 <div>
-                  <div className="text-xs text-muted-foreground">Stock</div>
-                  <div className="font-medium">{product.num || 'Available'}</div>
+                  <div className="text-[11px] text-muted-foreground uppercase tracking-wide">Stock</div>
+                  <div className="font-semibold text-sm">{product.num || 'Available'}</div>
                 </div>
               </div>
-              <div className="flex items-center gap-2 p-2.5 bg-muted/50 rounded-lg">
-                <Box className="h-4 w-4 text-muted-foreground" />
+              <div className="flex items-center gap-2.5 p-3 bg-card border rounded-xl">
+                <Box className="h-4.5 w-4.5 text-primary flex-shrink-0" />
                 <div>
-                  <div className="text-xs text-muted-foreground">Min Order</div>
-                  <div className="font-medium">{product.min_num} pcs</div>
+                  <div className="text-[11px] text-muted-foreground uppercase tracking-wide">Min Order</div>
+                  <div className="font-semibold text-sm">{product.min_num} pcs</div>
                 </div>
               </div>
               {product.item_weight && (
-                <div className="flex items-center gap-2 p-2.5 bg-muted/50 rounded-lg">
-                  <Weight className="h-4 w-4 text-muted-foreground" />
+                <div className="flex items-center gap-2.5 p-3 bg-card border rounded-xl">
+                  <Weight className="h-4.5 w-4.5 text-primary flex-shrink-0" />
                   <div>
-                    <div className="text-xs text-muted-foreground">Weight</div>
-                    <div className="font-medium">{product.item_weight} kg</div>
+                    <div className="text-[11px] text-muted-foreground uppercase tracking-wide">Weight</div>
+                    <div className="font-semibold text-sm">{product.item_weight} kg</div>
                   </div>
                 </div>
               )}
-              <div className="flex items-center gap-2 p-2.5 bg-muted/50 rounded-lg">
-                <MapPin className="h-4 w-4 text-muted-foreground" />
+              <div className="flex items-center gap-2.5 p-3 bg-card border rounded-xl">
+                <MapPin className="h-4.5 w-4.5 text-primary flex-shrink-0" />
                 <div>
-                  <div className="text-xs text-muted-foreground">Origin</div>
-                  <div className="font-medium">{translateLocation(product.location)}</div>
+                  <div className="text-[11px] text-muted-foreground uppercase tracking-wide">Origin</div>
+                  <div className="font-semibold text-sm">{translateLocation(product.location)}</div>
                 </div>
               </div>
             </div>
 
-            {product.total_sold && (
-              <div className="text-sm text-muted-foreground">
-                <span className="font-medium text-foreground">{product.total_sold.toLocaleString()}</span> sold
+            {/* ===== SKU Variant Table ===== */}
+            {hasSkus && (
+              <div className="space-y-3">
+                <h3 className="font-semibold text-base">Specifications</h3>
+                <Card className="overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b bg-muted/60">
+                          <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Variant</th>
+                          <th className="text-right py-3 px-4 font-semibold text-muted-foreground w-[100px]">Price</th>
+                          <th className="text-right py-3 px-4 font-semibold text-muted-foreground w-[70px]">Stock</th>
+                          <th className="text-center py-3 px-4 font-semibold text-muted-foreground w-[130px]">Quantity</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {(showAllSkus ? product.configuredItems! : product.configuredItems!.slice(0, 5)).map((sku) => (
+                          <tr key={sku.id} className="hover:bg-muted/30 transition-colors">
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-3">
+                                {sku.imageUrl && (
+                                  <div className="w-10 h-10 rounded-lg overflow-hidden bg-muted flex-shrink-0 border">
+                                    <img src={sku.imageUrl} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover"
+                                      onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
+                                  </div>
+                                )}
+                                <span className="text-sm leading-snug">{sku.title || '—'}</span>
+                              </div>
+                            </td>
+                            <td className="py-3 px-4 text-right font-semibold whitespace-nowrap">
+                              ৳{convertToBDT(sku.price).toLocaleString()}
+                            </td>
+                            <td className="py-3 px-4 text-right text-muted-foreground">
+                              {sku.stock.toLocaleString()}
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="flex items-center justify-center gap-1.5">
+                                <Button variant="outline" size="icon" className="h-7 w-7 rounded-lg"
+                                  onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: Math.max(0, (prev[sku.id] || 0) - 1) }))}>
+                                  <Minus className="h-3 w-3" />
+                                </Button>
+                                <span className="w-8 text-center text-sm font-medium tabular-nums">{skuQuantities[sku.id] || 0}</span>
+                                <Button variant="outline" size="icon" className="h-7 w-7 rounded-lg"
+                                  onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: (prev[sku.id] || 0) + 1 }))}>
+                                  <Plus className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {product.configuredItems!.length > 5 && (
+                    <button
+                      onClick={() => setShowAllSkus(!showAllSkus)}
+                      className="w-full py-2.5 text-sm font-medium text-primary hover:bg-primary/5 flex items-center justify-center gap-1 border-t transition-colors"
+                    >
+                      {showAllSkus ? <>Show Less <ChevronUp className="h-4 w-4" /></> : <>Show More ({product.configuredItems!.length - 5} more) <ChevronDown className="h-4 w-4" /></>}
+                    </button>
+                  )}
+                </Card>
+              </div>
+            )}
+
+            {/* Specifications Table */}
+            {displayProps.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="font-semibold text-base">Product Specifications</h3>
+                <Card>
+                  <CardContent className="p-0">
+                    <div className="divide-y">
+                      {displayProps.map((prop, index) => (
+                        <div key={index} className="flex py-3 px-4 hover:bg-muted/30 transition-colors">
+                          <span className="w-2/5 text-muted-foreground text-sm">{prop.name}</span>
+                          <span className="w-3/5 font-medium text-sm">{prop.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             )}
           </div>
 
-          {/* RIGHT: Sidebar */}
-          <div className="space-y-4">
+          {/* ===== RIGHT: Sidebar ===== */}
+          <div className="space-y-4 lg:sticky lg:top-4 lg:self-start">
             {/* Shipping Card */}
-            <Card>
-              <CardContent className="p-4 space-y-3">
+            <Card className="shadow-sm">
+              <CardContent className="p-5 space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="font-semibold">Shipping</span>
-                  <span className="text-sm text-muted-foreground">To Bangladesh</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-base">Shipping</span>
+                    <span className="text-primary text-xs">*</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <MapPin className="h-3.5 w-3.5" />
+                    To Bangladesh
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 text-sm p-2 bg-muted/50 rounded">
-                  <Truck className="h-4 w-4 text-muted-foreground" />
-                  <span>Select Shipping Method ›</span>
-                </div>
+
+                <button className="w-full flex items-center justify-between p-3 bg-muted/50 border rounded-xl text-sm hover:bg-muted transition-colors">
+                  <div className="flex items-center gap-2">
+                    <Truck className="h-4 w-4 text-primary" />
+                    <span className="font-medium">Select Shipping Method</span>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                </button>
 
                 <Separator />
 
-                {/* Quantity - only show simple selector when no SKU variants */}
-                {(!product.configuredItems || product.configuredItems.length === 0) && (
+                {/* Quantity selector for non-SKU products */}
+                {!hasSkus && (
                   <div className="flex items-center justify-between">
-                    <span className="text-sm">{quantity} Pieces</span>
-                    <div className="flex items-center gap-1">
-                      <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => setQuantity(Math.max(0, quantity - 1))}>
+                    <span className="text-sm font-medium">{quantity} Pieces</span>
+                    <div className="flex items-center gap-1.5">
+                      <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => setQuantity(Math.max(0, quantity - 1))}>
                         <Minus className="h-3 w-3" />
                       </Button>
-                      <span className="w-8 text-center text-sm font-medium">{quantity}</span>
-                      <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => setQuantity(quantity + 1)}>
+                      <span className="w-8 text-center text-sm font-semibold tabular-nums">{quantity}</span>
+                      <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => setQuantity(quantity + 1)}>
                         <Plus className="h-3 w-3" />
                       </Button>
                     </div>
                   </div>
                 )}
 
-                {/* Show total pieces from SKU selection */}
-                {product.configuredItems && product.configuredItems.length > 0 && (
-                  <div className="text-sm">
-                    <span>{Object.values(skuQuantities).reduce((a, b) => a + b, 0)} Pieces</span>
+                {/* SKU total pieces */}
+                {hasSkus && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium">{totalSelectedQty} Pieces</span>
+                    <span className="text-primary font-bold">৳{totalSelectedPrice.toLocaleString()}</span>
                   </div>
                 )}
 
-                <div className="flex items-center justify-between text-sm font-semibold">
-                  <span>Total</span>
-                  <span>৳{(
-                    product.configuredItems && product.configuredItems.length > 0
-                      ? product.configuredItems.reduce((sum, sku) => sum + convertToBDT(sku.price) * (skuQuantities[sku.id] || 0), 0)
-                      : convertToBDT(product.price) * quantity
-                  ).toLocaleString()}</span>
+                <div className="flex items-center justify-between py-2 border-t border-b">
+                  <span className="font-bold">Total</span>
+                  <span className="text-lg font-bold">৳{totalSelectedPrice.toLocaleString()}</span>
                 </div>
 
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground leading-relaxed">
                   চায়না গোডাউন ডেলিভারি চার্জ কার্ট পেজে যোগ হবে
                 </p>
 
-                <Button className="w-full" size="lg" onClick={handleBuyNow} disabled={ordering}>
-                  {ordering ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ShoppingCart className="w-4 h-4 mr-2" />}
+                <Button className="w-full h-12 text-base font-bold rounded-xl shadow-md hover:shadow-lg transition-shadow" onClick={handleBuyNow} disabled={ordering}>
+                  {ordering ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ShoppingCart className="w-5 h-5 mr-2" />}
                   {ordering ? "Placing Order..." : "Buy Now"}
                 </Button>
-                <Button variant="outline" className="w-full" size="lg">
+
+                <Button variant="outline" className="w-full h-11 rounded-xl font-semibold">
                   <MessageCircle className="w-4 h-4 mr-2" />
-                  WhatsApp
+                  WhatsApp Order
                 </Button>
               </CardContent>
             </Card>
 
-            {/* Dropship Card */}
-            <Card className="border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-950/20">
-              <CardContent className="p-4">
+            {/* Dropship CTA */}
+            <Card className="overflow-hidden border-0 shadow-md bg-gradient-to-br from-green-600 to-emerald-700 text-white">
+              <CardContent className="p-5">
                 <div className="flex items-start gap-3">
-                  <Truck className="h-5 w-5 text-green-600 mt-0.5" />
+                  <Truck className="h-6 w-6 mt-0.5 flex-shrink-0 opacity-90" />
                   <div>
-                    <p className="font-medium text-green-700 dark:text-green-400 text-sm">Dropship this product</p>
-                    <p className="text-xs text-green-600 dark:text-green-500 mt-0.5">No stock, No risk! Just sell and grow your business.</p>
+                    <p className="font-bold text-lg leading-tight">Dropship this product!</p>
+                    <p className="text-sm text-white/80 mt-1">No stock, No risk! Just sell and grow your business.</p>
+                    <Button size="sm" variant="secondary" className="mt-3 font-semibold">
+                      Start Dropshipping
+                    </Button>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
             {/* Assurance */}
-            <Card>
-              <CardContent className="p-4 space-y-2">
-                <h3 className="font-semibold text-sm">Assurance</h3>
-                {["100% money back guarantee", "On time guarantee", "Detailed inspection", "Lower exchange loss", "Security & Privacy"].map((item) => (
-                  <div key={item} className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <div className="h-1.5 w-1.5 rounded-full bg-green-500" />
-                    {item}
+            <Card className="shadow-sm">
+              <CardContent className="p-5 space-y-3">
+                <h3 className="font-bold text-sm">HumayraTraders Assurance</h3>
+                {[
+                  { icon: ShieldCheck, text: "100% money back guarantee" },
+                  { icon: Clock, text: "On time guarantee" },
+                  { icon: Search, text: "Detailed inspection" },
+                  { icon: ArrowDownUp, text: "Lower exchange loss" },
+                  { icon: Lock, text: "Security & Privacy" },
+                ].map(({ icon: Icon, text }) => (
+                  <div key={text} className="flex items-center gap-2.5 text-sm text-muted-foreground">
+                    <Icon className="h-4 w-4 text-green-600 flex-shrink-0" />
+                    {text}
                   </div>
                 ))}
               </CardContent>
@@ -461,121 +499,92 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
               href={`https://detail.1688.com/offer/${product.num_iid}.html`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors p-2"
+              className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors py-2"
             >
               <ExternalLink className="h-3.5 w-3.5" />
-              View on 1688
+              View original on 1688
             </a>
           </div>
         </div>
 
-        {/* Tabs: Specifications, Description, Seller */}
-        <div className="mt-8">
-          <Tabs defaultValue="specs">
-            <TabsList>
-              <TabsTrigger value="specs">Specifications</TabsTrigger>
-              <TabsTrigger value="description">Product Description</TabsTrigger>
-              <TabsTrigger value="seller">Seller Information</TabsTrigger>
-            </TabsList>
+        {/* ===== Product Description Images ===== */}
+        {product.desc_img && product.desc_img.length > 0 && (
+          <div className="mt-10">
+            <h2 className="text-xl font-bold mb-4">Product Description</h2>
+            <div className="space-y-3 max-w-3xl">
+              {product.desc_img.map((img, index) => (
+                <img
+                  key={index}
+                  src={img}
+                  alt={`Product detail ${index + 1}`}
+                  referrerPolicy="no-referrer"
+                  className="w-full rounded-lg border"
+                  loading="lazy"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
 
-            <TabsContent value="specs" className="mt-4">
-              {displayProps.length > 0 ? (
-                <Card>
-                  <CardContent className="p-0">
-                    <div className="divide-y">
-                      {displayProps.map((prop, index) => (
-                        <div key={index} className="flex py-3 px-4">
-                          <span className="w-1/3 text-muted-foreground text-sm">
-                            {propNameTranslations[prop.name] || prop.name}
-                          </span>
-                          <span className="w-2/3 font-medium text-sm">
-                            {propValueTranslations[prop.value] || prop.value}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : (
-                <p className="text-muted-foreground text-sm py-8 text-center">No specifications available</p>
-              )}
-            </TabsContent>
-
-            <TabsContent value="description" className="mt-4">
-              {product.desc_img && product.desc_img.length > 0 ? (
-                <div className="space-y-4">
-                  {product.desc_img.map((img, index) => (
-                    <img
-                      key={index}
-                      src={img}
-                      alt={`Product detail ${index + 1}`}
-                      referrerPolicy="no-referrer"
-                      className="w-full rounded-lg border"
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                    />
-                  ))}
+        {/* ===== Seller Info ===== */}
+        {product.seller_info && (
+          <div className="mt-10 mb-8">
+            <h2 className="text-xl font-bold mb-4">Seller Information</h2>
+            <Card className="max-w-lg">
+              <CardContent className="p-5 space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                    <span className="text-xl font-bold text-primary">
+                      {(product.seller_info.shop_name || 'S')[0].toUpperCase()}
+                    </span>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-base">{product.seller_info.shop_name || "1688 Seller"}</div>
+                    <Badge variant="secondary" className="text-xs mt-0.5">Verified Supplier</Badge>
+                  </div>
                 </div>
-              ) : (
-                <p className="text-muted-foreground text-sm py-8 text-center">No product description images available</p>
-              )}
-            </TabsContent>
 
-            <TabsContent value="seller" className="mt-4">
-              <Card>
-                <CardContent className="p-4 space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                      <span className="text-lg font-bold text-primary">S</span>
+                <Separator />
+
+                <div className="grid grid-cols-3 gap-4 text-sm">
+                  {product.seller_info.item_score && (
+                    <div className="text-center">
+                      <div className="flex items-center justify-center gap-1 mb-1">
+                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                        <span className="font-bold">{product.seller_info.item_score}</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground">Product</div>
                     </div>
-                    <div>
-                      <div className="font-medium">{product.seller_info?.shop_name || "1688 Seller"}</div>
-                      <div className="text-sm text-muted-foreground flex items-center gap-1">
-                        <Badge variant="secondary" className="text-xs">Verified</Badge>
+                  )}
+                  {product.seller_info.delivery_score && (
+                    <div className="text-center">
+                      <div className="flex items-center justify-center gap-1 mb-1">
+                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                        <span className="font-bold">{product.seller_info.delivery_score}</span>
                       </div>
+                      <div className="text-xs text-muted-foreground">Delivery</div>
                     </div>
-                  </div>
-
-                  <Separator />
-
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    {product.seller_info?.item_score && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Product Accuracy</span>
-                        <div className="flex items-center gap-1">
-                          <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
-                          <span className="font-medium">{product.seller_info.item_score}</span>
-                        </div>
+                  )}
+                  {product.seller_info.composite_score && (
+                    <div className="text-center">
+                      <div className="flex items-center justify-center gap-1 mb-1">
+                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                        <span className="font-bold">{product.seller_info.composite_score}</span>
                       </div>
-                    )}
-                    {product.seller_info?.delivery_score && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Delivery</span>
-                        <div className="flex items-center gap-1">
-                          <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
-                          <span className="font-medium">{product.seller_info.delivery_score}</span>
-                        </div>
-                      </div>
-                    )}
-                    {product.seller_info?.composite_score && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Overall</span>
-                        <div className="flex items-center gap-1">
-                          <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
-                          <span className="font-medium">{product.seller_info.composite_score}</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                      <div className="text-xs text-muted-foreground">Overall</div>
+                    </div>
+                  )}
+                </div>
 
-                  <div className="text-sm text-muted-foreground">
-                    <MapPin className="h-3.5 w-3.5 inline mr-1" />
-                    {translateLocation(product.location)}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </div>
+                <div className="text-sm text-muted-foreground flex items-center gap-1.5">
+                  <MapPin className="h-3.5 w-3.5" />
+                  {translateLocation(product.location)}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   );
