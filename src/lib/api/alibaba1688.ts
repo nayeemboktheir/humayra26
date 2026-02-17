@@ -113,7 +113,7 @@ export const alibaba1688Api = {
     query: string,
     page = 1,
     pageSize = 40,
-    onTranslated?: (items: Product1688[]) => void,
+    _onTranslated?: (items: Product1688[]) => void,
   ): Promise<ApiResponse<{ items: Product1688[]; total: number }>> {
     try {
       const { data, error } = await supabase.functions.invoke('alibaba-1688-search', {
@@ -127,16 +127,13 @@ export const alibaba1688Api = {
       const total = data.data?.Result?.Items?.TotalCount || 0;
       const items = rawItems.map(parseOtapiItem);
 
-      // Fire translation in background and call onTranslated when ready
-      if (onTranslated && items.length > 0) {
+      // Translate titles synchronously before returning — ensures English from the start
+      if (items.length > 0) {
         const titles = items.map((p: Product1688) => p.title);
-        translateTitlesAsync(titles).then((translated) => {
-          const translatedItems = items.map((p: Product1688, i: number) => ({
-            ...p,
-            title: translated[i] || p.title,
-          }));
-          onTranslated(translatedItems);
-        });
+        const translated = await translateTitlesAsync(titles);
+        for (let i = 0; i < items.length; i++) {
+          items[i].title = translated[i] || items[i].title;
+        }
       }
 
       return {
@@ -153,7 +150,7 @@ export const alibaba1688Api = {
     imageBase64: string,
     page = 1,
     pageSize = 40,
-    onTranslated?: (items: Product1688[]) => void,
+    _onTranslated?: (items: Product1688[]) => void,
   ): Promise<ApiResponse<{ items: Product1688[]; total: number }>> {
     try {
       const { data, error } = await supabase.functions.invoke('alibaba-1688-image-search', {
@@ -167,15 +164,13 @@ export const alibaba1688Api = {
       const total = data.data?.Result?.Items?.TotalCount || 0;
       const items = rawItems.map(parseOtapiItem);
 
-      if (onTranslated && items.length > 0) {
+      // Translate titles synchronously before returning
+      if (items.length > 0) {
         const titles = items.map((p: Product1688) => p.title);
-        translateTitlesAsync(titles).then((translated) => {
-          const translatedItems = items.map((p: Product1688, i: number) => ({
-            ...p,
-            title: translated[i] || p.title,
-          }));
-          onTranslated(translatedItems);
-        });
+        const translated = await translateTitlesAsync(titles);
+        for (let i = 0; i < items.length; i++) {
+          items[i].title = translated[i] || items[i].title;
+        }
       }
 
       return {
@@ -306,11 +301,22 @@ export const alibaba1688Api = {
       // Total stock from all configured items
       const totalStock = configuredItems.reduce((sum: number, ci: any) => sum + (ci?.Quantity || 0), 0);
 
+      const rawTitle = item?.Title || item?.OriginalTitle || '';
+
+      // Translate title + props synchronously before returning
+      const textsToTranslate = [rawTitle, ...props.flatMap(p => [p.name, p.value])];
+      const translated = await translateTitlesAsync(textsToTranslate);
+      const translatedTitle = translated[0] || rawTitle;
+      const translatedProps = props.map((p, i) => ({
+        name: translated[1 + i * 2] || p.name,
+        value: translated[2 + i * 2] || p.value,
+      }));
+
       return {
         success: true,
         data: {
           num_iid: parsedNumIid,
-          title: item?.Title || item?.OriginalTitle || '',
+          title: translatedTitle,
           desc: descHtml,
           price,
           orginal_price: undefined,
@@ -321,7 +327,7 @@ export const alibaba1688Api = {
           num: String(totalStock || item?.MasterQuantity || ''),
           min_num: item?.FirstLotQuantity || 1,
           video: item?.VideoUrl || undefined,
-          props,
+          props: translatedProps,
           priceRange,
           configuredItems: parsedConfiguredItems.length > 0 ? parsedConfiguredItems : undefined,
           seller_info: {
