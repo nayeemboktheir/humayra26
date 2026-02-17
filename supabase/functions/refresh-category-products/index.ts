@@ -16,9 +16,9 @@ const CATEGORIES = [
 
 const PRODUCTS_PER_CATEGORY = 12;
 
-async function translateTitles(titles: string[], apiKey: string): Promise<string[]> {
+async function translateSingle(text: string, apiKey: string): Promise<string> {
+  if (!text?.trim()) return text;
   try {
-    const textsToTranslate = titles.join('\n---SEPARATOR---\n');
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -30,22 +30,35 @@ async function translateTitles(titles: string[], apiKey: string): Promise<string
         messages: [
           {
             role: 'system',
-            content: `Translate from Russian/Chinese to natural English for e-commerce. Each input separated by ---SEPARATOR---. Return ONLY translated texts separated by ---SEPARATOR---. No numbering, no quotes. Keep brand names and model numbers as-is. If already English, return unchanged.`
+            content: 'Translate the following product title to natural English for e-commerce. Return ONLY the translated title, nothing else. Keep brand names, model numbers as-is. If already English, return unchanged.'
           },
-          { role: 'user', content: textsToTranslate }
+          { role: 'user', content: text }
         ],
-        max_tokens: 2000,
-        temperature: 0.2,
+        max_tokens: 300,
+        temperature: 0.1,
       }),
     });
-    if (!response.ok) return titles;
+    if (!response.ok) return text;
     const data = await response.json();
-    const translatedText = data.choices?.[0]?.message?.content || '';
-    const translations = translatedText.split('---SEPARATOR---').map((t: string) => t.trim());
-    return translations.length === titles.length ? translations : titles;
+    const result = (data.choices?.[0]?.message?.content || '').trim();
+    return result || text;
   } catch {
-    return titles;
+    return text;
   }
+}
+
+async function translateBatch(titles: string[], apiKey: string): Promise<string[]> {
+  // Translate 4 at a time in parallel for speed
+  const results: string[] = new Array(titles.length);
+  const PARALLEL = 4;
+  for (let i = 0; i < titles.length; i += PARALLEL) {
+    const batch = titles.slice(i, i + PARALLEL);
+    const translated = await Promise.all(batch.map(t => translateSingle(t, apiKey)));
+    for (let j = 0; j < translated.length; j++) {
+      results[i + j] = translated[j];
+    }
+  }
+  return results;
 }
 
 Deno.serve(async (req) => {
@@ -102,9 +115,13 @@ Deno.serve(async (req) => {
 
         // Translate titles
         const rawTitles = items.map((item: any) => item?.Title || "");
-        const translatedTitles = lovableKey
-          ? await translateTitles(rawTitles, lovableKey)
-          : rawTitles;
+        console.log(`[${query}] LOVABLE_API_KEY present: ${!!lovableKey}, titles to translate: ${rawTitles.length}`);
+        let translatedTitles = rawTitles;
+        if (lovableKey) {
+          translatedTitles = await translateBatch(rawTitles, lovableKey);
+          const changed = translatedTitles.filter((t: string, i: number) => t !== rawTitles[i]).length;
+          console.log(`[${query}] Translated ${changed}/${rawTitles.length} titles`);
+        }
 
         // Build rows
         const rows = items.map((item: any, i: number) => {
