@@ -14,7 +14,7 @@ const CATEGORIES = [
   "tools home improvement", "school supplies",
 ];
 
-const PRODUCTS_PER_CATEGORY = 40;
+const PRODUCTS_PER_CATEGORY = 50;
 
 async function translateSingle(text: string, apiKey: string): Promise<string> {
   if (!text?.trim()) return text;
@@ -148,9 +148,17 @@ Deno.serve(async (req) => {
           };
         });
 
+        // Deduplicate by product_id
+        const seen = new Set<string>();
+        const uniqueRows = rows.filter((r: any) => {
+          if (seen.has(r.product_id)) return false;
+          seen.add(r.product_id);
+          return true;
+        });
+
         // Delete old products for this category and insert new
         await supabase.from("category_products").delete().eq("category_query", query);
-        const { error: insertError } = await supabase.from("category_products").insert(rows);
+        const { error: insertError } = await supabase.from("category_products").insert(uniqueRows);
         if (insertError) {
           console.error(`Insert error for "${query}":`, insertError.message);
         } else {
