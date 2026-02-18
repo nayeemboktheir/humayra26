@@ -1,7 +1,5 @@
-import Footer from "@/components/Footer";
-import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { ChevronLeft, AlertTriangle, XCircle, ShieldAlert } from "lucide-react";
+import InfoPageLayout from "@/components/InfoPageLayout";
+import { AlertTriangle, XCircle, ShieldAlert } from "lucide-react";
 
 const categories = [
   {
@@ -11,7 +9,7 @@ const categories = [
       "Explosives, fireworks, and flammable substances",
       "Knives, swords, and bladed weapons",
       "Tasers, stun guns, and electric shock devices",
-      "Any parts or components that can be used to manufacture weapons",
+      "Parts or components used to manufacture weapons",
     ],
   },
   {
@@ -24,7 +22,7 @@ const categories = [
     ],
   },
   {
-    title: "Counterfeit & Intellectual Property Violations",
+    title: "Counterfeit & IP Violations",
     items: [
       "Counterfeit branded goods (fake Nike, Adidas, Apple, etc.)",
       "Pirated software, music, movies, or books",
@@ -38,8 +36,8 @@ const categories = [
       "Radioactive materials",
       "Toxic chemicals and poisons",
       "Asbestos-containing products",
-      "Batteries containing mercury or cadmium beyond legal limits",
-      "Products that do not meet Bangladesh safety standards",
+      "Batteries beyond legal mercury/cadmium limits",
+      "Products not meeting Bangladesh safety standards",
     ],
   },
   {
@@ -53,16 +51,16 @@ const categories = [
   {
     title: "Wildlife & Animal Products",
     items: [
-      "Endangered animal species or their parts (ivory, rhino horn, etc.)",
+      "Endangered animal species or their parts",
       "Live animals",
-      "Products banned under CITES (Convention on International Trade in Endangered Species)",
+      "Products banned under CITES",
     ],
   },
   {
     title: "Food & Agriculture",
     items: [
       "Unprocessed food items without proper permits",
-      "Seeds, soil, and live plant material without phytosanitary certificates",
+      "Seeds, soil, and live plant material without certificates",
       "Food items prohibited by Bangladesh customs",
     ],
   },
@@ -71,81 +69,76 @@ const categories = [
     items: [
       "Stolen goods or items of unclear origin",
       "Human remains or body parts",
-      "Items that violate Bangladesh import regulations",
+      "Items violating Bangladesh import regulations",
       "Currency exceeding legal limits",
-      "Gambling devices",
-      "Spy equipment and unauthorized surveillance devices",
+      "Unauthorized surveillance devices",
     ],
   },
 ];
 
-const ProhibitedItems = () => {
-  const navigate = useNavigate();
+const ProhibitedItems = () => (
+  <InfoPageLayout
+    title="Prohibited Items"
+    subtitle="Items we cannot import, ship, or assist with under any circumstances."
+    breadcrumb="Prohibited Items"
+  >
+    <div className="space-y-8">
 
-  return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <div className="flex-1">
-        <div className="bg-primary text-primary-foreground py-10">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6">
-            <Button variant="ghost" className="text-primary-foreground hover:text-primary-foreground/80 mb-4 -ml-2" onClick={() => navigate(-1)}>
-              <ChevronLeft className="h-4 w-4 mr-1" /> Back
-            </Button>
-            <h1 className="text-3xl sm:text-4xl font-bold">Prohibited Items</h1>
-            <p className="mt-2 text-primary-foreground/80">Items we cannot import or ship</p>
-          </div>
-        </div>
-
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 space-y-8">
-
-          {/* Warning Banner */}
-          <div className="flex gap-3 bg-destructive/10 border border-destructive/30 rounded-xl p-5">
-            <AlertTriangle className="h-6 w-6 text-destructive shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold text-destructive">Important Notice</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Attempting to import prohibited items is a serious offense under Bangladesh customs law. TradeOn.global reserves the right to cancel any order suspected of containing prohibited goods. Any legal consequences arising from attempting to import prohibited items are the sole responsibility of the customer.
-              </p>
-            </div>
-          </div>
-
-          <p className="text-muted-foreground leading-relaxed">
-            The following categories of items are strictly prohibited on our platform. We will not source, purchase, ship, or assist in importing these items under any circumstances. This list is in addition to any restrictions imposed by Chinese export laws and Bangladesh customs regulations.
+      {/* Warning Banner */}
+      <div className="flex gap-4 bg-destructive/5 border border-destructive/20 rounded-2xl p-6">
+        <AlertTriangle className="h-6 w-6 text-destructive shrink-0 mt-0.5" />
+        <div>
+          <p className="font-bold text-destructive mb-1">Legal Warning</p>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Attempting to import prohibited items is a serious offense under Bangladesh customs law. TradeOn.global reserves the right to cancel any order suspected of containing prohibited goods. Any legal consequences are the sole responsibility of the customer.
           </p>
+        </div>
+      </div>
 
-          {/* Categories */}
-          <div className="space-y-5">
-            {categories.map(({ title, items }) => (
-              <div key={title} className="bg-card border rounded-xl p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <XCircle className="h-5 w-5 text-destructive shrink-0" />
-                  <h3 className="font-bold text-foreground">{title}</h3>
-                </div>
-                <ul className="space-y-1.5">
-                  {items.map((item) => (
-                    <li key={item} className="flex items-start gap-2 text-sm text-muted-foreground">
-                      <span className="w-1.5 h-1.5 rounded-full bg-destructive mt-2 shrink-0" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
+      <p className="text-muted-foreground text-sm leading-relaxed">
+        The following categories of items are strictly prohibited on our platform. This list is in addition to restrictions imposed by Chinese export laws and Bangladesh customs regulations.
+      </p>
+
+      {/* Categories Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {categories.map(({ title, items }) => (
+          <div key={title} className="bg-card border rounded-2xl p-6 hover:border-destructive/30 hover:shadow-sm transition-all">
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="w-8 h-8 rounded-lg bg-destructive/10 flex items-center justify-center shrink-0">
+                <XCircle className="h-4 w-4 text-destructive" />
               </div>
-            ))}
-          </div>
-
-          {/* Note */}
-          <div className="flex gap-3 bg-muted rounded-xl p-5">
-            <ShieldAlert className="h-6 w-6 text-primary shrink-0 mt-0.5" />
-            <div className="text-sm text-muted-foreground space-y-2">
-              <p className="font-semibold text-foreground">Not sure if your item is allowed?</p>
-              <p>This list is not exhaustive. If you are unsure whether a product can be imported, please contact us before placing an order. We're happy to help verify.</p>
-              <p>📧 <a href="mailto:info@TradeOn.global" className="text-primary hover:underline">info@TradeOn.global</a> &nbsp;|&nbsp; 📞 <a href="tel:+8801898889950" className="text-primary hover:underline">01898-889950</a></p>
+              <h3 className="font-bold text-foreground text-sm">{title}</h3>
             </div>
+            <ul className="space-y-2">
+              {items.map((item) => (
+                <li key={item} className="flex items-start gap-2 text-xs text-muted-foreground">
+                  <span className="w-1 h-1 rounded-full bg-muted-foreground mt-1.5 shrink-0" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+
+      {/* Help Box */}
+      <div className="bg-card border rounded-2xl p-8 flex flex-col sm:flex-row gap-5 items-start">
+        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+          <ShieldAlert className="h-6 w-6 text-primary" />
+        </div>
+        <div>
+          <p className="font-bold text-foreground mb-2">Not sure if your item is allowed?</p>
+          <p className="text-sm text-muted-foreground leading-relaxed mb-3">
+            This list is not exhaustive. If you are unsure whether a product can be imported, please contact us before placing an order. We're happy to verify.
+          </p>
+          <div className="flex flex-wrap gap-4 text-sm">
+            <a href="mailto:info@TradeOn.global" className="text-primary hover:underline font-medium">📧 info@TradeOn.global</a>
+            <a href="tel:+8801898889950" className="text-primary hover:underline font-medium">📞 01898-889950</a>
           </div>
         </div>
       </div>
-      <Footer />
     </div>
-  );
-};
+  </InfoPageLayout>
+);
 
 export default ProhibitedItems;
