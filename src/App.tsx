@@ -14,6 +14,11 @@ const Index = lazy(() => import("./pages/Index"));
 const Install = lazy(() => import("./pages/Install"));
 const Auth = lazy(() => import("./pages/Auth"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const AboutUs = lazy(() => import("./pages/AboutUs"));
+const ContactUs = lazy(() => import("./pages/ContactUs"));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
+const ReturnRefundPolicy = lazy(() => import("./pages/ReturnRefundPolicy"));
+const ProhibitedItems = lazy(() => import("./pages/ProhibitedItems"));
 
 // Dashboard pages
 const DashboardLayout = lazy(() => import("./components/dashboard/DashboardLayout"));
@@ -89,6 +94,11 @@ const App = () => (
           <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route path="/" element={<Index />} />
+              <Route path="/about-us" element={<AboutUs />} />
+              <Route path="/contact-us" element={<ContactUs />} />
+              <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+              <Route path="/return-refund-policy" element={<ReturnRefundPolicy />} />
+              <Route path="/prohibited-items" element={<ProhibitedItems />} />
               <Route path="/install" element={<Install />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/dashboard" element={<DashboardRoute><Overview /></DashboardRoute>} />

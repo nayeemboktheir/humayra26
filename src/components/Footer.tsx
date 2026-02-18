@@ -70,12 +70,12 @@ const Footer = () => {
           <div>
             <h3 className="font-bold text-foreground mb-4 uppercase tracking-wide">Information</h3>
             <div className="space-y-2.5 text-sm">
-              <button className="block text-muted-foreground hover:text-primary transition-colors">About Us</button>
-              <button className="block text-muted-foreground hover:text-primary transition-colors">Contact Us</button>
-              <button className="block text-muted-foreground hover:text-primary transition-colors">Privacy Policy</button>
-              <button className="block text-muted-foreground hover:text-primary transition-colors">Return & Refund</button>
-              <button className="block text-muted-foreground hover:text-primary transition-colors">Cancellation Policy</button>
-              <button className="block text-muted-foreground hover:text-primary transition-colors">Prohibited Items</button>
+              <button onClick={() => navigate("/about-us")} className="block text-muted-foreground hover:text-primary transition-colors">About Us</button>
+              <button onClick={() => navigate("/contact-us")} className="block text-muted-foreground hover:text-primary transition-colors">Contact Us</button>
+              <button onClick={() => navigate("/privacy-policy")} className="block text-muted-foreground hover:text-primary transition-colors">Privacy Policy</button>
+              <button onClick={() => navigate("/return-refund-policy")} className="block text-muted-foreground hover:text-primary transition-colors">Return & Refund</button>
+              <button onClick={() => navigate("/return-refund-policy")} className="block text-muted-foreground hover:text-primary transition-colors">Cancellation Policy</button>
+              <button onClick={() => navigate("/prohibited-items")} className="block text-muted-foreground hover:text-primary transition-colors">Prohibited Items</button>
             </div>
           </div>
 
