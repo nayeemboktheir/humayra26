@@ -14,6 +14,7 @@ import Footer from "@/components/Footer";
 import { useAuth } from "@/contexts/AuthContext";
 import SearchFilters, { SearchFilterValues, getDefaultFilters, applyFilters } from "@/components/SearchFilters";
 import CategorySection from "@/components/CategorySection";
+import { useAppSettings } from "@/hooks/useAppSettings";
 
 const ProductCardSkeleton = () => (
   <Card className="overflow-hidden">
@@ -111,6 +112,7 @@ const Index = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
+  const { settings } = useAppSettings();
   const [query, setQuery] = useState("");
   const [products, setProducts] = useState<Product1688[]>([]);
   const [translatedTitles, setTranslatedTitles] = useState<Record<number, string>>({});
@@ -589,7 +591,7 @@ const Index = () => {
   if (selectedProduct || isLoadingProduct) {
     return (
       <div className="min-h-screen bg-background">
-        <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} />
+        <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} settings={settings} />
         <ProductDetail product={selectedProduct || undefined} isLoading={isTranslatingProduct} onBack={handleBackToSearch} />
       </div>
     );
@@ -602,7 +604,7 @@ const Index = () => {
 
     return (
       <div className="min-h-screen bg-background">
-        <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} />
+        <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} settings={settings} />
         <div className="px-3 sm:px-6">
           <div className="flex gap-6 mt-4">
             {/* Category Sidebar - desktop only */}
@@ -830,7 +832,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background relative" onDragEnter={handleDragEnter} onDragLeave={handleDragLeave} onDragOver={handleDragOver} onDrop={handleDrop}>
       {isDragging && <DragOverlay />}
-      <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} />
+      <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} settings={settings} />
 
       {/* Main content with category sidebar */}
       <div className="px-3 sm:px-6">
@@ -860,18 +862,18 @@ const Index = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
               <div className="md:col-span-2 rounded-xl overflow-hidden bg-gradient-to-r from-primary/10 to-primary/5 border p-8 flex items-center">
                 <div>
-                  <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">Buy Chinese Products</h1>
-                  <p className="text-muted-foreground mb-4">Wholesale market from 1688.com with shipping to Bangladesh</p>
+                  <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">{settings.hero_title}</h1>
+                  <p className="text-muted-foreground mb-4">{settings.hero_subtitle}</p>
                   <div className="flex flex-wrap gap-2">
-                    <Badge variant="outline" className="cursor-pointer" onClick={() => handleCategoryClick("trending products")}>🔥 Trending</Badge>
-                    <Badge variant="outline" className="cursor-pointer" onClick={() => handleCategoryClick("new arrivals")}>✨ New Arrivals</Badge>
-                    <Badge variant="outline" className="cursor-pointer" onClick={() => handleCategoryClick("best selling")}>⭐ Best Sellers</Badge>
+                    <Badge variant="outline" className="cursor-pointer" onClick={() => handleCategoryClick("trending products")}>{settings.hero_badge_1}</Badge>
+                    <Badge variant="outline" className="cursor-pointer" onClick={() => handleCategoryClick("new arrivals")}>{settings.hero_badge_2}</Badge>
+                    <Badge variant="outline" className="cursor-pointer" onClick={() => handleCategoryClick("best selling")}>{settings.hero_badge_3}</Badge>
                   </div>
                 </div>
               </div>
               <div className="rounded-xl overflow-hidden bg-gradient-to-br from-primary to-primary/80 text-primary-foreground p-6 flex flex-col justify-center">
-                <h3 className="text-xl font-bold mb-2">শিপিং সার্ভিস</h3>
-                <p className="text-sm opacity-90 mb-3">Ship your products from China to Bangladesh</p>
+                <h3 className="text-xl font-bold mb-2">{settings.shipping_card_title}</h3>
+                <p className="text-sm opacity-90 mb-3">{settings.shipping_card_subtitle}</p>
                 <Button variant="secondary" size="sm" className="w-fit" onClick={() => navigate("/dashboard/shipments")}>
                   Learn More
                 </Button>
@@ -998,13 +1000,13 @@ const Index = () => {
 
 // Shared components
 
-const SiteHeader = ({ query, setQuery, handleSearch, isLoading, handleImageButtonClick, fileInputRef, handleFileChange, user, navigate, handleInstallClick }: any) => (
+const SiteHeader = ({ query, setQuery, handleSearch, isLoading, handleImageButtonClick, fileInputRef, handleFileChange, user, navigate, handleInstallClick, settings }: any) => (
   <header className="sticky top-0 z-50 bg-card border-b shadow-sm">
     <div className="px-3 sm:px-6">
       <div className="flex items-center gap-4 h-16">
         {/* Logo */}
         <button onClick={() => { setQuery(""); window.location.href = "/"; }} className="shrink-0">
-          <h1 className="text-xl font-bold text-primary">TradeOn Global</h1>
+          <h1 className="text-xl font-bold text-primary">{settings?.site_name || "TradeOn Global"}</h1>
         </button>
 
         {/* Search */}
@@ -1012,7 +1014,7 @@ const SiteHeader = ({ query, setQuery, handleSearch, isLoading, handleImageButto
           <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input type="text" placeholder="Search by product name..." value={query} onChange={(e: any) => setQuery(e.target.value)} className="pl-10 h-10" />
+            <Input type="text" placeholder={settings?.search_placeholder || "Search by product name..."} value={query} onChange={(e: any) => setQuery(e.target.value)} className="pl-10 h-10" />
           </div>
           <Button type="button" variant="outline" size="icon" title="Search by image" onClick={handleImageButtonClick} disabled={isLoading} className="shrink-0">
             <Camera className="h-4 w-4" />
