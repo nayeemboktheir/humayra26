@@ -303,16 +303,18 @@ export const alibaba1688Api = {
 
       const rawTitle = item?.Title || item?.OriginalTitle || '';
 
-      // Translate title + props + variant titles synchronously before returning
+      // Translate title + props + variant titles + location synchronously before returning
       const configuredItemTitles = parsedConfiguredItems.map(ci => ci.title);
       const textsToTranslate = [
         rawTitle,
+        location,
         ...props.flatMap(p => [p.name, p.value]),
         ...configuredItemTitles,
       ];
       const translated = await translateTitlesAsync(textsToTranslate);
       const translatedTitle = translated[0] || rawTitle;
-      const propsOffset = 1;
+      const translatedLocation = translated[1] || location;
+      const propsOffset = 2;
       const translatedProps = props.map((p, i) => ({
         name: translated[propsOffset + i * 2] || p.name,
         value: translated[propsOffset + i * 2 + 1] || p.value,
@@ -334,7 +336,7 @@ export const alibaba1688Api = {
           pic_url: item?.MainPictureUrl || pics[0]?.Url || '',
           item_imgs: pics.map((p: any) => ({ url: p?.Large?.Url || p?.Url || '' })),
           desc_img: descImgs,
-          location,
+          location: translatedLocation,
           num: String(totalStock || item?.MasterQuantity || ''),
           min_num: item?.FirstLotQuantity || 1,
           video: item?.VideoUrl || undefined,
