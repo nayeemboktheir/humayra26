@@ -29,13 +29,13 @@ jobs:
           VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID }}
         run: bun run build
 
-      - name: Deploy to Hostinger via SFTP
-        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
+      - name: Deploy to Hostinger via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          port: 65002
-          local_path: ./dist/*
-          remote_path: /public_html/
-          sftpArgs: '-o ConnectTimeout=10'
+          protocol: ftps
+          port: 21
+          local-dir: ./dist/
+          server-dir: /domains/tradeon.global/public_html/
