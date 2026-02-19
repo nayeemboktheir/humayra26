@@ -30,7 +30,10 @@ jobs:
         run: bun run build
 
       - name: Copy server to dist
-        run: cp server.cjs dist/server.cjs
+        run: |
+          cp server.cjs dist/server.cjs
+          echo "✅ server.cjs copied to dist"
+          ls -la dist/server.cjs
 
       - name: Deploy to Hostinger via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
@@ -42,3 +45,4 @@ jobs:
           port: 21
           local-dir: ./dist/
           server-dir: public_html/
+          dangerous-clean-slate: false
