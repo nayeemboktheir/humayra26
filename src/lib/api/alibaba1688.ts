@@ -303,13 +303,24 @@ export const alibaba1688Api = {
 
       const rawTitle = item?.Title || item?.OriginalTitle || '';
 
-      // Translate title + props synchronously before returning
-      const textsToTranslate = [rawTitle, ...props.flatMap(p => [p.name, p.value])];
+      // Translate title + props + variant titles synchronously before returning
+      const configuredItemTitles = parsedConfiguredItems.map(ci => ci.title);
+      const textsToTranslate = [
+        rawTitle,
+        ...props.flatMap(p => [p.name, p.value]),
+        ...configuredItemTitles,
+      ];
       const translated = await translateTitlesAsync(textsToTranslate);
       const translatedTitle = translated[0] || rawTitle;
+      const propsOffset = 1;
       const translatedProps = props.map((p, i) => ({
-        name: translated[1 + i * 2] || p.name,
-        value: translated[2 + i * 2] || p.value,
+        name: translated[propsOffset + i * 2] || p.name,
+        value: translated[propsOffset + i * 2 + 1] || p.value,
+      }));
+      const configOffset = propsOffset + props.length * 2;
+      const translatedConfiguredItems = parsedConfiguredItems.map((ci, i) => ({
+        ...ci,
+        title: translated[configOffset + i] || ci.title,
       }));
 
       return {
@@ -329,7 +340,7 @@ export const alibaba1688Api = {
           video: item?.VideoUrl || undefined,
           props: translatedProps,
           priceRange,
-          configuredItems: parsedConfiguredItems.length > 0 ? parsedConfiguredItems : undefined,
+          configuredItems: translatedConfiguredItems.length > 0 ? translatedConfiguredItems : undefined,
           seller_info: {
             nick: item?.VendorName || item?.VendorDisplayName || '',
             shop_name: item?.VendorName || item?.VendorDisplayName || '',
