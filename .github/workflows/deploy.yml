@@ -35,7 +35,7 @@ jobs:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          port: 22
+          port: 65002
           local_path: ./dist/*
           remote_path: /public_html/
           sftpArgs: '-o ConnectTimeout=10'
