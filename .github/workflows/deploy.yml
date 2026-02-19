@@ -38,4 +38,4 @@ jobs:
           protocol: ftps
           port: 21
           local-dir: ./dist/
-          server-dir: /domains/tradeon.global/public_html/
+          server-dir: public_html/
