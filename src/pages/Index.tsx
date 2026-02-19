@@ -118,6 +118,7 @@ const Index = () => {
   const [hasSearched, setHasSearched] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<ProductDetail1688 | null>(null);
   const [isLoadingProduct, setIsLoadingProduct] = useState(false);
+  const [isTranslatingProduct, setIsTranslatingProduct] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounterRef = useRef(0);
@@ -501,22 +502,24 @@ const Index = () => {
     };
     setSelectedProduct(fallback);
     setIsLoadingProduct(true);
+    setIsTranslatingProduct(true);
     setSearchParams({ product: String(product.num_iid) });
     try {
       const result = await alibaba1688Api.getProduct(
         product.num_iid,
         0,
-        // 🚀 Show raw (untranslated) product immediately — UI renders before translation
+        // 🚀 Show raw (untranslated) product immediately — keep translating banner visible
         (rawProduct) => { setSelectedProduct(rawProduct); setIsLoadingProduct(false); },
       );
       if (result.success && result.data) setSelectedProduct(result.data);
     } catch (error) { console.error("Product details error:", error); }
-    finally { setIsLoadingProduct(false); }
+    finally { setIsLoadingProduct(false); setIsTranslatingProduct(false); }
   };
 
   const handleTrendingClick = async (productId: string) => {
     const numIid = parseInt(productId.replace('abb-', ''));
     setIsLoadingProduct(true);
+    setIsTranslatingProduct(true);
     setSelectedProduct(null);
     setSearchParams({ product: String(numIid) });
     try {
@@ -538,7 +541,7 @@ const Index = () => {
       setSelectedProduct(null);
       setSearchParams({});
     }
-    finally { setIsLoadingProduct(false); }
+    finally { setIsLoadingProduct(false); setIsTranslatingProduct(false); }
   };
 
   const handleBackToSearch = () => { setSelectedProduct(null); setActiveCategoryView(null); setSearchParams({}); };
@@ -587,7 +590,7 @@ const Index = () => {
     return (
       <div className="min-h-screen bg-background">
         <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} />
-        <ProductDetail product={selectedProduct || undefined} isLoading={isLoadingProduct} onBack={handleBackToSearch} />
+        <ProductDetail product={selectedProduct || undefined} isLoading={isTranslatingProduct} onBack={handleBackToSearch} />
       </div>
     );
   }
