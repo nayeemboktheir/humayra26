@@ -503,7 +503,12 @@ const Index = () => {
     setIsLoadingProduct(true);
     setSearchParams({ product: String(product.num_iid) });
     try {
-      const result = await alibaba1688Api.getProduct(product.num_iid);
+      const result = await alibaba1688Api.getProduct(
+        product.num_iid,
+        0,
+        // 🚀 Show raw (untranslated) product immediately — UI renders before translation
+        (rawProduct) => { setSelectedProduct(rawProduct); setIsLoadingProduct(false); },
+      );
       if (result.success && result.data) setSelectedProduct(result.data);
     } catch (error) { console.error("Product details error:", error); }
     finally { setIsLoadingProduct(false); }
@@ -515,10 +520,15 @@ const Index = () => {
     setSelectedProduct(null);
     setSearchParams({ product: String(numIid) });
     try {
-      const result = await alibaba1688Api.getProduct(numIid);
+      const result = await alibaba1688Api.getProduct(
+        numIid,
+        0,
+        // 🚀 Show raw product as soon as data arrives, before translation
+        (rawProduct) => { setSelectedProduct(rawProduct); setIsLoadingProduct(false); },
+      );
       if (result.success && result.data) {
         setSelectedProduct(result.data);
-      } else {
+      } else if (!result.success) {
         toast.error("This product is no longer available");
         setSelectedProduct(null);
         setSearchParams({});

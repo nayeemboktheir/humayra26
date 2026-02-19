@@ -183,7 +183,103 @@ export const alibaba1688Api = {
     }
   },
 
-  async getProduct(numIid: number, _retries = 0): Promise<ApiResponse<ProductDetail1688>> {
+  // Parse raw OTAPI product data without waiting for translation
+  parseRawProduct(data: any, numIid: number): ProductDetail1688 | null {
+    const item = data?.Result?.Item;
+    if (!item) return null;
+
+    const price = item?.Price?.OriginalPrice || 0;
+    const configuredItems = Array.isArray(item?.ConfiguredItems) ? item.ConfiguredItems : [];
+    const quantityRanges = Array.isArray(item?.QuantityRanges) ? item.QuantityRanges : [];
+    let priceRange: number[][] | undefined;
+    if (quantityRanges.length > 1) {
+      priceRange = quantityRanges
+        .filter((qr: any) => qr?.MinQuantity && qr?.Price?.OriginalPrice)
+        .map((qr: any) => [qr.MinQuantity, qr.Price.OriginalPrice]);
+    }
+
+    const pics = Array.isArray(item?.Pictures) ? item.Pictures : [];
+    const attributes = Array.isArray(item?.Attributes) ? item.Attributes : [];
+    const props = attributes
+      .filter((a: any) => !a?.IsConfigurator)
+      .map((a: any) => ({
+        name: a?.PropertyName || a?.OriginalPropertyName || '',
+        value: a?.Value || a?.OriginalValue || '',
+      }));
+
+    const configuratorImageMap: Record<string, string> = {};
+    const configuratorTitleMap: Record<string, string> = {};
+    attributes.filter((a: any) => a?.IsConfigurator).forEach((a: any) => {
+      const vid = a?.Vid || a?.OriginalValue || '';
+      if (vid) {
+        if (a?.ImageUrl) configuratorImageMap[vid] = a.ImageUrl;
+        if (a?.MiniImageUrl && !configuratorImageMap[vid]) configuratorImageMap[vid] = a.MiniImageUrl;
+        configuratorTitleMap[vid] = a?.Value || a?.OriginalValue || vid;
+      }
+    });
+
+    const parsedConfiguredItems = configuredItems.map((ci: any) => {
+      const configurators = Array.isArray(ci?.Configurators) ? ci.Configurators : [];
+      let imageUrl: string | undefined;
+      for (const c of configurators) {
+        const vid = c?.Vid || c?.OriginalValue || '';
+        if (vid && configuratorImageMap[vid]) { imageUrl = configuratorImageMap[vid]; break; }
+      }
+      const titleParts = configurators.map((c: any) => {
+        const vid = c?.Vid || c?.OriginalValue || '';
+        return configuratorTitleMap[vid] || c?.Value || c?.OriginalValue || vid || '';
+      }).filter(Boolean);
+      return {
+        id: ci?.Id || '',
+        title: ci?.Title || (titleParts.length > 0 ? titleParts.join(' / ') : ''),
+        imageUrl,
+        price: ci?.Price?.OriginalPrice || price,
+        stock: ci?.Quantity || 0,
+      };
+    });
+
+    const externalId = item?.Id || '';
+    const parsedNumIid = parseInt(externalId.replace(/^abb-/, ''), 10) || numIid;
+    const descHtml = item?.Description || '';
+    const descImgMatches = descHtml.match(/src="(https?:\/\/[^"]+)"/g) || [];
+    const descImgs = descImgMatches.map((m: string) => m.replace(/^src="/, '').replace(/"$/, ''));
+    const featuredValues = Array.isArray(item?.FeaturedValues) ? item.FeaturedValues : [];
+    const getFeatured = (name: string) => featuredValues.find((v: any) => v?.Name === name)?.Value || '';
+    const location = typeof item?.Location === 'string'
+      ? item.Location
+      : (item?.Location?.State || item?.Location?.City || '');
+    const totalStock = configuredItems.reduce((sum: number, ci: any) => sum + (ci?.Quantity || 0), 0);
+
+    return {
+      num_iid: parsedNumIid,
+      title: item?.Title || item?.OriginalTitle || '',
+      desc: descHtml,
+      price,
+      pic_url: item?.MainPictureUrl || pics[0]?.Url || '',
+      item_imgs: pics.map((p: any) => ({ url: p?.Large?.Url || p?.Url || '' })),
+      desc_img: descImgs,
+      location,
+      num: String(totalStock || item?.MasterQuantity || ''),
+      min_num: item?.FirstLotQuantity || 1,
+      video: item?.VideoUrl || undefined,
+      props,
+      priceRange,
+      configuredItems: parsedConfiguredItems.length > 0 ? parsedConfiguredItems : undefined,
+      seller_info: {
+        nick: item?.VendorName || item?.VendorDisplayName || '',
+        shop_name: item?.VendorName || item?.VendorDisplayName || '',
+        item_score: '', delivery_score: '', composite_score: '',
+      },
+      total_sold: parseInt(getFeatured('SalesInLast30Days') || getFeatured('TotalSales') || '0', 10) || undefined,
+      item_weight: item?.PhysicalParameters?.Weight || undefined,
+    };
+  },
+
+  async getProduct(
+    numIid: number,
+    _retries = 0,
+    onRawProduct?: (product: ProductDetail1688) => void,
+  ): Promise<ApiResponse<ProductDetail1688>> {
     try {
       const { data, error } = await supabase.functions.invoke('alibaba-1688-item-get', {
         body: { numIid },
@@ -194,22 +290,24 @@ export const alibaba1688Api = {
       // Handle retryable "loading" response from OTAPI
       if (data?.retryable && _retries < 2) {
         await new Promise(r => setTimeout(r, 3000));
-        return this.getProduct(numIid, _retries + 1);
+        return this.getProduct(numIid, _retries + 1, onRawProduct);
       }
 
       if (!data?.success) return { success: false, error: data?.error || 'Failed to get product' };
+
+      // 🚀 Immediately surface raw (untranslated) product to caller so UI can render fast
+      if (onRawProduct) {
+        const raw = this.parseRawProduct(data.data, numIid);
+        if (raw) onRawProduct(raw);
+      }
 
       // BatchGetItemFullInfo returns data in Result.Item
       const item = data.data?.Result?.Item;
       if (!item) return { success: false, error: 'Product not found' };
 
-      // Price from OriginalPrice (CNY yuan)
+      // Re-parse to get typed fields we need for translation
       const price = item?.Price?.OriginalPrice || 0;
-
-      // Extract price range from ConfiguredItems
       const configuredItems = Array.isArray(item?.ConfiguredItems) ? item.ConfiguredItems : [];
-      
-      // Parse price ranges from QuantityRanges if available (real quantity-based tiers)
       const quantityRanges = Array.isArray(item?.QuantityRanges) ? item.QuantityRanges : [];
       let priceRange: number[][] | undefined;
       if (quantityRanges.length > 1) {
@@ -217,12 +315,8 @@ export const alibaba1688Api = {
           .filter((qr: any) => qr?.MinQuantity && qr?.Price?.OriginalPrice)
           .map((qr: any) => [qr.MinQuantity, qr.Price.OriginalPrice]);
       }
-      // Don't show variant price differences as "tiered pricing"
 
-      // Pictures
       const pics = Array.isArray(item?.Pictures) ? item.Pictures : [];
-
-      // Attributes
       const attributes = Array.isArray(item?.Attributes) ? item.Attributes : [];
       const props = attributes
         .filter((a: any) => !a?.IsConfigurator)
@@ -231,79 +325,51 @@ export const alibaba1688Api = {
           value: a?.Value || a?.OriginalValue || '',
         }));
 
-      // Build maps from configurator Attributes for image and title lookup
       const configuratorImageMap: Record<string, string> = {};
       const configuratorTitleMap: Record<string, string> = {};
-      attributes
-        .filter((a: any) => a?.IsConfigurator)
-        .forEach((a: any) => {
-          const vid = a?.Vid || a?.OriginalValue || '';
-          if (vid) {
-            if (a?.ImageUrl) {
-              configuratorImageMap[vid] = a.ImageUrl;
-            }
-            if (a?.MiniImageUrl && !configuratorImageMap[vid]) {
-              configuratorImageMap[vid] = a.MiniImageUrl;
-            }
-            // Map Vid to translated Value for display
-            const displayValue = a?.Value || a?.OriginalValue || vid;
-            configuratorTitleMap[vid] = displayValue;
-          }
-        });
+      attributes.filter((a: any) => a?.IsConfigurator).forEach((a: any) => {
+        const vid = a?.Vid || a?.OriginalValue || '';
+        if (vid) {
+          if (a?.ImageUrl) configuratorImageMap[vid] = a.ImageUrl;
+          if (a?.MiniImageUrl && !configuratorImageMap[vid]) configuratorImageMap[vid] = a.MiniImageUrl;
+          configuratorTitleMap[vid] = a?.Value || a?.OriginalValue || vid;
+        }
+      });
 
-      // Parse configured items for SKU variant table
       const parsedConfiguredItems = configuredItems.map((ci: any) => {
         const configurators = Array.isArray(ci?.Configurators) ? ci.Configurators : [];
         let imageUrl: string | undefined;
-        // Find image: try each configurator's Vid against the image map
         for (const c of configurators) {
           const vid = c?.Vid || c?.OriginalValue || '';
-          if (vid && configuratorImageMap[vid]) {
-            imageUrl = configuratorImageMap[vid];
-            break;
-          }
+          if (vid && configuratorImageMap[vid]) { imageUrl = configuratorImageMap[vid]; break; }
         }
-        // Build title from translated values
-        const titleParts = configurators
-          .map((c: any) => {
-            const vid = c?.Vid || c?.OriginalValue || '';
-            return configuratorTitleMap[vid] || c?.Value || c?.OriginalValue || vid || '';
-          })
-          .filter(Boolean);
-        const title = ci?.Title || (titleParts.length > 0 ? titleParts.join(' / ') : '');
+        const titleParts = configurators.map((c: any) => {
+          const vid = c?.Vid || c?.OriginalValue || '';
+          return configuratorTitleMap[vid] || c?.Value || c?.OriginalValue || vid || '';
+        }).filter(Boolean);
         return {
           id: ci?.Id || '',
-          title,
+          title: ci?.Title || (titleParts.length > 0 ? titleParts.join(' / ') : ''),
           imageUrl,
           price: ci?.Price?.OriginalPrice || price,
           stock: ci?.Quantity || 0,
         };
       });
 
-      // Parse item ID
       const externalId = item?.Id || '';
       const parsedNumIid = parseInt(externalId.replace(/^abb-/, ''), 10) || numIid;
-
-      // Extract description images from HTML description
       const descHtml = item?.Description || '';
       const descImgMatches = descHtml.match(/src="(https?:\/\/[^"]+)"/g) || [];
       const descImgs = descImgMatches.map((m: string) => m.replace(/^src="/, '').replace(/"$/, ''));
-
-      // Featured values
       const featuredValues = Array.isArray(item?.FeaturedValues) ? item.FeaturedValues : [];
       const getFeatured = (name: string) => featuredValues.find((v: any) => v?.Name === name)?.Value || '';
-
-      // Location
       const location = typeof item?.Location === 'string'
         ? item.Location
         : (item?.Location?.State || item?.Location?.City || '');
-
-      // Total stock from all configured items
       const totalStock = configuredItems.reduce((sum: number, ci: any) => sum + (ci?.Quantity || 0), 0);
-
       const rawTitle = item?.Title || item?.OriginalTitle || '';
 
-      // Translate title + props + variant titles + location synchronously before returning
+      // Translate all text fields in one batch call
       const configuredItemTitles = parsedConfiguredItems.map(ci => ci.title);
       const textsToTranslate = [
         rawTitle,
@@ -346,9 +412,7 @@ export const alibaba1688Api = {
           seller_info: {
             nick: item?.VendorName || item?.VendorDisplayName || '',
             shop_name: item?.VendorName || item?.VendorDisplayName || '',
-            item_score: '',
-            delivery_score: '',
-            composite_score: '',
+            item_score: '', delivery_score: '', composite_score: '',
           },
           total_sold: parseInt(getFeatured('SalesInLast30Days') || getFeatured('TotalSales') || '0', 10) || undefined,
           item_weight: item?.PhysicalParameters?.Weight || undefined,
