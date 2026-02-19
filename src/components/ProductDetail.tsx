@@ -184,7 +184,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
       {isLoading && (
         <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-primary text-primary-foreground px-4 py-1.5 rounded-full text-xs flex items-center gap-2 shadow-lg">
           <Loader2 className="h-3 w-3 animate-spin" />
-          Loading full details...
+          Translating descriptions...
         </div>
       )}
 
