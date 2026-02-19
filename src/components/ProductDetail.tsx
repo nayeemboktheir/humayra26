@@ -489,7 +489,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                 </div>
 
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  চায়না গোডাউন ডেলিভারি চার্জ কার্ট পেজে যোগ হবে
+                  China warehouse delivery charge will be added on the cart page.
                 </p>
 
                 <Button className="w-full h-12 text-base font-bold rounded-xl shadow-md hover:shadow-lg transition-shadow" onClick={handleBuyNow} disabled={ordering}>
