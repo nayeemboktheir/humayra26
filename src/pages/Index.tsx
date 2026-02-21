@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Search, Camera, ImageIcon, Loader2, ChevronLeft, ChevronRight, Star, BadgeCheck, Flame, Truck, Heart, ShoppingCart, User, Zap, SlidersHorizontal, Download, X, ArrowRight } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -796,10 +797,30 @@ const Index = () => {
 
             {/* Mobile filter toggle */}
             <div className="lg:hidden fixed bottom-20 md:bottom-4 right-4 z-40">
-              <Button size="sm" className="rounded-full shadow-lg gap-1.5" onClick={() => setMobileFiltersOpen(!mobileFiltersOpen)}>
+              <Button size="sm" className="rounded-full shadow-lg gap-1.5" onClick={() => setMobileFiltersOpen(true)}>
                 <SlidersHorizontal className="h-4 w-4" /> Filters
               </Button>
             </div>
+
+            {/* Mobile filter drawer */}
+            <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
+              <SheetContent side="bottom" className="h-[80vh] overflow-y-auto rounded-t-2xl">
+                <SheetHeader>
+                  <SheetTitle>Filters</SheetTitle>
+                </SheetHeader>
+                <div className="mt-4">
+                  <SearchFilters
+                    filters={filters}
+                    onFiltersChange={(f) => { setFilters(f); }}
+                    onCategorySearch={(catQuery) => { setQuery(catQuery); performSearch(catQuery); setMobileFiltersOpen(false); }}
+                    mobile
+                  />
+                  <Button className="w-full mt-4" onClick={() => setMobileFiltersOpen(false)}>
+                    Apply Filters
+                  </Button>
+                </div>
+              </SheetContent>
+            </Sheet>
 
             {/* Results */}
             <div className="flex-1 min-w-0">

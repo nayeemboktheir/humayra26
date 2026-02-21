@@ -58,6 +58,7 @@ interface SearchFiltersProps {
   filters: SearchFilterValues;
   onFiltersChange: (filters: SearchFilterValues) => void;
   onCategorySearch?: (query: string) => void;
+  mobile?: boolean;
 }
 
 export const getDefaultFilters = (): SearchFilterValues => ({
@@ -69,7 +70,7 @@ export const getDefaultFilters = (): SearchFilterValues => ({
   sortBy: "best_match",
 });
 
-export default function SearchFilters({ filters, onFiltersChange, onCategorySearch }: SearchFiltersProps) {
+export default function SearchFilters({ filters, onFiltersChange, onCategorySearch, mobile }: SearchFiltersProps) {
   const [priceOpen, setPriceOpen] = useState(true);
   const [catOpen, setCatOpen] = useState(true);
   const [ratingOpen, setRatingOpen] = useState(true);
@@ -109,13 +110,15 @@ export default function SearchFilters({ filters, onFiltersChange, onCategorySear
   const visibleCats = showMoreCats ? CATEGORIES : CATEGORIES.slice(0, 5);
 
   return (
-    <aside className="hidden lg:block w-56 shrink-0">
-      <div className="bg-card rounded-xl border p-4 sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto scrollbar-hide">
+    <aside className={mobile ? "w-full" : "hidden lg:block w-56 shrink-0"}>
+      <div className={mobile ? "space-y-4" : "bg-card rounded-xl border p-4 sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto scrollbar-hide"}>
         {/* Header */}
-        <div className="flex items-center gap-2 mb-4">
-          <SlidersHorizontal className="h-5 w-5 text-foreground" />
-          <h2 className="text-lg font-bold">Filters</h2>
-        </div>
+        {!mobile && (
+          <div className="flex items-center gap-2 mb-4">
+            <SlidersHorizontal className="h-5 w-5 text-foreground" />
+            <h2 className="text-lg font-bold">Filters</h2>
+          </div>
+        )}
 
         {/* Sort */}
         <div className="flex flex-wrap gap-1.5 mb-4">
