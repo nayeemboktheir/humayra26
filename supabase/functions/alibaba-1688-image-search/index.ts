@@ -203,9 +203,56 @@ async function otapiImageSearch(apiKey: string, imageBase64: string, page: numbe
   const searchMethod = data?.Result?.SearchMethod || 'unknown';
   console.log(`OTAPI image search returned ${items.length} items via method: ${searchMethod}`);
 
+  // Re-rank results if keyword provided
+  if (keyword && items.length > 0) {
+    const ranked = rerankByKeyword(items, keyword);
+    const rerankedData = {
+      ...data,
+      Result: {
+        ...data?.Result,
+        Items: {
+          ...data?.Result?.Items,
+          Content: ranked,
+        },
+      },
+    };
+    return {
+      success: true,
+      data: rerankedData,
+      meta: { method: 'otapi_file_id_reranked', provider: 'otapi', searchMethod, fileId },
+    };
+  }
+
   return {
     success: true,
     data,
     meta: { method: 'otapi_file_id', provider: 'otapi', searchMethod, fileId },
   };
+}
+
+// Re-rank items by keyword relevance: items whose title matches the keyword score higher
+function rerankByKeyword(items: any[], keyword: string): any[] {
+  const kw = keyword.toLowerCase().trim();
+  const kwWords = kw.split(/\s+/).filter(Boolean);
+
+  const scored = items.map((item: any) => {
+    const title = (item?.Title || '').toLowerCase();
+    let score = 0;
+
+    // Exact phrase match = highest
+    if (title.includes(kw)) score += 100;
+
+    // Individual word matches
+    for (const w of kwWords) {
+      if (title.includes(w)) score += 30;
+    }
+
+    return { item, score };
+  });
+
+  // Sort by score descending, keeping original order for ties
+  scored.sort((a, b) => b.score - a.score);
+
+  // Put matching items first, then the rest (don't remove non-matching — user still sees visual matches)
+  return scored.map((s) => s.item);
 }
