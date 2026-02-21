@@ -5,40 +5,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-async function translateTitles(titles: string[], apiKey: string): Promise<string[]> {
-  try {
-    const textsToTranslate = titles.join('\n---SEPARATOR---\n');
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash-lite',
-        messages: [
-          {
-            role: 'system',
-            content: `Translate from Russian/Chinese to natural English for e-commerce. Each input separated by ---SEPARATOR---. Return ONLY translated texts separated by ---SEPARATOR---. No numbering, no quotes. Keep brand names and model numbers as-is. If already English, return unchanged.`
-          },
-          { role: 'user', content: textsToTranslate }
-        ],
-        max_tokens: 2000,
-        temperature: 0.2,
-      }),
-    });
-
-    if (!response.ok) return titles;
-
-    const data = await response.json();
-    const translatedText = data.choices?.[0]?.message?.content || '';
-    const translations = translatedText.split('---SEPARATOR---').map((t: string) => t.trim());
-    return translations.length === titles.length ? translations : titles;
-  } catch {
-    return titles;
-  }
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -62,7 +28,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    const lovableKey = (Deno.env.get('LOVABLE_API_KEY') ?? '').trim();
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
@@ -98,12 +63,13 @@ Deno.serve(async (req) => {
     const imageUrl = publicUrlData.publicUrl;
     console.log('Image uploaded, public URL:', imageUrl);
 
-    // Step 2: Use OTAPI native image search with ImageUrl parameter
+    // Step 2: Use OTAPI BatchSearchItemsFrame with ImageUrl (same as chinaonlinebd.com)
+    // Do NOT pass language parameter - let OTAPI use the native image search method
     const framePosition = (page - 1) * pageSize;
     const xmlParams = `<SearchItemsParameters><Provider>Alibaba1688</Provider><ImageUrl>${imageUrl}</ImageUrl></SearchItemsParameters>`;
-    const url = `https://otapi.net/service-json/SearchItemsFrame?instanceKey=${encodeURIComponent(apiKey)}&language=en&xmlParameters=${encodeURIComponent(xmlParams)}&framePosition=${framePosition}&frameSize=${pageSize}`;
+    const url = `https://otapi.net/service-json/BatchSearchItemsFrame?instanceKey=${encodeURIComponent(apiKey)}&xmlParameters=${encodeURIComponent(xmlParams)}&framePosition=${framePosition}&frameSize=${pageSize}`;
 
-    console.log('Calling OTAPI native image search...');
+    console.log('Calling OTAPI BatchSearchItemsFrame with ImageUrl...');
     const resp = await fetch(url, { method: 'GET', headers: { Accept: 'application/json' } });
     const data = await resp.json().catch(() => null);
 
@@ -111,7 +77,7 @@ Deno.serve(async (req) => {
     supabase.storage.from('temp-images').remove([fileName]).catch(() => {});
 
     if (!resp.ok) {
-      console.error('OTAPI error:', data);
+      console.error('OTAPI error:', resp.status, data);
       return new Response(JSON.stringify({ success: false, error: data?.ErrorMessage || `Failed: ${resp.status}` }), {
         status: resp.status,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -128,21 +94,13 @@ Deno.serve(async (req) => {
     }
 
     const items = data?.Result?.Items?.Content || [];
-    console.log(`OTAPI native image search returned ${items.length} items`);
-
-    // Translate titles in background before returning
-    if (items.length > 0 && lovableKey) {
-      const titles = items.map((item: any) => item?.Title || '');
-      const translated = await translateTitles(titles, lovableKey);
-      for (let i = 0; i < items.length; i++) {
-        if (translated[i]) items[i].Title = translated[i];
-      }
-    }
+    const searchMethod = data?.Result?.SearchMethod || 'unknown';
+    console.log(`OTAPI image search returned ${items.length} items via method: ${searchMethod}`);
 
     return new Response(JSON.stringify({
       success: true,
       data,
-      meta: { method: 'native_image_search', provider: 'otapi' },
+      meta: { method: 'native_image_search', provider: 'otapi', searchMethod },
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
