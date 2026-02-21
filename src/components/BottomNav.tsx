@@ -18,8 +18,8 @@ const BottomNav = () => {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-gradient-to-r from-primary to-primary/85 border-t border-primary/30 md:hidden safe-area-bottom">
-      <div className="flex items-center justify-around h-16 px-1 relative">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-gradient-to-r from-primary to-primary/90 md:hidden safe-area-bottom shadow-lg">
+      <div className="flex items-center justify-around h-14 px-1 relative">
         {items.map((item) => {
           if (item.label === "center") {
             return (

@@ -896,8 +896,8 @@ const Index = () => {
 
         {/* Main area */}
         <div className="flex-1 min-w-0 px-3 sm:px-6">
-          {/* Hero Banner */}
-          <div className="mt-4 mb-5 rounded-2xl overflow-hidden header-gradient p-6 sm:p-8 md:p-10 relative">
+          {/* Hero Banner - desktop only */}
+          <div className="hidden md:block mt-4 mb-5 rounded-2xl overflow-hidden header-gradient p-6 sm:p-8 md:p-10 relative">
             <div className="relative z-10">
               <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-primary-foreground mb-2 leading-tight">
                 {settings.hero_title || "Wholesale from China"}
@@ -916,34 +916,34 @@ const Index = () => {
           </div>
 
           {/* Shipping Service CTA */}
-          <div className="shipping-cta rounded-xl px-5 py-3.5 mb-6 flex items-center justify-between border border-primary/15">
-            <div className="flex items-center gap-3">
-              <Truck className="h-5 w-5 text-primary shrink-0" />
-              <span className="text-sm font-semibold text-foreground">Looking for Shipping Service</span>
+          <div className="shipping-cta rounded-xl px-4 py-2.5 md:px-5 md:py-3.5 mt-3 md:mt-0 mb-4 md:mb-6 flex items-center justify-between border border-primary/15">
+            <div className="flex items-center gap-2 md:gap-3">
+              <Truck className="h-4 w-4 md:h-5 md:w-5 text-primary shrink-0" />
+              <span className="text-xs md:text-sm font-semibold text-foreground">Looking for Shipping Service</span>
             </div>
             <button
               onClick={() => navigate("/dashboard/shipments")}
-              className="px-4 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity shrink-0"
+              className="px-3 md:px-4 py-1 md:py-1.5 rounded-full bg-primary text-primary-foreground text-[10px] md:text-xs font-semibold hover:opacity-90 transition-opacity shrink-0"
             >
               Click Here
             </button>
           </div>
 
           {/* Mobile horizontal categories */}
-          <section id="top-categories" className="lg:hidden mb-6 sticky top-[52px] md:top-[64px] z-40 bg-background py-3 -mx-3 px-3 sm:-mx-6 sm:px-6">
+          <section id="top-categories" className="lg:hidden mb-4 sticky top-[44px] md:top-[64px] z-40 bg-background pt-2 pb-3 -mx-3 px-3 sm:-mx-6 sm:px-6 border-b border-border/50">
             <div className="relative">
-              <div ref={topCatScrollRef} className="flex overflow-x-auto gap-4 pb-2 scrollbar-hide snap-x">
+              <div ref={topCatScrollRef} className="flex overflow-x-auto gap-3 pb-1 scrollbar-hide snap-x">
                 {topCategories.map((cat) => (
                   <button
                     key={cat.name}
                     onClick={() => handleCategoryClick(cat.query)}
-                    className="flex flex-col items-center gap-1.5 shrink-0 snap-start group min-w-[72px]"
+                    className="flex flex-col items-center gap-1 shrink-0 snap-start group min-w-[64px]"
                   >
-                    <div className="category-circle">
-                      <span className="text-xl">{cat.icon}</span>
+                    <div className="w-14 h-14 rounded-full border-2 border-primary/20 flex items-center justify-center bg-card transition-all group-hover:border-primary group-hover:scale-105">
+                      <span className="text-lg">{cat.icon}</span>
                     </div>
-                    <span className="text-[9px] text-primary font-semibold">From {cat.price} ৳</span>
-                    <span className="text-[9px] text-muted-foreground text-center leading-tight capitalize line-clamp-1 max-w-[72px]">{cat.name}</span>
+                    <span className="text-[8px] text-primary font-semibold leading-tight">From {cat.price} ৳</span>
+                    <span className="text-[8px] text-muted-foreground text-center leading-tight capitalize line-clamp-1 max-w-[64px]">{cat.name}</span>
                   </button>
                 ))}
               </div>
@@ -1057,19 +1057,19 @@ const Index = () => {
 
 const SiteHeader = ({ query, setQuery, handleSearch, isLoading, handleImageButtonClick, fileInputRef, handleFileChange, user, navigate, handleInstallClick, settings }: any) => (
   <header className="sticky top-0 z-50">
-    {/* Mobile gradient header */}
+    {/* Mobile header */}
     <div className="md:hidden header-gradient">
-      <div className="px-3 pt-2 pb-3">
-        <form onSubmit={handleSearch} className="flex gap-2">
+      <div className="px-3 pt-1.5 pb-2">
+        <form onSubmit={handleSearch} className="flex gap-1.5">
           <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input type="text" placeholder={settings?.search_placeholder || "SEARCH FOR"} value={query} onChange={(e: any) => setQuery(e.target.value)} className="pl-10 h-10 bg-primary-foreground/95 border-0 rounded-lg text-sm shadow-sm" />
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input type="text" placeholder={settings?.search_placeholder || "SEARCH FOR"} value={query} onChange={(e: any) => setQuery(e.target.value)} className="pl-9 h-9 bg-primary-foreground/95 border-0 rounded-lg text-xs shadow-sm" />
           </div>
-          <Button type="button" variant="secondary" size="icon" title="Search by image" onClick={handleImageButtonClick} disabled={isLoading} className="shrink-0 h-10 w-10 rounded-lg bg-primary-foreground/20 border-0 text-primary-foreground hover:bg-primary-foreground/30">
-            <Camera className="h-5 w-5" />
+          <Button type="button" variant="secondary" size="icon" title="Search by image" onClick={handleImageButtonClick} disabled={isLoading} className="shrink-0 h-9 w-9 rounded-lg bg-primary-foreground/20 border-0 text-primary-foreground hover:bg-primary-foreground/30">
+            <Camera className="h-4 w-4" />
           </Button>
-          <Button type="submit" disabled={isLoading} className="shrink-0 h-10 w-10 rounded-lg bg-primary-foreground text-primary hover:bg-primary-foreground/90">
+          <Button type="submit" disabled={isLoading} className="shrink-0 h-9 w-9 rounded-lg bg-primary-foreground text-primary hover:bg-primary-foreground/90">
             {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
           </Button>
         </form>
