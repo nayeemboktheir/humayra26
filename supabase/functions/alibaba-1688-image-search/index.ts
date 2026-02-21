@@ -58,7 +58,52 @@ Deno.serve(async (req) => {
         }
 
         if (searchImageUrl) {
-          // ── Try 1688-datahub first (item_search_image_2) ──
+          // ── Try open-1688-api first (imageQuery - most direct) ──
+          try {
+            const imgParam = encodeURIComponent(searchImageUrl);
+            const openApiUrl = `https://open-1688-api.p.rapidapi.com/alibaba/product/imageQuery?imageUrl=${imgParam}&country=en&beginPage=${page}&pageSize=${pageSize}`;
+            console.log('Trying open-1688-api image search...');
+
+            const openResp = await fetch(openApiUrl, {
+              method: 'GET',
+              headers: {
+                'x-rapidapi-host': 'open-1688-api.p.rapidapi.com',
+                'x-rapidapi-key': rapidApiKey,
+              },
+            });
+
+            if (openResp.ok) {
+              const openData = await openResp.json();
+              const rawItems = openData?.data?.items || openData?.items || openData?.result?.items || openData?.data?.result || [];
+              const totalCount = openData?.data?.total || openData?.total || rawItems.length;
+              console.log(`open-1688-api: ${rawItems.length} items in ${Date.now() - startTime}ms`);
+
+              if (rawItems.length > 0) {
+                const items = rawItems.map((item: any) => ({
+                  num_iid: parseInt(item?.num_iid || item?.item_id || item?.offerId || item?.productId || '0', 10) || 0,
+                  title: item?.title || item?.subject || '',
+                  pic_url: item?.pic_url || item?.image_url || item?.img || item?.imageUrl || '',
+                  price: parseFloat(item?.price || item?.original_price || item?.priceInfo?.price || '0') || 0,
+                  sales: item?.sales || item?.sold || undefined,
+                  detail_url: item?.detail_url || item?.productUrl || `https://detail.1688.com/offer/${item?.num_iid || item?.item_id || 0}.html`,
+                  location: item?.location || item?.province || '',
+                  vendor_name: item?.vendor_name || item?.company_name || item?.shopName || '',
+                }));
+
+                return new Response(JSON.stringify({
+                  success: true,
+                  data: { items, total: totalCount },
+                  meta: { method: 'native_open_1688_api', provider: 'rapidapi' },
+                }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+              }
+            } else {
+              console.warn(`open-1688-api failed (${openResp.status}), trying 1688-datahub...`);
+            }
+          } catch (e) {
+            console.warn('open-1688-api attempt failed:', e);
+          }
+
+          // ── Try 1688-datahub (item_search_image_2) ──
           try {
             const imgParam = encodeURIComponent(searchImageUrl);
             const datahubUrl = `https://1688-datahub.p.rapidapi.com/item_search_image_2?imgUrl=${imgParam}&page=${page}&sort=default`;
