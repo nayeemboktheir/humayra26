@@ -1,3 +1,5 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -141,12 +143,17 @@ Deno.serve(async (req) => {
   }
 });
 
-// Upload base64 image to Supabase temp storage and return public URL
+// Upload base64 image to Supabase storage and return public URL
 async function uploadToTempStorage(base64: string): Promise<string | null> {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-    if (!supabaseUrl || !serviceKey) return null;
+    if (!supabaseUrl || !serviceKey) {
+      console.error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
+      return null;
+    }
+
+    const supabase = createClient(supabaseUrl, serviceKey);
 
     const b = base64.slice(0, 20);
     const ext = b.startsWith('/9j/') ? 'jpg' : b.startsWith('iVBOR') ? 'png' : b.startsWith('UklGR') ? 'webp' : 'jpg';
@@ -159,27 +166,24 @@ async function uploadToTempStorage(base64: string): Promise<string | null> {
       bytes[i] = binaryStr.charCodeAt(i);
     }
 
-    const uploadResp = await fetch(
-      `${supabaseUrl}/storage/v1/object/image-search/${fileName}`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${serviceKey}`,
-          'Content-Type': mime,
-          'x-upsert': 'true',
-        },
-        body: bytes,
-      }
-    );
+    const { data, error } = await supabase.storage
+      .from('image-search')
+      .upload(fileName, bytes, {
+        contentType: mime,
+        upsert: true,
+      });
 
-    if (!uploadResp.ok) {
-      console.error('Storage upload failed:', uploadResp.status);
-      await uploadResp.text();
+    if (error) {
+      console.error('Storage upload error:', error.message);
       return null;
     }
-    await uploadResp.json();
 
-    return `${supabaseUrl}/storage/v1/object/public/image-search/${fileName}`;
+    const { data: publicData } = supabase.storage
+      .from('image-search')
+      .getPublicUrl(fileName);
+
+    console.log('Image uploaded, public URL:', publicData.publicUrl);
+    return publicData.publicUrl;
   } catch (err) {
     console.error('Upload error:', err);
     return null;
