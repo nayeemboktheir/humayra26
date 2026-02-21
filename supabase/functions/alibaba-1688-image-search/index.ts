@@ -5,8 +5,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const GOOGLE_LENS_HOST = 'real-time-lens-data.p.rapidapi.com';
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -22,9 +20,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    const rapidApiKey = (Deno.env.get('RAPIDAPI_KEY') ?? '').trim();
-    if (!rapidApiKey) {
-      return new Response(JSON.stringify({ success: false, error: 'RapidAPI key not configured' }), {
+    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+    if (!lovableApiKey) {
+      return new Response(JSON.stringify({ success: false, error: 'AI API key not configured' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -38,81 +36,81 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Step 1: Get a public URL for the image
-    let publicImageUrl = imageUrl || '';
+    // Step 1: Prepare image for Gemini
+    let imageContent: any;
 
-    if (!publicImageUrl && imageBase64) {
-      publicImageUrl = await uploadToTempStorage(imageBase64);
-      if (!publicImageUrl) {
-        return new Response(JSON.stringify({ success: false, error: 'Failed to upload image' }), {
-          status: 500,
+    if (imageBase64) {
+      // Detect mime type from base64
+      const b = imageBase64.slice(0, 20);
+      const mime = b.startsWith('/9j/') ? 'image/jpeg' : b.startsWith('iVBOR') ? 'image/png' : b.startsWith('UklGR') ? 'image/webp' : 'image/jpeg';
+      imageContent = {
+        type: 'image_url',
+        image_url: { url: `data:${mime};base64,${imageBase64}` },
+      };
+    } else {
+      imageContent = {
+        type: 'image_url',
+        image_url: { url: imageUrl },
+      };
+    }
+
+    console.log('Step 1: Image ready for AI identification');
+
+    // Step 2: Use Gemini to identify the product
+    const aiPrompt = keyword
+      ? `Identify this product in the image. The user also provided this hint: "${keyword}". Return ONLY a short product search query (max 8 words) in English that would find this exact product on a wholesale marketplace like 1688/Alibaba. No explanation, just the search query.`
+      : `Identify this product in the image. Return ONLY a short product search query (max 8 words) in English that would find this exact product on a wholesale marketplace like 1688/Alibaba. No explanation, just the search query.`;
+
+    console.log('Step 2: Calling Gemini AI for product identification...');
+
+    const aiResp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${lovableApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: aiPrompt },
+              imageContent,
+            ],
+          },
+        ],
+      }),
+    });
+
+    if (!aiResp.ok) {
+      const errText = await aiResp.text();
+      console.error('Gemini AI failed:', aiResp.status, errText);
+
+      if (aiResp.status === 429) {
+        return new Response(JSON.stringify({ success: false, error: 'AI rate limit reached. Please try again in a moment.' }), {
+          status: 429,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-    }
+      if (aiResp.status === 402) {
+        return new Response(JSON.stringify({ success: false, error: 'AI credits exhausted. Please add credits to your workspace.' }), {
+          status: 402,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
 
-    console.log('Step 1: Image URL ready:', publicImageUrl);
-
-    // Step 2: Use Google Lens to identify the product
-    const lensUrl = `https://${GOOGLE_LENS_HOST}/search?url=${encodeURIComponent(publicImageUrl)}&country=us&language=en`;
-
-    console.log('Step 2: Calling Google Lens at:', lensUrl);
-    console.log('Using RapidAPI key (first 8 chars):', rapidApiKey.slice(0, 8) + '...');
-    const lensResp = await fetch(lensUrl, {
-      method: 'GET',
-      headers: {
-        'x-rapidapi-key': rapidApiKey,
-        'x-rapidapi-host': GOOGLE_LENS_HOST,
-      },
-    });
-    console.log('Lens response status:', lensResp.status);
-
-    const lensData = await lensResp.json().catch(() => null);
-
-    if (!lensResp.ok || !lensData) {
-      console.error('Google Lens failed:', lensResp.status, lensData);
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'Google Lens identification failed. Make sure you are subscribed to the Google Lens API on RapidAPI.',
-      }), {
+      return new Response(JSON.stringify({ success: false, error: 'AI identification failed' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Extract product name from Lens results
-    let detectedQuery = '';
+    const aiData = await aiResp.json();
+    let detectedQuery = (aiData?.choices?.[0]?.message?.content || '').trim();
 
-    // Try visual_matches titles first
-    const visualMatches = lensData?.visual_matches || lensData?.data?.visual_matches || [];
-    if (visualMatches.length > 0) {
-      // Pick the most descriptive title from top matches
-      const titles = visualMatches.slice(0, 5).map((m: any) => m.title || '').filter(Boolean);
-      if (titles.length > 0) {
-        detectedQuery = titles[0];
-      }
-    }
-
-    // Try search text / knowledge graph
-    if (!detectedQuery) {
-      detectedQuery = lensData?.search?.title
-        || lensData?.knowledge_graph?.title
-        || lensData?.data?.search?.title
-        || lensData?.data?.knowledge_graph?.title
-        || '';
-    }
-
-    // Try text annotations
-    if (!detectedQuery && lensData?.text_results?.length) {
-      detectedQuery = lensData.text_results[0]?.text || '';
-    }
-
-    // Use user-provided keyword as fallback or combine
-    if (keyword && detectedQuery) {
-      detectedQuery = `${keyword} ${detectedQuery}`;
-    } else if (keyword && !detectedQuery) {
-      detectedQuery = keyword;
-    }
+    // Clean up the query
+    detectedQuery = detectedQuery.replace(/^["']|["']$/g, '').trim();
 
     if (!detectedQuery) {
       return new Response(JSON.stringify({
@@ -124,8 +122,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Keep query concise for 1688 search (max ~50 chars, remove noise)
-    detectedQuery = detectedQuery.replace(/[^a-zA-Z0-9\s\u4e00-\u9fff]/g, ' ').trim().slice(0, 80);
+    // Keep query concise for 1688 search
+    detectedQuery = detectedQuery.slice(0, 80);
 
     console.log('Step 2 result: Detected product query:', detectedQuery);
 
@@ -187,9 +185,8 @@ Deno.serve(async (req) => {
       success: true,
       data: { items, total: totalCount },
       meta: {
-        method: 'google_lens_1688_combo',
+        method: 'gemini_ai_1688_combo',
         detected_query: detectedQuery,
-        lens_matches: visualMatches.length,
         provider: 'otapi',
       },
     }), {
@@ -210,48 +207,4 @@ Deno.serve(async (req) => {
 
 function escapeXml(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-// Upload base64 image to storage and return public URL
-async function uploadToTempStorage(base64: string): Promise<string | null> {
-  try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
-    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-    if (!supabaseUrl || !serviceKey) {
-      console.error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
-      return null;
-    }
-
-    const supabase = createClient(supabaseUrl, serviceKey);
-
-    const b = base64.slice(0, 20);
-    const ext = b.startsWith('/9j/') ? 'jpg' : b.startsWith('iVBOR') ? 'png' : b.startsWith('UklGR') ? 'webp' : 'jpg';
-    const mime = ext === 'jpg' ? 'image/jpeg' : ext === 'png' ? 'image/png' : 'image/webp';
-    const fileName = `img-search-${Date.now()}.${ext}`;
-
-    const binaryStr = atob(base64);
-    const bytes = new Uint8Array(binaryStr.length);
-    for (let i = 0; i < binaryStr.length; i++) {
-      bytes[i] = binaryStr.charCodeAt(i);
-    }
-
-    const { error } = await supabase.storage
-      .from('image-search')
-      .upload(fileName, bytes, { contentType: mime, upsert: true });
-
-    if (error) {
-      console.error('Storage upload error:', error.message);
-      return null;
-    }
-
-    const { data: publicData } = supabase.storage
-      .from('image-search')
-      .getPublicUrl(fileName);
-
-    console.log('Image uploaded, public URL:', publicData.publicUrl);
-    return publicData.publicUrl;
-  } catch (err) {
-    console.error('Upload error:', err);
-    return null;
-  }
 }
