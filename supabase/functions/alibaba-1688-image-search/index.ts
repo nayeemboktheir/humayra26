@@ -1,5 +1,3 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -36,32 +34,22 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Step 1: Prepare image for Gemini
+    // Step 1: Prepare image content for Gemini
     let imageContent: any;
-
     if (imageBase64) {
-      // Detect mime type from base64
       const b = imageBase64.slice(0, 20);
       const mime = b.startsWith('/9j/') ? 'image/jpeg' : b.startsWith('iVBOR') ? 'image/png' : b.startsWith('UklGR') ? 'image/webp' : 'image/jpeg';
-      imageContent = {
-        type: 'image_url',
-        image_url: { url: `data:${mime};base64,${imageBase64}` },
-      };
+      imageContent = { type: 'image_url', image_url: { url: `data:${mime};base64,${imageBase64}` } };
     } else {
-      imageContent = {
-        type: 'image_url',
-        image_url: { url: imageUrl },
-      };
+      imageContent = { type: 'image_url', image_url: { url: imageUrl } };
     }
 
-    console.log('Step 1: Image ready for AI identification');
+    // Step 2: Use fastest Gemini model to identify product in CHINESE (for 1688 accuracy)
+    const hint = keyword ? ` The user hints it is related to: "${keyword}".` : '';
+    const aiPrompt = `You are a 1688.com product search expert. Look at this product image.${hint} Return ONLY a Chinese (中文) search query (3-6 words) that would find this exact product on 1688.com. Think about what a Chinese buyer would type. No explanation, no quotes, just the Chinese search keywords.`;
 
-    // Step 2: Use Gemini to identify the product
-    const aiPrompt = keyword
-      ? `Identify this product in the image. The user also provided this hint: "${keyword}". Return ONLY a short product search query (max 8 words) in English that would find this exact product on a wholesale marketplace like 1688/Alibaba. No explanation, just the search query.`
-      : `Identify this product in the image. Return ONLY a short product search query (max 8 words) in English that would find this exact product on a wholesale marketplace like 1688/Alibaba. No explanation, just the search query.`;
-
-    console.log('Step 2: Calling Gemini AI for product identification...');
+    console.log('Calling Gemini flash-lite for fast identification...');
+    const startTime = Date.now();
 
     const aiResp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -70,69 +58,53 @@ Deno.serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: aiPrompt },
-              imageContent,
-            ],
-          },
-        ],
+        model: 'google/gemini-2.5-flash-lite',
+        messages: [{
+          role: 'user',
+          content: [{ type: 'text', text: aiPrompt }, imageContent],
+        }],
       }),
     });
 
+    console.log(`AI responded in ${Date.now() - startTime}ms, status: ${aiResp.status}`);
+
     if (!aiResp.ok) {
       const errText = await aiResp.text();
-      console.error('Gemini AI failed:', aiResp.status, errText);
-
+      console.error('Gemini failed:', aiResp.status, errText);
       if (aiResp.status === 429) {
         return new Response(JSON.stringify({ success: false, error: 'AI rate limit reached. Please try again in a moment.' }), {
-          status: 429,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
       if (aiResp.status === 402) {
-        return new Response(JSON.stringify({ success: false, error: 'AI credits exhausted. Please add credits to your workspace.' }), {
-          status: 402,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        return new Response(JSON.stringify({ success: false, error: 'AI credits exhausted. Please add credits.' }), {
+          status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-
       return new Response(JSON.stringify({ success: false, error: 'AI identification failed' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     const aiData = await aiResp.json();
-    let detectedQuery = (aiData?.choices?.[0]?.message?.content || '').trim();
-
-    // Clean up the query
-    detectedQuery = detectedQuery.replace(/^["']|["']$/g, '').trim();
+    let detectedQuery = (aiData?.choices?.[0]?.message?.content || '').trim().replace(/^["']|["']$/g, '').trim();
 
     if (!detectedQuery) {
       return new Response(JSON.stringify({
         success: false,
-        error: 'Could not identify the product from the image. Try adding a keyword hint.',
+        error: 'Could not identify the product. Try adding a keyword hint.',
       }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Keep query concise for 1688 search
     detectedQuery = detectedQuery.slice(0, 80);
+    console.log('Detected query:', detectedQuery);
 
-    console.log('Step 2 result: Detected product query:', detectedQuery);
-
-    // Step 3: Search 1688 via OTAPI using the detected product name
+    // Step 3: Search 1688 via OTAPI with Chinese query for best results
     const framePosition = (page - 1) * pageSize;
     const xmlParams = `<SearchItemsParameters><ItemTitle>${escapeXml(detectedQuery)}</ItemTitle><Provider>Alibaba1688</Provider></SearchItemsParameters>`;
     const otapiUrl = `https://otapi.net/service-json/SearchItemsFrame?instanceKey=${encodeURIComponent(otapiKey)}&language=en&xmlParameters=${encodeURIComponent(xmlParams)}&framePosition=${framePosition}&frameSize=${pageSize}`;
-
-    console.log('Step 3: Searching 1688 for:', detectedQuery);
 
     const searchResp = await fetch(otapiUrl, {
       method: 'GET',
@@ -147,17 +119,14 @@ Deno.serve(async (req) => {
         success: false,
         error: searchData?.ErrorMessage || 'Failed to search 1688',
       }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     const rawItems = searchData?.Result?.Items?.Content || [];
     const totalCount = searchData?.Result?.Items?.TotalCount || rawItems.length;
+    console.log(`Found ${rawItems.length} items (total: ${totalCount}) in ${Date.now() - startTime}ms total`);
 
-    console.log(`Step 3 result: Found ${rawItems.length} items on 1688 (total: ${totalCount})`);
-
-    // Parse OTAPI items into standard format
     const items = rawItems.map((item: any) => {
       const price = item?.Price?.OriginalPrice || item?.Price?.ConvertedPriceList?.Internal?.Price || 0;
       const picUrl = item?.MainPictureUrl || item?.Pictures?.[0]?.Url || '';
@@ -165,7 +134,6 @@ Deno.serve(async (req) => {
       const numIid = parseInt(externalId.replace(/^abb-/, ''), 10) || 0;
       const featuredValues = Array.isArray(item?.FeaturedValues) ? item.FeaturedValues : [];
       const totalSales = parseInt(featuredValues.find((v: any) => v?.Name === 'TotalSales')?.Value || '0', 10) || undefined;
-      const pics = Array.isArray(item?.Pictures) ? item.Pictures : [];
       const location = item?.Location?.State || item?.Location?.City || '';
 
       return {
@@ -199,8 +167,7 @@ Deno.serve(async (req) => {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to search by image',
     }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });
