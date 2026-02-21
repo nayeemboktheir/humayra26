@@ -22,23 +22,25 @@ Deno.serve(async (req) => {
     const startTime = Date.now();
     const rapidApiKey = Deno.env.get('RAPIDAPI_KEY');
 
-    // ── Get a public URL for the image ──
+    if (!rapidApiKey) {
+      return new Response(JSON.stringify({ success: false, error: 'RAPIDAPI_KEY not configured' }), {
+        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Get a public URL for the image
     let publicImageUrl = imageUrl || '';
     if (imageBase64 && !imageUrl) {
       publicImageUrl = await uploadToTempBucket(imageBase64);
     }
 
-    // ── RapidAPI "1688 Product" image search ──
-    if (rapidApiKey && publicImageUrl) {
-      const result = await tryRapidApiImageSearch(publicImageUrl, page, pageSize, rapidApiKey, startTime);
-      if (result) {
-        return new Response(JSON.stringify(result), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
+    const result = await search1688DataHub(publicImageUrl, page, pageSize, rapidApiKey, startTime);
+    if (result) {
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    // No fallback — return error if RapidAPI failed
     return new Response(JSON.stringify({ success: false, error: 'Image search failed. Please try again.' }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -52,7 +54,7 @@ Deno.serve(async (req) => {
   }
 });
 
-// ── Upload base64 image to temp bucket and return public URL ──
+// Upload base64 image to temp bucket and return public URL
 async function uploadToTempBucket(imageBase64: string): Promise<string> {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -81,73 +83,76 @@ async function uploadToTempBucket(imageBase64: string): Promise<string> {
   return pub.publicUrl;
 }
 
-// ── RapidAPI "1688 Product" (TMAPI wrapper): image search ──
-async function tryRapidApiImageSearch(
+// 1688 DataHub RapidAPI: image search
+async function search1688DataHub(
   imageUrl: string,
   page: number,
   pageSize: number,
   apiKey: string,
   startTime: number,
 ): Promise<any | null> {
-  const host = '1688-product2.p.rapidapi.com';
+  const host = '1688-datahub.p.rapidapi.com';
   try {
-    // Step 1: Convert image URL to Alibaba-compatible format
-    console.log('RapidAPI 1688-product: Converting image URL...');
-    const convertResp = await fetch(`https://${host}/1688/tools/image/convert_url`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-rapidapi-host': host,
-        'x-rapidapi-key': apiKey,
-      },
-      body: JSON.stringify({ url: imageUrl }),
-    });
+    // Try endpoint #1 first, then #2
+    const endpoints = [
+      `https://${host}/item_search_image?imgid=${encodeURIComponent(imageUrl)}&page=${page}&page_size=${Math.min(pageSize, 20)}`,
+      `https://${host}/item_search_image_2?imgUrl=${encodeURIComponent(imageUrl)}&page=${page}&sort=default`,
+    ];
 
-    if (!convertResp.ok) {
-      const body = await convertResp.text();
-      console.error(`Image convert failed: ${convertResp.status}`, body.slice(0, 300));
+    let resp: Response | null = null;
+    let data: any = null;
+
+    for (const searchUrl of endpoints) {
+      console.log(`1688 DataHub: Trying ${searchUrl.split('?')[0].split('/').pop()}...`);
+      const r = await fetch(searchUrl, {
+        method: 'GET',
+        headers: {
+          'x-rapidapi-host': host,
+          'x-rapidapi-key': apiKey,
+        },
+      });
+
+      if (r.ok) {
+        resp = r;
+        data = await r.json();
+        break;
+      }
+      const body = await r.text();
+      console.error(`Endpoint failed: ${r.status}`, body.slice(0, 300));
       return null;
     }
 
-    const convertData = await convertResp.json();
-    const convertedUrl = convertData?.data?.url || convertData?.data || '';
-    if (!convertedUrl) {
-      console.error('Image convert returned no URL:', JSON.stringify(convertData).slice(0, 300));
-      return null;
-    }
-    console.log(`Image converted in ${Date.now() - startTime}ms`);
-
-    // Step 2: Search by converted image URL
-    const searchUrl = `https://${host}/1688/search/image?img_url=${encodeURIComponent(convertedUrl)}&page=${page}&page_size=${Math.min(pageSize, 20)}&sort=default`;
-    const searchResp = await fetch(searchUrl, {
-      method: 'GET',
-      headers: {
-        'x-rapidapi-host': host,
-        'x-rapidapi-key': apiKey,
-      },
-    });
-
-    if (!searchResp.ok) {
-      const body = await searchResp.text();
-      console.error(`Image search failed: ${searchResp.status}`, body.slice(0, 300));
+    if (!data) {
+      console.error('All 1688 DataHub endpoints failed');
       return null;
     }
 
-    const data = await searchResp.json();
-    const rawItems = data?.data?.items || [];
-    const total = data?.data?.total_results || rawItems.length;
+    console.log('1688 DataHub response keys:', JSON.stringify(Object.keys(data)).slice(0, 200));
 
-    if (!rawItems.length) {
-      console.warn('RapidAPI 1688-product: No items found');
+    // Parse response — 1688 DataHub returns { result: { status: {...}, items: { item: [...] } } }
+    const result = data?.result;
+    const status = result?.status;
+    
+    if (status?.data === 'error') {
+      console.error('1688 DataHub API error:', status?.msg?.['internal-error'] || JSON.stringify(status));
       return null;
     }
 
-    console.log(`RapidAPI 1688-product: ${rawItems.length} items in ${Date.now() - startTime}ms`);
+    const rawItems = result?.items?.item || result?.items || [];
+    const total = result?.items?.real_total_results || result?.items?.total_results || rawItems.length;
+
+    if (!Array.isArray(rawItems) || !rawItems.length) {
+      console.warn('1688 DataHub: No items found');
+      return null;
+    }
+
+    console.log(`1688 DataHub: ${rawItems.length} items in ${Date.now() - startTime}ms`);
 
     const items = rawItems.map((item: any) => {
-      const itemId = parseInt(String(item?.num_iid || item?.item_id || '0'), 10) || 0;
-      let picUrl = item?.pic_url || item?.image || '';
+      const itemId = parseInt(String(item?.num_iid || '0'), 10) || 0;
+      let picUrl = item?.pic_url || '';
       if (picUrl.startsWith('//')) picUrl = 'https:' + picUrl;
+
       const price = parseFloat(String(item?.price || item?.promotion_price || '0')) || 0;
 
       return {
@@ -165,11 +170,10 @@ async function tryRapidApiImageSearch(
     return {
       success: true,
       data: { items, total },
-      meta: { method: 'rapidapi_1688_product_image', provider: 'rapidapi_tmapi' },
+      meta: { method: 'rapidapi_1688_datahub_image', provider: '1688-datahub' },
     };
   } catch (e) {
-    console.error('RapidAPI 1688-product error:', e);
+    console.error('1688 DataHub error:', e);
     return null;
   }
 }
-
