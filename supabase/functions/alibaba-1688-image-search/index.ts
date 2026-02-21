@@ -41,14 +41,14 @@ Deno.serve(async (req) => {
       bytes[i] = binaryStr.charCodeAt(i);
     }
 
-    // Step 1: Get upload URL from OTAPI's own file storage
+    // Step 1: Get upload URL from OTAPI file storage
     console.log('Step 1: Getting OTAPI file upload URL...');
     const uploadUrlResp = await fetch(
-      `https://otapi.net/service-json/GetFileUploadUrl?instanceKey=${encodeURIComponent(apiKey)}&language=en&fileName=${encodeURIComponent(fileName)}&fileType=SearchByImage`,
+      `https://otapi.net/service-json/GetFileUploadUrl?instanceKey=${encodeURIComponent(apiKey)}&language=en&fileName=${encodeURIComponent(fileName)}&fileType=Image`,
       { method: 'GET', headers: { Accept: 'application/json' } }
     );
     const uploadUrlData = await uploadUrlResp.json().catch(() => null);
-    
+
     if (!uploadUrlData || uploadUrlData.ErrorCode !== 'Ok' || !uploadUrlData.Result) {
       console.error('GetFileUploadUrl failed:', JSON.stringify(uploadUrlData));
       return new Response(JSON.stringify({ success: false, error: 'Failed to get upload URL from API' }), {
@@ -77,16 +77,16 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    // Consume the response body
     await uploadResp.text().catch(() => '');
     console.log('Image uploaded to OTAPI successfully');
 
     // Step 3: Search using ImageFileId for accurate visual matching
     const framePosition = (page - 1) * pageSize;
     const xmlParams = `<SearchItemsParameters><ImageFileId>${fileId}</ImageFileId></SearchItemsParameters>`;
+    console.log('Searching with ImageFileId:', fileId);
+    
     const url = `https://otapi.net/service-json/SearchItemsFrame?instanceKey=${encodeURIComponent(apiKey)}&language=en&xmlParameters=${encodeURIComponent(xmlParams)}&framePosition=${framePosition}&frameSize=${pageSize}`;
 
-    console.log('Step 3: Searching with ImageFileId...');
     const resp = await fetch(url, { method: 'GET', headers: { Accept: 'application/json' } });
     const data = await resp.json().catch(() => null);
 
@@ -98,7 +98,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check for OTAPI-level errors
     if (data?.ErrorCode && data.ErrorCode !== 'Ok' && data.ErrorCode !== 'None') {
       console.error('OTAPI error code:', data.ErrorCode, data.ErrorMessage);
       return new Response(JSON.stringify({ success: false, error: data.ErrorMessage || data.ErrorCode }), {
@@ -109,12 +108,12 @@ Deno.serve(async (req) => {
 
     const items = data?.Result?.Items?.Content || [];
     const searchMethod = data?.Result?.SearchMethod || 'unknown';
-    console.log(`OTAPI image search returned ${items.length} items via method: ${searchMethod}`);
+    console.log(`Image search returned ${items.length} items via method: ${searchMethod}, fileId: ${fileId}`);
 
     return new Response(JSON.stringify({
       success: true,
       data,
-      meta: { method: 'otapi_file_upload', provider: 'otapi', searchMethod, fileId },
+      meta: { method: fileId ? 'otapi_file_id' : 'otapi_image_url', provider: 'otapi', searchMethod, fileId },
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
