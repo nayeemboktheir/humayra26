@@ -262,7 +262,8 @@ export default function SearchFilters({ filters, onFiltersChange, onCategorySear
 export function applyFilters<T extends { price: number; sales?: number }>(
   products: T[],
   filters: SearchFilterValues,
-  convertPrice: (price: number) => number
+  convertPrice: (price: number) => number,
+  preserveOrder = false,
 ): T[] {
   let filtered = [...products];
 
@@ -274,7 +275,12 @@ export function applyFilters<T extends { price: number; sales?: number }>(
     });
   }
 
-  // Sort
+  // Sort — skip for image search (preserveOrder=true) when using default "best_match"
+  if (preserveOrder && filters.sortBy === "best_match") {
+    // Keep OTAPI's native visual similarity order
+    return filtered;
+  }
+
   switch (filters.sortBy) {
     case "price_asc":
       filtered.sort((a, b) => a.price - b.price);
