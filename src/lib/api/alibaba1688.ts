@@ -116,25 +116,35 @@ export const alibaba1688Api = {
     _onTranslated?: (items: Product1688[]) => void,
   ): Promise<ApiResponse<{ items: Product1688[]; total: number }>> {
     try {
-      const { data, error } = await supabase.functions.invoke('alibaba-1688-search', {
+      // Use cached search — checks DB cache first, falls back to OTAPI, translates in background
+      const { data, error } = await supabase.functions.invoke('alibaba-1688-cached-search', {
         body: { query, page, pageSize },
       });
 
       if (error) return { success: false, error: error.message };
       if (!data?.success) return { success: false, error: data?.error || 'Search failed' };
 
-      const rawItems = data.data?.Result?.Items?.Content || [];
-      const total = data.data?.Result?.Items?.TotalCount || 0;
-      const items = rawItems.map(parseOtapiItem);
+      const items: Product1688[] = data.data?.items || [];
+      const total = data.data?.total || 0;
+      const isCachedTranslated = data?.cached && data?.translated;
 
-      // Return items immediately — no translation blocking.
-      // Background translation handled by caller via _onTranslated callback.
-      if (items.length > 0 && _onTranslated) {
-        // Fire-and-forget background translation
-        translateTitlesAsync(items.map((p: Product1688) => p.title)).then(translated => {
-          const updated = items.map((item, i) => ({ ...item, title: translated[i] || item.title }));
-          _onTranslated(updated);
-        });
+      // If not yet translated, poll cache for translated version after a delay
+      if (!isCachedTranslated && items.length > 0 && _onTranslated) {
+        setTimeout(async () => {
+          try {
+            const queryKey = query.trim().toLowerCase();
+            const { data: cached } = await supabase
+              .from('search_cache')
+              .select('items, translated')
+              .eq('query_key', queryKey)
+              .eq('page', page)
+              .eq('translated', true)
+              .maybeSingle();
+            if (cached?.items) {
+              _onTranslated(cached.items as unknown as Product1688[]);
+            }
+          } catch { /* ignore */ }
+        }, 4000);
       }
 
       return {
