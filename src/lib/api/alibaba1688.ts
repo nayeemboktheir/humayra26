@@ -125,7 +125,7 @@ export const alibaba1688Api = {
   async searchByImage(
     imageBase64: string,
     page = 1,
-    pageSize = 40,
+    pageSize = 20,
     keyword = '',
   ): Promise<ApiResponse<{ items: Product1688[]; total: number }>> {
     try {
@@ -136,9 +136,9 @@ export const alibaba1688Api = {
       if (error) return { success: false, error: error.message };
       if (!data?.success) return { success: false, error: data?.error || 'Image search failed' };
 
-      const rawItems = data.data?.Result?.Items?.Content || [];
-      const total = data.data?.Result?.Items?.TotalCount || 0;
-      const items = rawItems.map(parseOtapiItem);
+      // TMAPI returns pre-parsed items from the edge function
+      const items: Product1688[] = data.data?.items || [];
+      const total = data.data?.total || 0;
 
       return {
         success: true,
