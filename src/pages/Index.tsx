@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Search, Camera, ImageIcon, Loader2, ChevronLeft, ChevronRight, Star, BadgeCheck, Flame, Truck, Heart, ShoppingCart, User, Zap, SlidersHorizontal, Download, X } from "lucide-react";
+import { Search, Camera, ImageIcon, Loader2, ChevronLeft, ChevronRight, Star, BadgeCheck, Flame, Truck, Heart, ShoppingCart, User, Zap, SlidersHorizontal, Download, X, ArrowRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,6 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import SearchFilters, { SearchFilterValues, getDefaultFilters, applyFilters } from "@/components/SearchFilters";
 import CategorySection from "@/components/CategorySection";
 import { useAppSettings } from "@/hooks/useAppSettings";
+import BottomNav from "@/components/BottomNav";
 
 const ProductCardSkeleton = () => (
   <Card className="overflow-hidden">
@@ -615,10 +616,11 @@ const Index = () => {
   // Product detail view
   if (selectedProduct || isLoadingProduct) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background pb-20 md:pb-0">
         {imageSearchDialog}
         <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} settings={settings} />
         <ProductDetail product={selectedProduct || undefined} isLoading={isTranslatingProduct} onBack={handleBackToSearch} />
+        <BottomNav />
       </div>
     );
   }
@@ -629,7 +631,7 @@ const Index = () => {
     const showPagination = categoryTotalPages > 1 || categoryPage === 1; // Always show nav since there are more pages on 1688
 
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background pb-20 md:pb-0">
         {imageSearchDialog}
         <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} settings={settings} />
         <div className="px-3 sm:px-6">
@@ -769,6 +771,7 @@ const Index = () => {
           </div>
         </div>
         <Footer />
+        <BottomNav />
       </div>
     );
   }
@@ -778,7 +781,7 @@ const Index = () => {
     const filteredProducts = applyFilters(products, filters, convertToBDT);
 
     return (
-      <div className="min-h-screen bg-background relative" onDragEnter={handleDragEnter} onDragLeave={handleDragLeave} onDragOver={handleDragOver} onDrop={handleDrop}>
+      <div className="min-h-screen bg-background relative pb-20 md:pb-0" onDragEnter={handleDragEnter} onDragLeave={handleDragLeave} onDragOver={handleDragOver} onDrop={handleDrop}>
         {isDragging && <DragOverlay />}
         {imageSearchDialog}
         <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} />
@@ -792,7 +795,7 @@ const Index = () => {
             />
 
             {/* Mobile filter toggle */}
-            <div className="lg:hidden fixed bottom-4 right-4 z-40">
+            <div className="lg:hidden fixed bottom-20 md:bottom-4 right-4 z-40">
               <Button size="sm" className="rounded-full shadow-lg gap-1.5" onClick={() => setMobileFiltersOpen(!mobileFiltersOpen)}>
                 <SlidersHorizontal className="h-4 w-4" /> Filters
               </Button>
@@ -852,177 +855,216 @@ const Index = () => {
             </div>
           </div>
         </div>
+        <BottomNav />
       </div>
     );
   }
 
-  // Homepage - like chinaonlinebd.com
+  // Homepage - mobile-first like chinaonlinebd.com
   return (
-    <div className="min-h-screen bg-background relative" onDragEnter={handleDragEnter} onDragLeave={handleDragLeave} onDragOver={handleDragOver} onDrop={handleDrop}>
+    <div className="min-h-screen bg-background relative pb-20 md:pb-0" onDragEnter={handleDragEnter} onDragLeave={handleDragLeave} onDragOver={handleDragOver} onDrop={handleDrop}>
       {isDragging && <DragOverlay />}
       {imageSearchDialog}
       <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} settings={settings} />
 
-      {/* Main content with category sidebar */}
-      <div className="px-3 sm:px-6">
-        <div className="flex gap-6 mt-4">
-          {/* Category Sidebar - desktop only */}
-          <aside className="hidden lg:block w-56 shrink-0">
-            <div className="bg-card rounded-xl border p-4 sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto scrollbar-hide">
-              <h2 className="text-lg font-bold text-primary mb-4">Category</h2>
-              <nav className="space-y-0.5">
-                {categories.map((cat) => (
-                  <button
-                    key={cat.name}
-                    onClick={() => handleCategoryClick(cat.query)}
-                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors text-left"
-                  >
-                    <span className="text-lg">{cat.icon}</span>
-                    <span className="capitalize">{cat.name}</span>
-                  </button>
-                ))}
-              </nav>
-            </div>
-          </aside>
-
-          {/* Main area */}
-          <div className="flex-1 min-w-0">
-            {/* Hero banners */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-              <div className="md:col-span-2 rounded-xl overflow-hidden bg-gradient-to-r from-primary/10 to-primary/5 border p-8 flex items-center">
-                <div>
-                  <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">{settings.hero_title}</h1>
-                  <p className="text-muted-foreground mb-4">{settings.hero_subtitle}</p>
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant="outline" className="cursor-pointer" onClick={() => handleCategoryClick("trending products")}>{settings.hero_badge_1}</Badge>
-                    <Badge variant="outline" className="cursor-pointer" onClick={() => handleCategoryClick("new arrivals")}>{settings.hero_badge_2}</Badge>
-                    <Badge variant="outline" className="cursor-pointer" onClick={() => handleCategoryClick("best selling")}>{settings.hero_badge_3}</Badge>
-                  </div>
-                </div>
-              </div>
-              <div className="rounded-xl overflow-hidden bg-gradient-to-br from-primary to-primary/80 text-primary-foreground p-6 flex flex-col justify-center">
-                <h3 className="text-xl font-bold mb-2">{settings.shipping_card_title}</h3>
-                <p className="text-sm opacity-90 mb-3">{settings.shipping_card_subtitle}</p>
-                <Button variant="secondary" size="sm" className="w-fit" onClick={() => navigate("/dashboard/shipments")}>
-                  Learn More
-                </Button>
-              </div>
-            </div>
-
-            {/* Mobile categories */}
-            <div className="lg:hidden mb-6">
-              <div className="flex overflow-x-auto gap-3 pb-2 scrollbar-hide">
-                {categories.slice(0, 12).map((cat) => (
-                  <button
-                    key={cat.name}
-                    onClick={() => handleCategoryClick(cat.query)}
-                    className="flex flex-col items-center gap-1 shrink-0 p-2 rounded-lg hover:bg-secondary transition-colors min-w-[72px]"
-                  >
-                    <span className="text-2xl">{cat.icon}</span>
-                    <span className="text-[10px] text-muted-foreground text-center leading-tight capitalize">{cat.name}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Trending Products - shows skeleton until loaded, then real data */}
-            {!isTrendingLoaded ? (
-              <section className="mb-10">
-                <div className="flex items-center gap-2 mb-4">
-                  <Skeleton className="h-6 w-6 rounded-full" />
-                  <Skeleton className="h-6 w-48" />
-                </div>
-                <div className="border-b border-primary/20 mb-4" />
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                  {Array.from({ length: 6 }).map((_, i) => <ProductCardSkeleton key={i} />)}
-                </div>
-              </section>
-            ) : (
-              <section className="mb-10 animate-fade-in">
-                <div className="flex items-center gap-2 mb-4">
-                  <Heart className="h-6 w-6 text-primary fill-primary" />
-                  <h2 className="text-xl font-bold">Trending Products</h2>
-                </div>
-                <div className="border-b border-primary/20 mb-4" />
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                  {trendingProducts.map((product) => (
-                    <Card
-                      key={product.id}
-                      className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow group"
-                      onClick={() => handleTrendingClick(product.id)}
-                    >
-                      <div className="aspect-square overflow-hidden bg-muted relative">
-                        <img
-                          src={product.image}
-                          alt={product.title}
-                          referrerPolicy="no-referrer"
-                          loading="lazy"
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                          onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
-                        />
-                        <Badge className="absolute top-2 left-2 bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5">
-                          3% OFF
-                        </Badge>
-                      </div>
-                      <CardContent className="p-3 space-y-1.5">
-                        <h3 className="text-sm font-medium line-clamp-2 min-h-[2.5rem] leading-tight">{product.title}</h3>
-                        <div className="flex items-center gap-0.5">
-                          {[...Array(5)].map((_, i) => <Star key={i} className="h-3 w-3 fill-amber-400 text-amber-400" />)}
-                        </div>
-                        <div className="flex items-baseline gap-2">
-                          <span className="text-lg font-bold text-primary">৳{product.price}</span>
-                          {product.oldPrice > product.price && (
-                            <span className="text-xs text-muted-foreground line-through">৳{product.oldPrice}</span>
-                          )}
-                        </div>
-                        <p className="text-[10px] text-muted-foreground">SOLD : {product.sold.toLocaleString()}</p>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* Category-wise product sections - appear progressively */}
-            {categories.map((cat) => (
-              <CategorySection
-                key={cat.name}
-                name={cat.name}
-                icon={cat.icon}
-                query={cat.query}
-                cachedProducts={categoryProductsMap[cat.query] || null}
-                onProductClick={handleProductClick}
-                onViewAll={(q) => handleCategoryClick(q)}
-              />
-            ))}
-
-            {/* Category loading skeletons for sections not yet loaded */}
-            {isTrendingLoaded && loadedCategoryCount < categories.length && (
-              <section className="mb-10">
-                <div className="flex items-center gap-2 mb-4">
-                  <Skeleton className="h-6 w-6 rounded-full" />
-                  <Skeleton className="h-6 w-36" />
-                </div>
-                <div className="border-b border-primary/20 mb-4" />
-                <div className="flex gap-3 overflow-hidden">
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <div key={i} className="shrink-0 w-[160px] sm:w-[180px]">
-                      <Skeleton className="aspect-square w-full rounded-t-lg" />
-                      <div className="p-2.5 space-y-1.5">
-                        <Skeleton className="h-3 w-full" />
-                        <Skeleton className="h-3 w-3/4" />
-                        <Skeleton className="h-4 w-20" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
+      {/* Main content */}
+      <div className="flex gap-6">
+        {/* Category Sidebar - desktop only */}
+        <aside className="hidden lg:block w-56 shrink-0 pl-3 sm:pl-6 mt-4">
+          <div className="bg-card rounded-xl border p-4 sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto scrollbar-hide">
+            <h2 className="text-lg font-bold text-primary mb-4">Category</h2>
+            <nav className="space-y-0.5">
+              {categories.map((cat) => (
+                <button
+                  key={cat.name}
+                  onClick={() => handleCategoryClick(cat.query)}
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors text-left"
+                >
+                  <span className="text-lg">{cat.icon}</span>
+                  <span className="capitalize">{cat.name}</span>
+                </button>
+              ))}
+            </nav>
           </div>
+        </aside>
+
+        {/* Main area */}
+        <div className="flex-1 min-w-0 px-3 sm:px-6">
+          {/* Hero Banner */}
+          <div className="mt-4 mb-5 rounded-2xl overflow-hidden header-gradient p-6 sm:p-8 md:p-10 relative">
+            <div className="relative z-10">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-primary-foreground mb-2 leading-tight">
+                {settings.hero_title || "Wholesale from China"}
+              </h1>
+              <p className="text-primary-foreground/80 text-sm sm:text-base mb-4 max-w-md">
+                {settings.hero_subtitle || "Find products at factory prices"}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Badge className="bg-primary-foreground/20 text-primary-foreground border-0 cursor-pointer hover:bg-primary-foreground/30 backdrop-blur-sm" onClick={() => handleCategoryClick("trending products")}>{settings.hero_badge_1 || "🔥 Trending"}</Badge>
+                <Badge className="bg-primary-foreground/20 text-primary-foreground border-0 cursor-pointer hover:bg-primary-foreground/30 backdrop-blur-sm" onClick={() => handleCategoryClick("new arrivals")}>{settings.hero_badge_2 || "✨ New Arrivals"}</Badge>
+                <Badge className="bg-primary-foreground/20 text-primary-foreground border-0 cursor-pointer hover:bg-primary-foreground/30 backdrop-blur-sm" onClick={() => handleCategoryClick("best selling")}>{settings.hero_badge_3 || "⭐ Best Selling"}</Badge>
+              </div>
+            </div>
+            {/* Decorative circles */}
+            <div className="absolute -right-8 -bottom-8 w-32 h-32 rounded-full bg-primary-foreground/10" />
+            <div className="absolute -right-4 top-2 w-16 h-16 rounded-full bg-primary-foreground/5" />
+          </div>
+
+          {/* Shipping Service CTA */}
+          <div className="shipping-cta rounded-xl px-5 py-3.5 mb-6 flex items-center justify-between border border-primary/15">
+            <div className="flex items-center gap-3">
+              <Truck className="h-5 w-5 text-primary shrink-0" />
+              <span className="text-sm font-semibold text-foreground">Looking for Shipping Service</span>
+            </div>
+            <button
+              onClick={() => navigate("/dashboard/shipments")}
+              className="px-4 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity shrink-0"
+            >
+              Click Here
+            </button>
+          </div>
+
+          {/* Top Category - Circular Icons */}
+          <section id="top-categories" className="mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <Zap className="h-5 w-5 text-primary fill-primary" />
+              <h2 className="text-lg font-bold text-foreground">Top Category</h2>
+            </div>
+
+            <div className="relative">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute -left-2 top-1/2 -translate-y-1/2 z-10 bg-card shadow-md border h-7 w-7 hidden sm:flex"
+                onClick={() => scrollTopCat("left")}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <div ref={topCatScrollRef} className="flex overflow-x-auto gap-4 sm:gap-5 pb-3 scrollbar-hide snap-x">
+                {topCategories.map((cat) => (
+                  <button
+                    key={cat.name}
+                    onClick={() => handleCategoryClick(cat.query)}
+                    className="flex flex-col items-center gap-1.5 shrink-0 snap-start group min-w-[80px]"
+                  >
+                    <div className="category-circle">
+                      <span className="text-2xl">{cat.icon}</span>
+                    </div>
+                    <span className="text-[10px] text-primary font-semibold">From {cat.price} ৳</span>
+                    <span className="text-[10px] text-muted-foreground text-center leading-tight capitalize line-clamp-1 max-w-[80px]">{cat.name}</span>
+                  </button>
+                ))}
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute -right-2 top-1/2 -translate-y-1/2 z-10 bg-card shadow-md border h-7 w-7 hidden sm:flex"
+                onClick={() => scrollTopCat("right")}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </section>
+
+          {/* Trending Products */}
+          {!isTrendingLoaded ? (
+            <section className="mb-10">
+              <div className="flex items-center gap-2 mb-4">
+                <Skeleton className="h-6 w-6 rounded-full" />
+                <Skeleton className="h-6 w-48" />
+              </div>
+              <div className="border-b border-primary/20 mb-4" />
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                {Array.from({ length: 6 }).map((_, i) => <ProductCardSkeleton key={i} />)}
+              </div>
+            </section>
+          ) : (
+            <section className="mb-10 animate-fade-in">
+              <div className="flex items-center gap-2 mb-4">
+                <Heart className="h-5 w-5 text-primary fill-primary" />
+                <h2 className="text-lg font-bold text-foreground">Trending Products</h2>
+              </div>
+              <div className="border-b border-primary/20 mb-4" />
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                {trendingProducts.map((product) => (
+                  <Card
+                    key={product.id}
+                    className="overflow-hidden cursor-pointer hover:shadow-lg transition-all group border-0 shadow-sm"
+                    onClick={() => handleTrendingClick(product.id)}
+                  >
+                    <div className="aspect-square overflow-hidden bg-muted relative">
+                      <img
+                        src={product.image}
+                        alt={product.title}
+                        referrerPolicy="no-referrer"
+                        loading="lazy"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
+                      />
+                      <Badge className="absolute top-2 left-2 bg-primary text-primary-foreground text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm">
+                        3% OFF
+                      </Badge>
+                      {/* Floating cart button */}
+                      <button className="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                        <ShoppingCart className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    <CardContent className="p-3 space-y-1.5">
+                      <h3 className="text-xs font-medium line-clamp-2 min-h-[2rem] leading-tight text-foreground">{product.title}</h3>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-base font-bold text-primary">৳{product.price}</span>
+                        {product.oldPrice > product.price && (
+                          <span className="text-[10px] text-muted-foreground line-through">৳{product.oldPrice}</span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">SOLD : {product.sold.toLocaleString()}</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Category-wise product sections */}
+          {categories.map((cat) => (
+            <CategorySection
+              key={cat.name}
+              name={cat.name}
+              icon={cat.icon}
+              query={cat.query}
+              cachedProducts={categoryProductsMap[cat.query] || null}
+              onProductClick={handleProductClick}
+              onViewAll={(q) => handleCategoryClick(q)}
+            />
+          ))}
+
+          {/* Category loading skeletons */}
+          {isTrendingLoaded && loadedCategoryCount < categories.length && (
+            <section className="mb-10">
+              <div className="flex items-center gap-2 mb-4">
+                <Skeleton className="h-6 w-6 rounded-full" />
+                <Skeleton className="h-6 w-36" />
+              </div>
+              <div className="border-b border-primary/20 mb-4" />
+              <div className="flex gap-3 overflow-hidden">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="shrink-0 w-[160px] sm:w-[180px]">
+                    <Skeleton className="aspect-square w-full rounded-t-lg" />
+                    <div className="p-2.5 space-y-1.5">
+                      <Skeleton className="h-3 w-full" />
+                      <Skeleton className="h-3 w-3/4" />
+                      <Skeleton className="h-4 w-20" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
         </div>
       </div>
 
       <Footer />
+      <BottomNav />
     </div>
   );
 };
@@ -1030,53 +1072,52 @@ const Index = () => {
 // Shared components
 
 const SiteHeader = ({ query, setQuery, handleSearch, isLoading, handleImageButtonClick, fileInputRef, handleFileChange, user, navigate, handleInstallClick, settings }: any) => (
-  <header className="sticky top-0 z-50 bg-card border-b shadow-sm">
-    <div className="px-3 sm:px-6">
-      <div className="flex items-center gap-4 h-16">
-        {/* Logo */}
-        <button onClick={() => { setQuery(""); window.location.href = "/"; }} className="shrink-0">
-          <h1 className="text-xl font-bold text-primary">{settings?.site_name || "TradeOn Global"}</h1>
-        </button>
-
-        {/* Search */}
-        <form onSubmit={handleSearch} className="flex-1 flex gap-2 max-w-2xl">
+  <header className="sticky top-0 z-50">
+    {/* Mobile gradient header */}
+    <div className="md:hidden header-gradient">
+      <div className="px-3 pt-2 pb-3">
+        <form onSubmit={handleSearch} className="flex gap-2">
           <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input type="text" placeholder={settings?.search_placeholder || "Search by product name..."} value={query} onChange={(e: any) => setQuery(e.target.value)} className="pl-10 h-10" />
+            <Input type="text" placeholder={settings?.search_placeholder || "SEARCH FOR"} value={query} onChange={(e: any) => setQuery(e.target.value)} className="pl-10 h-10 bg-primary-foreground/95 border-0 rounded-lg text-sm shadow-sm" />
           </div>
-          <Button type="button" variant="outline" size="icon" title="Search by image" onClick={handleImageButtonClick} disabled={isLoading} className="shrink-0">
-            <Camera className="h-4 w-4" />
+          <Button type="button" variant="secondary" size="icon" title="Search by image" onClick={handleImageButtonClick} disabled={isLoading} className="shrink-0 h-10 w-10 rounded-lg bg-primary-foreground/20 border-0 text-primary-foreground hover:bg-primary-foreground/30">
+            <Camera className="h-5 w-5" />
           </Button>
-          <Button type="submit" disabled={isLoading} className="shrink-0 px-6">
+          <Button type="submit" disabled={isLoading} className="shrink-0 h-10 w-10 rounded-lg bg-primary-foreground text-primary hover:bg-primary-foreground/90">
             {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
           </Button>
         </form>
+      </div>
+    </div>
 
-        {/* Right nav */}
-        <div className="hidden md:flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={handleInstallClick} title="Install App">
-            <Download className="h-5 w-5" />
-          </Button>
-          <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard/wishlist")} title="Wishlist">
-            <Heart className="h-5 w-5" />
-          </Button>
-          <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard/orders")} title="Orders">
-            <ShoppingCart className="h-5 w-5" />
-          </Button>
-          <Button variant="ghost" size="icon" onClick={() => navigate(user ? "/dashboard" : "/auth")} title={user ? "Dashboard" : "Sign In"}>
-            <User className="h-5 w-5" />
-          </Button>
-        </div>
-
-        {/* Mobile nav */}
-        <div className="flex md:hidden items-center gap-1">
-          <Button variant="ghost" size="icon" onClick={handleInstallClick} title="Install App" className="h-9 w-9">
-            <Download className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="icon" onClick={() => navigate(user ? "/dashboard" : "/auth")} title={user ? "Dashboard" : "Sign In"} className="h-9 w-9">
-            <User className="h-4 w-4" />
-          </Button>
+    {/* Desktop header */}
+    <div className="hidden md:block bg-card border-b shadow-sm">
+      <div className="px-3 sm:px-6">
+        <div className="flex items-center gap-4 h-16">
+          <button onClick={() => { setQuery(""); window.location.href = "/"; }} className="shrink-0">
+            <h1 className="text-xl font-bold text-primary">{settings?.site_name || "TradeOn Global"}</h1>
+          </button>
+          <form onSubmit={handleSearch} className="flex-1 flex gap-2 max-w-2xl">
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input type="text" placeholder={settings?.search_placeholder || "Search by product name..."} value={query} onChange={(e: any) => setQuery(e.target.value)} className="pl-10 h-10" />
+            </div>
+            <Button type="button" variant="outline" size="icon" title="Search by image" onClick={handleImageButtonClick} disabled={isLoading} className="shrink-0">
+              <Camera className="h-4 w-4" />
+            </Button>
+            <Button type="submit" disabled={isLoading} className="shrink-0 px-6">
+              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+            </Button>
+          </form>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={handleInstallClick} title="Install App"><Download className="h-5 w-5" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard/wishlist")} title="Wishlist"><Heart className="h-5 w-5" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard/orders")} title="Orders"><ShoppingCart className="h-5 w-5" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => navigate(user ? "/dashboard" : "/auth")} title={user ? "Dashboard" : "Sign In"}><User className="h-5 w-5" /></Button>
+          </div>
         </div>
       </div>
     </div>
