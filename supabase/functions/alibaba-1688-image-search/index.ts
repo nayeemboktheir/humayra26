@@ -140,13 +140,13 @@ async function uploadToTempBucket(imageBase64: string): Promise<string> {
 async function tryRapidApiImageSearch(
   imageUrl: string,
   page: number,
-  pageSize: number,
+  _pageSize: number,
   apiKey: string,
   startTime: number,
 ): Promise<any | null> {
   try {
     console.log('RapidAPI datahub: Starting image search...');
-    const url = `https://1688-datahub.p.rapidapi.com/item_search_image_2?imgUrl=${encodeURIComponent(imageUrl)}&page=${page}&sort=default`;
+    const url = `https://1688-datahub.p.rapidapi.com/item_search_image?imgUrl=${encodeURIComponent(imageUrl)}&page=${page}&sort=default`;
 
     const resp = await fetch(url, {
       method: 'GET',
@@ -164,30 +164,44 @@ async function tryRapidApiImageSearch(
     }
 
     const data = await resp.json();
-    const rawItems = data?.result || data?.data?.items || [];
-    const total = data?.total || data?.data?.total || rawItems.length;
+    const statusCode = data?.result?.status?.code;
+    if (statusCode !== 200) {
+      console.error(`RapidAPI datahub API error: ${statusCode}`);
+      return null;
+    }
 
-    if (!rawItems.length) {
+    const resultList = data?.result?.resultList || [];
+    if (!resultList.length) {
       console.warn('RapidAPI datahub: No items found');
       return null;
     }
 
-    console.log(`RapidAPI datahub: ${rawItems.length} items in ${Date.now() - startTime}ms`);
+    console.log(`RapidAPI datahub: ${resultList.length} items in ${Date.now() - startTime}ms`);
 
-    const items = rawItems.map((item: any) => ({
-      num_iid: parseInt(item?.num_iid || item?.offerId || item?.item_id || '0', 10) || 0,
-      title: item?.title || item?.subject || '',
-      pic_url: item?.pic_url || item?.image_url || item?.img || '',
-      price: parseFloat(item?.price || item?.original_price || '0') || 0,
-      sales: item?.sales ? parseInt(String(item.sales), 10) : undefined,
-      detail_url: item?.detail_url || `https://detail.1688.com/offer/${item?.num_iid || 0}.html`,
-      location: item?.location || item?.province || '',
-      vendor_name: item?.vendor_name || item?.company_name || item?.shopName || '',
-    }));
+    const items = resultList.map((entry: any) => {
+      const item = entry?.item || entry;
+      const itemId = parseInt(String(item?.itemId || '0'), 10) || 0;
+      let picUrl = item?.image || '';
+      if (picUrl.startsWith('//')) picUrl = 'https:' + picUrl;
+      const price = parseFloat(item?.sku?.def?.price || '0') || 0;
+      let itemUrl = item?.itemUrl || '';
+      if (itemUrl.startsWith('//')) itemUrl = 'https:' + itemUrl;
+
+      return {
+        num_iid: itemId,
+        title: item?.title || '',
+        pic_url: picUrl,
+        price,
+        sales: item?.sales || undefined,
+        detail_url: itemUrl || `https://detail.1688.com/offer/${itemId}.html`,
+        location: '',
+        vendor_name: '',
+      };
+    });
 
     return {
       success: true,
-      data: { items, total },
+      data: { items, total: items.length },
       meta: { method: 'rapidapi_datahub_image', provider: 'rapidapi' },
     };
   } catch (e) {
