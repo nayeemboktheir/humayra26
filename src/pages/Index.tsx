@@ -868,20 +868,26 @@ const Index = () => {
       <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} settings={settings} />
 
       {/* Main content */}
-      <div className="flex gap-6">
+      <div className="flex gap-0 lg:gap-4">
         {/* Category Sidebar - desktop only */}
-        <aside className="hidden lg:block w-56 shrink-0 pl-3 sm:pl-6 mt-4">
-          <div className="bg-card rounded-xl border p-4 sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto scrollbar-hide">
-            <h2 className="text-lg font-bold text-primary mb-4">Category</h2>
-            <nav className="space-y-0.5">
-              {categories.map((cat) => (
+        <aside className="hidden lg:block w-52 shrink-0 pl-3 sm:pl-6 mt-4">
+          <div className="bg-card rounded-xl border shadow-sm sticky top-[68px] max-h-[calc(100vh-5rem)] overflow-y-auto scrollbar-hide">
+            <div className="flex items-center gap-2 px-4 pt-4 pb-2 border-b">
+              <Zap className="h-4 w-4 text-primary fill-primary" />
+              <h2 className="text-sm font-bold text-foreground">Top Category</h2>
+            </div>
+            <nav className="p-2 space-y-0.5">
+              {topCategories.map((cat) => (
                 <button
                   key={cat.name}
                   onClick={() => handleCategoryClick(cat.query)}
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors text-left"
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors text-left group"
                 >
-                  <span className="text-lg">{cat.icon}</span>
-                  <span className="capitalize">{cat.name}</span>
+                  <span className="text-base">{cat.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <span className="capitalize text-xs font-medium block truncate">{cat.name}</span>
+                    <span className="text-[10px] text-primary font-semibold">From ৳{cat.price}</span>
+                  </div>
                 </button>
               ))}
             </nav>
@@ -891,78 +897,24 @@ const Index = () => {
         {/* Main area */}
         <div className="flex-1 min-w-0 px-3 sm:px-6">
           {/* Hero Banner */}
-          <div className="mt-4 mb-5 rounded-2xl overflow-hidden header-gradient p-6 sm:p-8 md:p-10 relative">
-            <div className="relative z-10">
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-primary-foreground mb-2 leading-tight">
-                {settings.hero_title || "Wholesale from China"}
-              </h1>
-              <p className="text-primary-foreground/80 text-sm sm:text-base mb-4 max-w-md">
-                {settings.hero_subtitle || "Find products at factory prices"}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <Badge className="bg-primary-foreground/20 text-primary-foreground border-0 cursor-pointer hover:bg-primary-foreground/30 backdrop-blur-sm" onClick={() => handleCategoryClick("trending products")}>{settings.hero_badge_1 || "🔥 Trending"}</Badge>
-                <Badge className="bg-primary-foreground/20 text-primary-foreground border-0 cursor-pointer hover:bg-primary-foreground/30 backdrop-blur-sm" onClick={() => handleCategoryClick("new arrivals")}>{settings.hero_badge_2 || "✨ New Arrivals"}</Badge>
-                <Badge className="bg-primary-foreground/20 text-primary-foreground border-0 cursor-pointer hover:bg-primary-foreground/30 backdrop-blur-sm" onClick={() => handleCategoryClick("best selling")}>{settings.hero_badge_3 || "⭐ Best Selling"}</Badge>
-              </div>
-            </div>
-            {/* Decorative circles */}
-            <div className="absolute -right-8 -bottom-8 w-32 h-32 rounded-full bg-primary-foreground/10" />
-            <div className="absolute -right-4 top-2 w-16 h-16 rounded-full bg-primary-foreground/5" />
-          </div>
-
-          {/* Shipping Service CTA */}
-          <div className="shipping-cta rounded-xl px-5 py-3.5 mb-6 flex items-center justify-between border border-primary/15">
-            <div className="flex items-center gap-3">
-              <Truck className="h-5 w-5 text-primary shrink-0" />
-              <span className="text-sm font-semibold text-foreground">Looking for Shipping Service</span>
-            </div>
-            <button
-              onClick={() => navigate("/dashboard/shipments")}
-              className="px-4 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity shrink-0"
-            >
-              Click Here
-            </button>
-          </div>
-
-          {/* Top Category - Circular Icons */}
-          <section id="top-categories" className="mb-8 sticky top-[52px] md:top-[64px] z-40 bg-background py-3 -mx-3 px-3 sm:-mx-6 sm:px-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Zap className="h-5 w-5 text-primary fill-primary" />
-              <h2 className="text-lg font-bold text-foreground">Top Category</h2>
-            </div>
-
+          {/* Mobile horizontal categories */}
+          <section id="top-categories" className="lg:hidden mb-6 sticky top-[52px] md:top-[64px] z-40 bg-background py-3 -mx-3 px-3 sm:-mx-6 sm:px-6">
             <div className="relative">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute -left-2 top-1/2 -translate-y-1/2 z-10 bg-card shadow-md border h-7 w-7 hidden sm:flex"
-                onClick={() => scrollTopCat("left")}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <div ref={topCatScrollRef} className="flex overflow-x-auto gap-4 sm:gap-5 pb-3 scrollbar-hide snap-x">
+              <div ref={topCatScrollRef} className="flex overflow-x-auto gap-4 pb-2 scrollbar-hide snap-x">
                 {topCategories.map((cat) => (
                   <button
                     key={cat.name}
                     onClick={() => handleCategoryClick(cat.query)}
-                    className="flex flex-col items-center gap-1.5 shrink-0 snap-start group min-w-[80px]"
+                    className="flex flex-col items-center gap-1.5 shrink-0 snap-start group min-w-[72px]"
                   >
                     <div className="category-circle">
-                      <span className="text-2xl">{cat.icon}</span>
+                      <span className="text-xl">{cat.icon}</span>
                     </div>
-                    <span className="text-[10px] text-primary font-semibold">From {cat.price} ৳</span>
-                    <span className="text-[10px] text-muted-foreground text-center leading-tight capitalize line-clamp-1 max-w-[80px]">{cat.name}</span>
+                    <span className="text-[9px] text-primary font-semibold">From {cat.price} ৳</span>
+                    <span className="text-[9px] text-muted-foreground text-center leading-tight capitalize line-clamp-1 max-w-[72px]">{cat.name}</span>
                   </button>
                 ))}
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute -right-2 top-1/2 -translate-y-1/2 z-10 bg-card shadow-md border h-7 w-7 hidden sm:flex"
-                onClick={() => scrollTopCat("right")}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
             </div>
           </section>
 
