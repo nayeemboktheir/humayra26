@@ -286,6 +286,39 @@ export type Database = {
           },
         ]
       }
+      search_cache: {
+        Row: {
+          created_at: string
+          id: string
+          items: Json
+          page: number
+          query_key: string
+          total_results: number
+          translated: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          items?: Json
+          page?: number
+          query_key: string
+          total_results?: number
+          translated?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          items?: Json
+          page?: number
+          query_key?: string
+          total_results?: number
+          translated?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       shipments: {
         Row: {
           carrier: string | null
