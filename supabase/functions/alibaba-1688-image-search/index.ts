@@ -80,12 +80,12 @@ Deno.serve(async (req) => {
     await uploadResp.text().catch(() => '');
     console.log('Image uploaded to OTAPI successfully');
 
-    // Step 3: Search using BatchSearchItemsFrame with ImageFileId
+    // Step 3: Search using SearchItemsFrame with ImageFileId
     const framePosition = (page - 1) * pageSize;
     const xmlParams = `<SearchItemsParameters><ImageFileId>${fileId}</ImageFileId></SearchItemsParameters>`;
-    console.log('Searching with BatchSearchItemsFrame, ImageFileId:', fileId);
+    console.log('Searching with ImageFileId:', fileId);
 
-    const url = `https://otapi.net/service-json/BatchSearchItemsFrame?instanceKey=${encodeURIComponent(apiKey)}&language=en&xmlParameters=${encodeURIComponent(xmlParams)}&framePosition=${framePosition}&frameSize=${pageSize}&blockList=`;
+    const url = `https://otapi.net/service-json/SearchItemsFrame?instanceKey=${encodeURIComponent(apiKey)}&language=en&xmlParameters=${encodeURIComponent(xmlParams)}&framePosition=${framePosition}&frameSize=${pageSize}`;
 
     const resp = await fetch(url, { method: 'GET', headers: { Accept: 'application/json' } });
     const data = await resp.json().catch(() => null);
@@ -106,7 +106,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // BatchSearchItemsFrame returns Items inside Result
     const items = data?.Result?.Items?.Content || [];
     const searchMethod = data?.Result?.SearchMethod || 'unknown';
     console.log(`Image search returned ${items.length} items via method: ${searchMethod}, fileId: ${fileId}`);
@@ -114,7 +113,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({
       success: true,
       data,
-      meta: { method: 'batch_image_file_id', provider: 'otapi', searchMethod, fileId },
+      meta: { method: 'otapi_file_id', provider: 'otapi', searchMethod, fileId },
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
