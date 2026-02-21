@@ -20,7 +20,7 @@ Deno.serve(async (req) => {
     }
 
     const startTime = Date.now();
-    const tmapiToken = Deno.env.get('TMAPI_TOKEN');
+    const rapidApiKey = Deno.env.get('RAPIDAPI_KEY');
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
     const otapiKey = Deno.env.get('OTCOMMERCE_API_KEY');
 
@@ -30,9 +30,9 @@ Deno.serve(async (req) => {
       publicImageUrl = await uploadToTempBucket(imageBase64);
     }
 
-    // ── PRIMARY: TMAPI direct Pailitao visual search ──
-    if (tmapiToken && publicImageUrl) {
-      const result = await tryTmapi(publicImageUrl, page, pageSize, tmapiToken, startTime);
+    // ── PRIMARY: RapidAPI 1688-datahub visual search ──
+    if (rapidApiKey && publicImageUrl) {
+      const result = await tryRapidApiImageSearch(publicImageUrl, page, pageSize, rapidApiKey, startTime);
       if (result) {
         return new Response(JSON.stringify(result), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -56,7 +56,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Search via OTAPI
     const framePosition = (page - 1) * pageSize;
     const xmlParams = `<SearchItemsParameters><ItemTitle>${escapeXml(detectedQuery)}</ItemTitle><Provider>Alibaba1688</Provider></SearchItemsParameters>`;
     const otapiUrl = `https://otapi.net/service-json/SearchItemsFrame?instanceKey=${encodeURIComponent(otapiKey)}&language=en&xmlParameters=${encodeURIComponent(xmlParams)}&framePosition=${framePosition}&frameSize=${pageSize}`;
@@ -130,7 +129,6 @@ async function uploadToTempBucket(imageBase64: string): Promise<string> {
 
   const { data: pub } = supabase.storage.from('temp-images').getPublicUrl(fileName);
 
-  // Cleanup after 60s
   setTimeout(async () => {
     try { await supabase.storage.from('temp-images').remove([fileName]); } catch {}
   }, 60000);
@@ -138,65 +136,50 @@ async function uploadToTempBucket(imageBase64: string): Promise<string> {
   return pub.publicUrl;
 }
 
-// ── TMAPI: Convert image URL → Search by image ──
-async function tryTmapi(
+// ── RapidAPI 1688-datahub: Direct image search ──
+async function tryRapidApiImageSearch(
   imageUrl: string,
   page: number,
   pageSize: number,
-  apiToken: string,
+  apiKey: string,
   startTime: number,
 ): Promise<any | null> {
   try {
-    // Step 1: Convert non-Ali image URL to Ali-compatible format
-    console.log('TMAPI: Converting image URL...');
-    const convertResp = await fetch(
-      `http://api.tmapi.top/1688/tools/image/convert_url?apiToken=${encodeURIComponent(apiToken)}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: imageUrl, search_api_endpoint: '/search/image' }),
-      }
-    );
+    console.log('RapidAPI datahub: Starting image search...');
+    const url = `https://1688-datahub.p.rapidapi.com/item_search_image_2?imgUrl=${encodeURIComponent(imageUrl)}&page=${page}&sort=default`;
 
-    if (!convertResp.ok) {
-      console.error(`TMAPI convert failed: ${convertResp.status}`);
+    const resp = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'x-rapidapi-host': '1688-datahub.p.rapidapi.com',
+        'x-rapidapi-key': apiKey,
+      },
+    });
+
+    if (!resp.ok) {
+      console.error(`RapidAPI datahub failed: ${resp.status}`);
+      const body = await resp.text();
+      console.error('Response:', body.slice(0, 300));
       return null;
     }
 
-    const convertData = await convertResp.json();
-    const convertedUrl = convertData?.data?.img_url || convertData?.data?.url || '';
-    if (!convertedUrl) {
-      console.error('TMAPI: No converted URL returned', convertData);
-      return null;
-    }
-    console.log(`TMAPI: Image converted in ${Date.now() - startTime}ms`);
-
-    // Step 2: Visual search with converted image
-    const searchUrl = `http://api.tmapi.top/1688/search/image?apiToken=${encodeURIComponent(apiToken)}&img_url=${encodeURIComponent(convertedUrl)}&page=${page}&page_size=${Math.min(pageSize, 20)}&sort=default`;
-
-    const searchResp = await fetch(searchUrl, { method: 'GET' });
-    if (!searchResp.ok) {
-      console.error(`TMAPI search failed: ${searchResp.status}`);
-      return null;
-    }
-
-    const searchData = await searchResp.json();
-    const rawItems = searchData?.data?.items || [];
-    const total = searchData?.data?.total || rawItems.length;
+    const data = await resp.json();
+    const rawItems = data?.result || data?.data?.items || [];
+    const total = data?.total || data?.data?.total || rawItems.length;
 
     if (!rawItems.length) {
-      console.warn('TMAPI: No items found');
+      console.warn('RapidAPI datahub: No items found');
       return null;
     }
 
-    console.log(`TMAPI: ${rawItems.length} items in ${Date.now() - startTime}ms`);
+    console.log(`RapidAPI datahub: ${rawItems.length} items in ${Date.now() - startTime}ms`);
 
     const items = rawItems.map((item: any) => ({
-      num_iid: parseInt(item?.num_iid || item?.item_id || item?.offerId || '0', 10) || 0,
+      num_iid: parseInt(item?.num_iid || item?.offerId || item?.item_id || '0', 10) || 0,
       title: item?.title || item?.subject || '',
       pic_url: item?.pic_url || item?.image_url || item?.img || '',
       price: parseFloat(item?.price || item?.original_price || '0') || 0,
-      sales: item?.sales || item?.sold || undefined,
+      sales: item?.sales ? parseInt(String(item.sales), 10) : undefined,
       detail_url: item?.detail_url || `https://detail.1688.com/offer/${item?.num_iid || 0}.html`,
       location: item?.location || item?.province || '',
       vendor_name: item?.vendor_name || item?.company_name || item?.shopName || '',
@@ -205,10 +188,10 @@ async function tryTmapi(
     return {
       success: true,
       data: { items, total },
-      meta: { method: 'tmapi_pailitao', provider: 'tmapi' },
+      meta: { method: 'rapidapi_datahub_image', provider: 'rapidapi' },
     };
   } catch (e) {
-    console.error('TMAPI error:', e);
+    console.error('RapidAPI datahub error:', e);
     return null;
   }
 }
