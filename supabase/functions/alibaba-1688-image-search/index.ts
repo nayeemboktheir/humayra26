@@ -15,267 +15,67 @@ Deno.serve(async (req) => {
 
     if (!imageBase64 && !imageUrl) {
       return new Response(JSON.stringify({ success: false, error: 'Image is required' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     const startTime = Date.now();
-
-    // ── Try RapidAPI native 1688 image search first (Pailitao - most accurate) ──
     const rapidApiKey = Deno.env.get('RAPIDAPI_KEY');
-    if (rapidApiKey) {
-      try {
-        let searchImageUrl = imageUrl || '';
-
-        // If base64, upload to storage to get a public URL
-        if (imageBase64 && !imageUrl) {
-          const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-          const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-          const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-          const b = imageBase64.slice(0, 20);
-          const ext = b.startsWith('/9j/') ? 'jpg' : b.startsWith('iVBOR') ? 'png' : 'jpg';
-          const mime = ext === 'png' ? 'image/png' : 'image/jpeg';
-
-          const binaryStr = atob(imageBase64);
-          const bytes = new Uint8Array(binaryStr.length);
-          for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
-
-          const fileName = `search-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-          const { error: uploadError } = await supabase.storage
-            .from('temp-images')
-            .upload(fileName, bytes, { contentType: mime, upsert: true });
-
-          if (!uploadError) {
-            const { data: pub } = supabase.storage.from('temp-images').getPublicUrl(fileName);
-            searchImageUrl = pub.publicUrl;
-            // Schedule cleanup
-            setTimeout(async () => {
-              try { await supabase.storage.from('temp-images').remove([fileName]); } catch {}
-            }, 60000);
-          }
-        }
-
-        if (searchImageUrl) {
-          // ── Try open-1688-api first (imageQuery - most direct) ──
-          try {
-            const imgParam = encodeURIComponent(searchImageUrl);
-            const openApiUrl = `https://open-1688-api.p.rapidapi.com/alibaba/product/imageQuery?imageUrl=${imgParam}&country=en&beginPage=${page}&pageSize=${pageSize}`;
-            console.log('Trying open-1688-api image search...');
-
-            const openResp = await fetch(openApiUrl, {
-              method: 'GET',
-              headers: {
-                'x-rapidapi-host': 'open-1688-api.p.rapidapi.com',
-                'x-rapidapi-key': rapidApiKey,
-              },
-            });
-
-            if (openResp.ok) {
-              const openData = await openResp.json();
-              const rawItems = openData?.data?.items || openData?.items || openData?.result?.items || openData?.data?.result || [];
-              const totalCount = openData?.data?.total || openData?.total || rawItems.length;
-              console.log(`open-1688-api: ${rawItems.length} items in ${Date.now() - startTime}ms`);
-
-              if (rawItems.length > 0) {
-                const items = rawItems.map((item: any) => ({
-                  num_iid: parseInt(item?.num_iid || item?.item_id || item?.offerId || item?.productId || '0', 10) || 0,
-                  title: item?.title || item?.subject || '',
-                  pic_url: item?.pic_url || item?.image_url || item?.img || item?.imageUrl || '',
-                  price: parseFloat(item?.price || item?.original_price || item?.priceInfo?.price || '0') || 0,
-                  sales: item?.sales || item?.sold || undefined,
-                  detail_url: item?.detail_url || item?.productUrl || `https://detail.1688.com/offer/${item?.num_iid || item?.item_id || 0}.html`,
-                  location: item?.location || item?.province || '',
-                  vendor_name: item?.vendor_name || item?.company_name || item?.shopName || '',
-                }));
-
-                return new Response(JSON.stringify({
-                  success: true,
-                  data: { items, total: totalCount },
-                  meta: { method: 'native_open_1688_api', provider: 'rapidapi' },
-                }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-              }
-            } else {
-              console.warn(`open-1688-api failed (${openResp.status}), trying 1688-datahub...`);
-            }
-          } catch (e) {
-            console.warn('open-1688-api attempt failed:', e);
-          }
-
-          // ── Try 1688-datahub (item_search_image_2) ──
-          try {
-            const imgParam = encodeURIComponent(searchImageUrl);
-            const datahubUrl = `https://1688-datahub.p.rapidapi.com/item_search_image_2?imgUrl=${imgParam}&page=${page}&sort=default`;
-            console.log('Trying 1688-datahub image search...');
-
-            const dhResp = await fetch(datahubUrl, {
-              method: 'GET',
-              headers: {
-                'x-rapidapi-host': '1688-datahub.p.rapidapi.com',
-                'x-rapidapi-key': rapidApiKey,
-              },
-            });
-
-            if (dhResp.ok) {
-              const dhData = await dhResp.json();
-              const rawItems = dhData?.result?.result || dhData?.result?.items || dhData?.items || [];
-              const totalCount = dhData?.result?.total_results || dhData?.result?.real_total_results || rawItems.length;
-              console.log(`1688-datahub: ${rawItems.length} items in ${Date.now() - startTime}ms`);
-
-              if (rawItems.length > 0) {
-                const items = rawItems.map((item: any) => ({
-                  num_iid: parseInt(item?.num_iid || item?.item_id || item?.offerId || '0', 10) || 0,
-                  title: item?.title || item?.subject || '',
-                  pic_url: item?.pic_url || item?.image_url || item?.img || '',
-                  price: parseFloat(item?.price || item?.original_price || '0') || 0,
-                  sales: item?.sales || item?.sold || undefined,
-                  detail_url: item?.detail_url || `https://detail.1688.com/offer/${item?.num_iid || 0}.html`,
-                  location: item?.location || item?.province || '',
-                  vendor_name: item?.vendor_name || item?.company_name || '',
-                }));
-
-                return new Response(JSON.stringify({
-                  success: true,
-                  data: { items, total: totalCount },
-                  meta: { method: 'native_1688_datahub', provider: 'rapidapi' },
-                }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-              }
-            } else {
-              console.warn(`1688-datahub failed (${dhResp.status}), trying 1688-product2...`);
-            }
-          } catch (e) {
-            console.warn('1688-datahub attempt failed:', e);
-          }
-
-          // ── Fallback to 1688-product2 (Pailitao) ──
-          try {
-            const imgParam = encodeURIComponent(searchImageUrl);
-            const apiUrl = `https://1688-product2.p.rapidapi.com/1688/search/image?img_url=${imgParam}&page=${page}&sort=default`;
-            console.log('Trying native 1688 Pailitao via RapidAPI...');
-
-            const resp = await fetch(apiUrl, {
-              method: 'GET',
-              headers: {
-                'x-rapidapi-host': '1688-product2.p.rapidapi.com',
-                'x-rapidapi-key': rapidApiKey,
-              },
-            });
-
-            if (resp.ok) {
-              const data = await resp.json();
-              const rawItems = data?.data?.items || data?.items || data?.result?.items || [];
-              const totalCount = data?.data?.total || data?.total || rawItems.length;
-              console.log(`RapidAPI Pailitao: ${rawItems.length} items in ${Date.now() - startTime}ms`);
-
-              if (rawItems.length > 0) {
-                const items = rawItems.map((item: any) => ({
-                  num_iid: parseInt(item?.item_id || item?.num_iid || item?.offerId || '0', 10) || 0,
-                  title: item?.title || item?.subject || '',
-                  pic_url: item?.pic_url || item?.image_url || item?.img || '',
-                  price: parseFloat(item?.price || item?.original_price || '0') || 0,
-                  sales: item?.sales || item?.sold || undefined,
-                  detail_url: item?.detail_url || `https://detail.1688.com/offer/${item?.item_id || item?.num_iid || 0}.html`,
-                  location: item?.location || item?.province || '',
-                  vendor_name: item?.vendor_name || item?.company_name || '',
-                }));
-
-                return new Response(JSON.stringify({
-                  success: true,
-                  data: { items, total: totalCount },
-                  meta: { method: 'native_1688_pailitao', provider: 'rapidapi' },
-                }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-              }
-            } else {
-              console.warn(`RapidAPI Pailitao failed (${resp.status}), falling back to AI method.`);
-            }
-          } catch (e) {
-            console.warn('RapidAPI Pailitao attempt failed:', e);
-          }
-        }
-      } catch (e) {
-        console.warn('RapidAPI attempt failed, falling back to AI method:', e);
-      }
-    }
-
-    // ── Fallback: AI (Gemini) keyword detection + OTAPI text search ──
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
-    if (!lovableApiKey) {
-      return new Response(JSON.stringify({ success: false, error: 'AI API key not configured' }), {
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
     const otapiKey = Deno.env.get('OTCOMMERCE_API_KEY');
-    if (!otapiKey) {
-      return new Response(JSON.stringify({ success: false, error: '1688 API not configured' }), {
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
 
-    // Prepare image for Gemini
-    let imageContent: any;
-    if (imageBase64) {
+    // ── Upload image to get public URL (needed for RapidAPI) ──
+    let searchImageUrl = imageUrl || '';
+    if (imageBase64 && !imageUrl) {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
       const b = imageBase64.slice(0, 20);
-      const mime = b.startsWith('/9j/') ? 'image/jpeg' : b.startsWith('iVBOR') ? 'image/png' : 'image/jpeg';
-      imageContent = { type: 'image_url', image_url: { url: `data:${mime};base64,${imageBase64}` } };
-    } else {
-      imageContent = { type: 'image_url', image_url: { url: imageUrl } };
+      const ext = b.startsWith('/9j/') ? 'jpg' : b.startsWith('iVBOR') ? 'png' : 'jpg';
+      const mime = ext === 'png' ? 'image/png' : 'image/jpeg';
+      const binaryStr = atob(imageBase64);
+      const bytes = new Uint8Array(binaryStr.length);
+      for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+
+      const fileName = `search-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from('temp-images')
+        .upload(fileName, bytes, { contentType: mime, upsert: true });
+
+      if (!uploadError) {
+        const { data: pub } = supabase.storage.from('temp-images').getPublicUrl(fileName);
+        searchImageUrl = pub.publicUrl;
+        setTimeout(async () => {
+          try { await supabase.storage.from('temp-images').remove([fileName]); } catch {}
+        }, 60000);
+      }
     }
 
-    const hint = keyword ? `\nIMPORTANT - The user says this product is: "${keyword}". Use this as your primary guide.` : '';
-    const aiPrompt = `You are an expert product sourcer on 1688.com (China's largest wholesale platform). Your job is to identify products from images and generate the perfect Chinese search query.
+    // ── Start Gemini identification IN PARALLEL with RapidAPI attempts ──
+    // This way if RapidAPI fails, Gemini result is already ready
+    let geminiPromise: Promise<string | null> | null = null;
+    if (lovableApiKey && otapiKey) {
+      geminiPromise = identifyWithGemini(imageBase64, imageUrl, keyword, lovableApiKey);
+    }
 
-Study this image very carefully. Pay attention to:
-- What EXACTLY is this product? (e.g. 筋膜枪 NOT 锤子, 蓝牙耳机 NOT 头戴式耳机)
-- Its specific type/subcategory
-- Notable features (wireless, portable, color, material)
-- Its intended use (fitness, kitchen, office, etc.)
-${hint}
-Generate a precise Chinese (中文) search query (3-8 characters/words) for 1688.com. Use the exact product name Chinese buyers would search for.
+    // ── Try all RapidAPI endpoints IN PARALLEL for speed ──
+    if (rapidApiKey && searchImageUrl) {
+      const result = await tryRapidApiParallel(searchImageUrl, page, pageSize, rapidApiKey, startTime);
+      if (result) return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
-Common mistakes to avoid:
-- Massage guns (筋膜枪) are NOT hammers (锤子)
-- Earbuds (蓝牙耳机) are NOT headphones (头戴式耳机)  
-- Power banks (充电宝) are NOT batteries (电池)
-- Smart watches (智能手表) are NOT regular watches (手表)
-
-RULES:
-- Output ONLY the Chinese search query
-- No English, no quotes, no explanation, no punctuation
-- Be maximally specific`;
-
-    console.log('Calling Gemini 2.5-pro for product identification...');
-
-    const aiResp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${lovableApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-pro',
-        messages: [{ role: 'user', content: [{ type: 'text', text: aiPrompt }, imageContent] }],
-      }),
-    });
-
-    console.log(`AI responded in ${Date.now() - startTime}ms, status: ${aiResp.status}`);
-
-    if (!aiResp.ok) {
-      const errText = await aiResp.text();
-      console.error('Gemini failed:', aiResp.status, errText);
-      if (aiResp.status === 429) {
-        return new Response(JSON.stringify({ success: false, error: 'AI rate limit reached. Please try again in a moment.' }), {
-          status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      return new Response(JSON.stringify({ success: false, error: 'AI identification failed' }), {
+    // ── Fallback: Use Gemini result (already started above) ──
+    if (!geminiPromise) {
+      return new Response(JSON.stringify({ success: false, error: 'No search API configured' }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const aiData = await aiResp.json();
-    let detectedQuery = (aiData?.choices?.[0]?.message?.content || '').trim().replace(/^["']|["']$/g, '').trim();
+    const detectedQuery = await geminiPromise;
+    console.log(`Gemini detected: "${detectedQuery}" in ${Date.now() - startTime}ms`);
 
     if (!detectedQuery) {
       return new Response(JSON.stringify({ success: false, error: 'Could not identify the product.' }), {
@@ -283,13 +83,10 @@ RULES:
       });
     }
 
-    detectedQuery = detectedQuery.slice(0, 80);
-    console.log('Detected query:', detectedQuery);
-
-    // Search 1688 via OTAPI
+    // Search via OTAPI
     const framePosition = (page - 1) * pageSize;
     const xmlParams = `<SearchItemsParameters><ItemTitle>${escapeXml(detectedQuery)}</ItemTitle><Provider>Alibaba1688</Provider></SearchItemsParameters>`;
-    const otapiUrl = `https://otapi.net/service-json/SearchItemsFrame?instanceKey=${encodeURIComponent(otapiKey)}&language=en&xmlParameters=${encodeURIComponent(xmlParams)}&framePosition=${framePosition}&frameSize=${pageSize}`;
+    const otapiUrl = `https://otapi.net/service-json/SearchItemsFrame?instanceKey=${encodeURIComponent(otapiKey!)}&language=en&xmlParameters=${encodeURIComponent(xmlParams)}&framePosition=${framePosition}&frameSize=${pageSize}`;
 
     const searchResp = await fetch(otapiUrl, { method: 'GET', headers: { 'Accept': 'application/json' } });
     const searchData = await searchResp.json().catch(() => null);
@@ -303,7 +100,7 @@ RULES:
 
     const rawItems = searchData?.Result?.Items?.Content || [];
     const totalCount = searchData?.Result?.Items?.TotalCount || rawItems.length;
-    console.log(`Found ${rawItems.length} items (total: ${totalCount}) in ${Date.now() - startTime}ms total`);
+    console.log(`Found ${rawItems.length} items in ${Date.now() - startTime}ms total`);
 
     const items = rawItems.map((item: any) => {
       const price = item?.Price?.OriginalPrice || item?.Price?.ConvertedPriceList?.Internal?.Price || 0;
@@ -339,6 +136,120 @@ RULES:
     }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
+
+// ── Gemini identification (uses flash-lite for speed) ──
+async function identifyWithGemini(
+  imageBase64: string | undefined,
+  imageUrl: string | undefined,
+  keyword: string,
+  apiKey: string,
+): Promise<string | null> {
+  let imageContent: any;
+  if (imageBase64) {
+    const b = imageBase64.slice(0, 20);
+    const mime = b.startsWith('/9j/') ? 'image/jpeg' : b.startsWith('iVBOR') ? 'image/png' : 'image/jpeg';
+    imageContent = { type: 'image_url', image_url: { url: `data:${mime};base64,${imageBase64}` } };
+  } else {
+    imageContent = { type: 'image_url', image_url: { url: imageUrl } };
+  }
+
+  const hint = keyword ? `\nThe user says this product is: "${keyword}". Use this as your primary guide.` : '';
+  const aiPrompt = `Identify this product and output ONLY a precise Chinese (中文) search query (3-8 chars) for 1688.com wholesale search. Be specific: 筋膜枪 not 锤子, 蓝牙耳机 not 头戴式耳机.${hint}\nNo English, no quotes, no explanation.`;
+
+  try {
+    const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash-lite',
+        messages: [{ role: 'user', content: [{ type: 'text', text: aiPrompt }, imageContent] }],
+        max_tokens: 50,
+        temperature: 0.1,
+      }),
+    });
+
+    if (!resp.ok) {
+      console.error('Gemini failed:', resp.status);
+      return null;
+    }
+
+    const data = await resp.json();
+    const query = (data?.choices?.[0]?.message?.content || '').trim().replace(/^["']|["']$/g, '').trim().slice(0, 80);
+    return query || null;
+  } catch (e) {
+    console.error('Gemini error:', e);
+    return null;
+  }
+}
+
+// ── Run all 3 RapidAPI endpoints in parallel, return first success ──
+async function tryRapidApiParallel(
+  imageUrl: string,
+  page: number,
+  pageSize: number,
+  apiKey: string,
+  startTime: number,
+): Promise<any | null> {
+  const imgParam = encodeURIComponent(imageUrl);
+
+  const endpoints = [
+    {
+      name: 'open-1688-api',
+      url: `https://open-1688-api.p.rapidapi.com/alibaba/product/imageQuery?imageUrl=${imgParam}&country=en&beginPage=${page}&pageSize=${pageSize}`,
+      host: 'open-1688-api.p.rapidapi.com',
+      parse: (d: any) => ({ items: d?.data?.items || d?.items || d?.result?.items || d?.data?.result || [], total: d?.data?.total || d?.total || 0 }),
+    },
+    {
+      name: '1688-datahub',
+      url: `https://1688-datahub.p.rapidapi.com/item_search_image_2?imgUrl=${imgParam}&page=${page}&sort=default`,
+      host: '1688-datahub.p.rapidapi.com',
+      parse: (d: any) => ({ items: d?.result?.result || d?.result?.items || d?.items || [], total: d?.result?.total_results || d?.result?.real_total_results || 0 }),
+    },
+    {
+      name: '1688-product2',
+      url: `https://1688-product2.p.rapidapi.com/1688/search/image?img_url=${imgParam}&page=${page}&sort=default`,
+      host: '1688-product2.p.rapidapi.com',
+      parse: (d: any) => ({ items: d?.data?.items || d?.items || d?.result?.items || [], total: d?.data?.total || d?.total || 0 }),
+    },
+  ];
+
+  // Fire all 3 in parallel
+  const results = await Promise.allSettled(
+    endpoints.map(async (ep) => {
+      const resp = await fetch(ep.url, {
+        method: 'GET',
+        headers: { 'x-rapidapi-host': ep.host, 'x-rapidapi-key': apiKey },
+      });
+      if (!resp.ok) throw new Error(`${ep.name}: ${resp.status}`);
+      const data = await resp.json();
+      const { items: rawItems, total } = ep.parse(data);
+      if (!rawItems?.length) throw new Error(`${ep.name}: no items`);
+      console.log(`${ep.name}: ${rawItems.length} items in ${Date.now() - startTime}ms`);
+      return { rawItems, total, name: ep.name };
+    })
+  );
+
+  // Use first successful result
+  for (const r of results) {
+    if (r.status === 'fulfilled') {
+      const { rawItems, total, name } = r.value;
+      const items = rawItems.map((item: any) => ({
+        num_iid: parseInt(item?.num_iid || item?.item_id || item?.offerId || item?.productId || '0', 10) || 0,
+        title: item?.title || item?.subject || '',
+        pic_url: item?.pic_url || item?.image_url || item?.img || item?.imageUrl || '',
+        price: parseFloat(item?.price || item?.original_price || item?.priceInfo?.price || '0') || 0,
+        sales: item?.sales || item?.sold || undefined,
+        detail_url: item?.detail_url || item?.productUrl || `https://detail.1688.com/offer/${item?.num_iid || item?.item_id || 0}.html`,
+        location: item?.location || item?.province || '',
+        vendor_name: item?.vendor_name || item?.company_name || item?.shopName || '',
+      }));
+      return { success: true, data: { items, total }, meta: { method: `native_${name}`, provider: 'rapidapi' } };
+    }
+  }
+
+  console.warn('All RapidAPI endpoints failed, falling back to Gemini');
+  return null;
+}
 
 function escapeXml(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
