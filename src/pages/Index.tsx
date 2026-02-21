@@ -754,8 +754,7 @@ const Index = () => {
 
   // Search results view
   if (hasSearched) {
-    const isImageMode = activeSearch.mode === "image";
-    const filteredProducts = applyFilters(products, filters, convertToBDT, isImageMode);
+    const filteredProducts = applyFilters(products, filters, convertToBDT);
 
     return (
       <div className="min-h-screen bg-background relative" onDragEnter={handleDragEnter} onDragLeave={handleDragLeave} onDragOver={handleDragOver} onDrop={handleDrop}>
