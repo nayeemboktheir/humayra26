@@ -256,12 +256,14 @@ const Index = () => {
     setSearchParams(params, { replace: true });
 
     try {
-      const result = await alibaba1688Api.search(searchQuery, page);
+      const result = await alibaba1688Api.search(searchQuery, page, 40, (translatedItems) => {
+        // Background translation complete — update product titles seamlessly
+        setProducts(translatedItems);
+      });
       if (result.success && result.data) {
         setProducts(result.data.items);
         setTotalResults(result.data.total);
         if (result.data.items.length === 0) toast.info("No products found");
-        else toast.success(`Found ${result.data.items.length} products`);
       } else {
         toast.error(result.error || "Search failed");
         setProducts([]);
@@ -386,7 +388,9 @@ const Index = () => {
       const imageBase64 = await base64Promise;
       toast.info("Uploading image and searching...");
 
-      const result = await alibaba1688Api.searchByImage(imageBase64, 1);
+      const result = await alibaba1688Api.searchByImage(imageBase64, 1, 40, (translatedItems) => {
+        setProducts(translatedItems);
+      });
       if (result.success && result.data) {
         setProducts(result.data.items);
         setTotalResults(result.data.total);
@@ -429,7 +433,9 @@ const Index = () => {
 
     try {
       const searchQuery = activeSearch.query || query.trim();
-      const resp = await alibaba1688Api.search(searchQuery, page);
+      const resp = await alibaba1688Api.search(searchQuery, page, 40, (translatedItems) => {
+        setProducts(translatedItems);
+      });
       if (resp.success && resp.data) {
         setProducts(resp.data.items);
         setCurrentPage(page);

@@ -127,13 +127,14 @@ export const alibaba1688Api = {
       const total = data.data?.Result?.Items?.TotalCount || 0;
       const items = rawItems.map(parseOtapiItem);
 
-      // Translate titles synchronously before returning — ensures English from the start
-      if (items.length > 0) {
-        const titles = items.map((p: Product1688) => p.title);
-        const translated = await translateTitlesAsync(titles);
-        for (let i = 0; i < items.length; i++) {
-          items[i].title = translated[i] || items[i].title;
-        }
+      // Return items immediately — no translation blocking.
+      // Background translation handled by caller via _onTranslated callback.
+      if (items.length > 0 && _onTranslated) {
+        // Fire-and-forget background translation
+        translateTitlesAsync(items.map((p: Product1688) => p.title)).then(translated => {
+          const updated = items.map((item, i) => ({ ...item, title: translated[i] || item.title }));
+          _onTranslated(updated);
+        });
       }
 
       return {
@@ -164,13 +165,12 @@ export const alibaba1688Api = {
       const total = data.data?.Result?.Items?.TotalCount || 0;
       const items = rawItems.map(parseOtapiItem);
 
-      // Translate titles synchronously before returning
-      if (items.length > 0) {
-        const titles = items.map((p: Product1688) => p.title);
-        const translated = await translateTitlesAsync(titles);
-        for (let i = 0; i < items.length; i++) {
-          items[i].title = translated[i] || items[i].title;
-        }
+      // Return immediately, translate in background
+      if (items.length > 0 && _onTranslated) {
+        translateTitlesAsync(items.map((p: Product1688) => p.title)).then(translated => {
+          const updated = items.map((item, i) => ({ ...item, title: translated[i] || item.title }));
+          _onTranslated(updated);
+        });
       }
 
       return {
