@@ -44,11 +44,25 @@ Deno.serve(async (req) => {
       imageContent = { type: 'image_url', image_url: { url: imageUrl } };
     }
 
-    // Step 2: Use fastest Gemini model to identify product in CHINESE (for 1688 accuracy)
-    const hint = keyword ? ` The user hints it is related to: "${keyword}".` : '';
-    const aiPrompt = `You are a 1688.com product search expert. Look at this product image.${hint} Return ONLY a Chinese (中文) search query (3-6 words) that would find this exact product on 1688.com. Think about what a Chinese buyer would type. No explanation, no quotes, just the Chinese search keywords.`;
+    // Step 2: Use Gemini to precisely identify the product in CHINESE for 1688 accuracy
+    const hint = keyword ? `\nUser hint: "${keyword}".` : '';
+    const aiPrompt = `You are a professional 1688.com sourcing agent with deep expertise in Chinese wholesale product terminology.
 
-    console.log('Calling Gemini flash-lite for fast identification...');
+Analyze this product image carefully. Identify:
+1. The exact product category (e.g. 连衣裙, 手机壳, 蓝牙耳机)
+2. Key material/fabric if visible (e.g. 棉, 不锈钢, 硅胶)
+3. Key style/feature descriptors (e.g. 复古, 大码, 无线)
+4. Target use or audience if obvious (e.g. 女, 儿童, 户外)
+${hint}
+Now combine these into a single Chinese search query (3-8 words) that a Chinese wholesale buyer would type on 1688.com to find this EXACT product. Use precise 1688 product terminology, not generic descriptions.
+
+RULES:
+- Output ONLY the Chinese search query, nothing else
+- No English, no quotes, no explanation
+- Be specific: "女士真皮单肩包" is better than "包包"
+- Include material/style keywords when they help narrow results`;
+
+    console.log('Calling Gemini 2.5-flash for product identification...');
     const startTime = Date.now();
 
     const aiResp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -58,7 +72,7 @@ Deno.serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash-lite',
+        model: 'google/gemini-2.5-flash',
         messages: [{
           role: 'user',
           content: [{ type: 'text', text: aiPrompt }, imageContent],
