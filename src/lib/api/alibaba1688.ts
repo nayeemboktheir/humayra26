@@ -126,10 +126,11 @@ export const alibaba1688Api = {
     imageBase64: string,
     page = 1,
     pageSize = 40,
+    keyword = '',
   ): Promise<ApiResponse<{ items: Product1688[]; total: number }>> {
     try {
       const { data, error } = await supabase.functions.invoke('alibaba-1688-image-search', {
-        body: { imageBase64, page, pageSize },
+        body: { imageBase64, page, pageSize, keyword },
       });
 
       if (error) return { success: false, error: error.message };
