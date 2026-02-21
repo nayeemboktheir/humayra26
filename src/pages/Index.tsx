@@ -375,7 +375,9 @@ const Index = () => {
       const imageBase64 = await base64Promise;
       toast.info("Uploading image and searching...");
 
-      const result = await alibaba1688Api.searchByImage(imageBase64, 1, 40, keyword);
+      // Use filename as hint if no keyword provided
+      const effectiveKeyword = keyword || file.name.replace(/\.[^.]+$/, '').replace(/[_\-]+/g, ' ');
+      const result = await alibaba1688Api.searchByImage(imageBase64, 1, 40, effectiveKeyword);
       if (result.success && result.data) {
         setProducts(result.data.items);
         setTotalResults(result.data.total);
