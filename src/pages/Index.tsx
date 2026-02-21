@@ -897,6 +897,38 @@ const Index = () => {
         {/* Main area */}
         <div className="flex-1 min-w-0 px-3 sm:px-6">
           {/* Hero Banner */}
+          <div className="mt-4 mb-5 rounded-2xl overflow-hidden header-gradient p-6 sm:p-8 md:p-10 relative">
+            <div className="relative z-10">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-primary-foreground mb-2 leading-tight">
+                {settings.hero_title || "Wholesale from China"}
+              </h1>
+              <p className="text-primary-foreground/80 text-sm sm:text-base mb-4 max-w-md">
+                {settings.hero_subtitle || "Find products at factory prices"}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Badge className="bg-primary-foreground/20 text-primary-foreground border-0 cursor-pointer hover:bg-primary-foreground/30 backdrop-blur-sm" onClick={() => handleCategoryClick("trending products")}>{settings.hero_badge_1 || "🔥 Trending"}</Badge>
+                <Badge className="bg-primary-foreground/20 text-primary-foreground border-0 cursor-pointer hover:bg-primary-foreground/30 backdrop-blur-sm" onClick={() => handleCategoryClick("new arrivals")}>{settings.hero_badge_2 || "✨ New Arrivals"}</Badge>
+                <Badge className="bg-primary-foreground/20 text-primary-foreground border-0 cursor-pointer hover:bg-primary-foreground/30 backdrop-blur-sm" onClick={() => handleCategoryClick("best selling")}>{settings.hero_badge_3 || "⭐ Best Selling"}</Badge>
+              </div>
+            </div>
+            <div className="absolute -right-8 -bottom-8 w-32 h-32 rounded-full bg-primary-foreground/10" />
+            <div className="absolute -right-4 top-2 w-16 h-16 rounded-full bg-primary-foreground/5" />
+          </div>
+
+          {/* Shipping Service CTA */}
+          <div className="shipping-cta rounded-xl px-5 py-3.5 mb-6 flex items-center justify-between border border-primary/15">
+            <div className="flex items-center gap-3">
+              <Truck className="h-5 w-5 text-primary shrink-0" />
+              <span className="text-sm font-semibold text-foreground">Looking for Shipping Service</span>
+            </div>
+            <button
+              onClick={() => navigate("/dashboard/shipments")}
+              className="px-4 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity shrink-0"
+            >
+              Click Here
+            </button>
+          </div>
+
           {/* Mobile horizontal categories */}
           <section id="top-categories" className="lg:hidden mb-6 sticky top-[52px] md:top-[64px] z-40 bg-background py-3 -mx-3 px-3 sm:-mx-6 sm:px-6">
             <div className="relative">
