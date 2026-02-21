@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Search, Camera, ImageIcon, Loader2, ChevronLeft, ChevronRight, Star, BadgeCheck, Flame, Truck, Heart, ShoppingCart, User, Zap, SlidersHorizontal, Download } from "lucide-react";
+import { Search, Camera, ImageIcon, Loader2, ChevronLeft, ChevronRight, Star, BadgeCheck, Flame, Truck, Heart, ShoppingCart, User, Zap, SlidersHorizontal, Download, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -117,6 +117,9 @@ const Index = () => {
   const [isLoadingProduct, setIsLoadingProduct] = useState(false);
   const [isTranslatingProduct] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [imageSearchFile, setImageSearchFile] = useState<File | null>(null);
+  const [imageSearchKeyword, setImageSearchKeyword] = useState("");
+  const [imageSearchPreview, setImageSearchPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounterRef = useRef(0);
   const topCatScrollRef = useRef<HTMLDivElement>(null);
@@ -349,16 +352,18 @@ const Index = () => {
     loadCategoryPage(activeCategoryView.query, page);
   };
 
-  const handleImageSearch = async (file: File) => {
+  const handleImageSearch = async (file: File, keyword = '') => {
+    setImageSearchFile(null);
+    setImageSearchPreview(null);
+    setImageSearchKeyword("");
     setIsLoading(true);
     setHasSearched(true);
     setSelectedProduct(null);
 
-
     setCurrentPage(1);
     setTotalResults(null);
     setAltQueryIndex(0);
-    setActiveSearch({ mode: "image", query: "", altQueries: [] });
+    setActiveSearch({ mode: "image", query: keyword, altQueries: [] });
 
     try {
       const reader = new FileReader();
@@ -370,7 +375,7 @@ const Index = () => {
       const imageBase64 = await base64Promise;
       toast.info("Uploading image and searching...");
 
-      const result = await alibaba1688Api.searchByImage(imageBase64, 1, 40);
+      const result = await alibaba1688Api.searchByImage(imageBase64, 1, 40, keyword);
       if (result.success && result.data) {
         setProducts(result.data.items);
         setTotalResults(result.data.total);
@@ -378,7 +383,7 @@ const Index = () => {
         const altQueries = Array.isArray((result.meta as any)?.altQueries) ? ((result.meta as any).altQueries as string[]) : [];
         setActiveSearch({
           mode: "image",
-          query: typeof derivedQuery === "string" ? derivedQuery : "",
+          query: typeof derivedQuery === "string" ? derivedQuery : keyword,
           altQueries: altQueries.filter(Boolean),
         });
         if (result.data.items.length === 0) toast.info("No similar products found");
@@ -439,7 +444,11 @@ const Index = () => {
   const validateAndSearchImage = (file: File) => {
     if (!file.type.startsWith('image/')) { toast.error("Please select an image file"); return; }
     if (file.size > 5 * 1024 * 1024) { toast.error("Image must be less than 5MB"); return; }
-    handleImageSearch(file);
+    // Show preview dialog for optional keyword hint
+    setImageSearchFile(file);
+    setImageSearchKeyword("");
+    const url = URL.createObjectURL(file);
+    setImageSearchPreview(url);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -559,10 +568,53 @@ const Index = () => {
     topCatScrollRef.current.scrollBy({ left: dir === 'left' ? -300 : 300, behavior: 'smooth' });
   };
 
+  // Image search hint dialog
+  const imageSearchDialog = imageSearchFile && imageSearchPreview && (
+    <div className="fixed inset-0 z-[200] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => { setImageSearchFile(null); setImageSearchPreview(null); }}>
+      <div className="bg-card rounded-xl shadow-2xl max-w-md w-full p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-bold">Image Search</h3>
+          <button onClick={() => { setImageSearchFile(null); setImageSearchPreview(null); }} className="text-muted-foreground hover:text-foreground">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="aspect-square max-h-48 mx-auto rounded-lg overflow-hidden bg-muted">
+          <img src={imageSearchPreview} alt="Search image" className="w-full h-full object-contain" />
+        </div>
+        <div>
+          <label className="text-sm font-medium text-foreground mb-1.5 block">Add keyword for better accuracy (optional)</label>
+          <Input
+            type="text"
+            placeholder="e.g. fog machine, LED light, bag..."
+            value={imageSearchKeyword}
+            onChange={(e) => setImageSearchKeyword(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleImageSearch(imageSearchFile!, imageSearchKeyword.trim());
+              }
+            }}
+            autoFocus
+          />
+          <p className="text-xs text-muted-foreground mt-1">Adding a keyword helps find more relevant products</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" className="flex-1" onClick={() => handleImageSearch(imageSearchFile!)}>
+            Search without keyword
+          </Button>
+          <Button className="flex-1" onClick={() => handleImageSearch(imageSearchFile!, imageSearchKeyword.trim())} disabled={!imageSearchKeyword.trim()}>
+            <Search className="h-4 w-4 mr-1" /> Search
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+
   // Product detail view
   if (selectedProduct || isLoadingProduct) {
     return (
       <div className="min-h-screen bg-background">
+        {imageSearchDialog}
         <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} settings={settings} />
         <ProductDetail product={selectedProduct || undefined} isLoading={isTranslatingProduct} onBack={handleBackToSearch} />
       </div>
@@ -576,6 +628,7 @@ const Index = () => {
 
     return (
       <div className="min-h-screen bg-background">
+        {imageSearchDialog}
         <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} settings={settings} />
         <div className="px-3 sm:px-6">
           <div className="flex gap-6 mt-4">
@@ -725,6 +778,7 @@ const Index = () => {
     return (
       <div className="min-h-screen bg-background relative" onDragEnter={handleDragEnter} onDragLeave={handleDragLeave} onDragOver={handleDragOver} onDrop={handleDrop}>
         {isDragging && <DragOverlay />}
+        {imageSearchDialog}
         <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} />
         <div className="px-3 sm:px-6 py-6">
           <div className="flex gap-6">
@@ -804,6 +858,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background relative" onDragEnter={handleDragEnter} onDragLeave={handleDragLeave} onDragOver={handleDragOver} onDrop={handleDrop}>
       {isDragging && <DragOverlay />}
+      {imageSearchDialog}
       <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} settings={settings} />
 
       {/* Main content with category sidebar */}

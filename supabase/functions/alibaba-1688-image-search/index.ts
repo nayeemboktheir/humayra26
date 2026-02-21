@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { imageBase64, page = 1, pageSize = 40 } = await req.json();
+    const { imageBase64, page = 1, pageSize = 40, keyword = '' } = await req.json();
 
     if (!imageBase64) {
       return new Response(JSON.stringify({ success: false, error: 'Image is required' }), {
@@ -80,10 +80,11 @@ Deno.serve(async (req) => {
     await uploadResp.text().catch(() => '');
     console.log('Image uploaded to OTAPI successfully');
 
-    // Step 3: Search using SearchItemsFrame with ImageFileId
+    // Step 3: Search using SearchItemsFrame with ImageFileId + optional keyword
     const framePosition = (page - 1) * pageSize;
-    const xmlParams = `<SearchItemsParameters><ImageFileId>${fileId}</ImageFileId></SearchItemsParameters>`;
-    console.log('Searching with ImageFileId:', fileId);
+    const keywordTag = keyword ? `<ItemTitle>${keyword}</ItemTitle>` : '';
+    const xmlParams = `<SearchItemsParameters><ImageFileId>${fileId}</ImageFileId>${keywordTag}</SearchItemsParameters>`;
+    console.log('Searching with ImageFileId:', fileId, 'keyword:', keyword || '(none)');
 
     const url = `https://otapi.net/service-json/SearchItemsFrame?instanceKey=${encodeURIComponent(apiKey)}&language=en&xmlParameters=${encodeURIComponent(xmlParams)}&framePosition=${framePosition}&frameSize=${pageSize}`;
 
