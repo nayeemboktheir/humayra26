@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
     const b = imageBase64.slice(0, 20);
     const ext = b.startsWith('/9j/') ? 'jpg' : b.startsWith('iVBOR') ? 'png' : b.startsWith('UklGR') ? 'webp' : 'jpg';
     const mime = ext === 'jpg' ? 'image/jpeg' : ext === 'png' ? 'image/png' : 'image/webp';
-    const fileName = `image-search-${Date.now()}.${ext}`;
+    const fileName = `search-${Date.now()}.${ext}`;
 
     // Decode base64 to binary
     const binaryStr = atob(imageBase64);
@@ -41,33 +41,51 @@ Deno.serve(async (req) => {
       bytes[i] = binaryStr.charCodeAt(i);
     }
 
-    // Upload image to Supabase storage to get a public URL
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // Step 1: Get upload URL from OTAPI file storage
+    console.log('Step 1: Getting OTAPI file upload URL...');
+    const uploadUrlResp = await fetch(
+      `https://otapi.net/service-json/GetFileUploadUrl?instanceKey=${encodeURIComponent(apiKey)}&language=en&fileName=${encodeURIComponent(fileName)}&fileType=Image`,
+      { method: 'GET', headers: { Accept: 'application/json' } }
+    );
+    const uploadUrlData = await uploadUrlResp.json().catch(() => null);
 
-    const { error: uploadError } = await supabase.storage
-      .from('image-search')
-      .upload(fileName, bytes, { contentType: mime, upsert: true });
-
-    if (uploadError) {
-      console.error('Storage upload failed:', uploadError.message);
-      return new Response(JSON.stringify({ success: false, error: 'Failed to upload image' }), {
+    if (!uploadUrlData || uploadUrlData.ErrorCode !== 'Ok' || !uploadUrlData.Result) {
+      console.error('GetFileUploadUrl failed:', JSON.stringify(uploadUrlData));
+      return new Response(JSON.stringify({ success: false, error: 'Failed to get upload URL from API' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const { data: publicUrlData } = supabase.storage.from('image-search').getPublicUrl(fileName);
-    const imageUrl = publicUrlData.publicUrl;
-    console.log('Image uploaded, public URL:', imageUrl);
+    const fileId = uploadUrlData.Result.Id;
+    const uploadUrl = uploadUrlData.Result.UploadUrl;
+    console.log(`Got file ID: ${fileId}, upload URL: ${uploadUrl}`);
 
-    // Search using ImageUrl for accurate visual matching
+    // Step 2: Upload the image binary to OTAPI's upload URL
+    console.log('Step 2: Uploading image to OTAPI servers...');
+    const uploadResp = await fetch(uploadUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': mime },
+      body: bytes,
+    });
+
+    if (!uploadResp.ok) {
+      const uploadErrText = await uploadResp.text().catch(() => '');
+      console.error('Image upload to OTAPI failed:', uploadResp.status, uploadErrText);
+      return new Response(JSON.stringify({ success: false, error: 'Failed to upload image to search server' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    await uploadResp.text().catch(() => '');
+    console.log('Image uploaded to OTAPI successfully');
+
+    // Step 3: Search using BatchSearchItemsFrame with ImageFileId
     const framePosition = (page - 1) * pageSize;
-    const xmlParams = `<SearchItemsParameters><Provider>Alibaba1688</Provider><ImageUrl>${imageUrl}</ImageUrl></SearchItemsParameters>`;
-    console.log('Searching with ImageUrl');
+    const xmlParams = `<SearchItemsParameters><ImageFileId>${fileId}</ImageFileId></SearchItemsParameters>`;
+    console.log('Searching with BatchSearchItemsFrame, ImageFileId:', fileId);
 
-    const url = `https://otapi.net/service-json/SearchItemsFrame?instanceKey=${encodeURIComponent(apiKey)}&language=en&xmlParameters=${encodeURIComponent(xmlParams)}&framePosition=${framePosition}&frameSize=${pageSize}`;
+    const url = `https://otapi.net/service-json/BatchSearchItemsFrame?instanceKey=${encodeURIComponent(apiKey)}&language=en&xmlParameters=${encodeURIComponent(xmlParams)}&framePosition=${framePosition}&frameSize=${pageSize}&blockList=`;
 
     const resp = await fetch(url, { method: 'GET', headers: { Accept: 'application/json' } });
     const data = await resp.json().catch(() => null);
@@ -88,17 +106,15 @@ Deno.serve(async (req) => {
       });
     }
 
+    // BatchSearchItemsFrame returns Items inside Result
     const items = data?.Result?.Items?.Content || [];
     const searchMethod = data?.Result?.SearchMethod || 'unknown';
-    console.log(`Image search returned ${items.length} items via method: ${searchMethod}`);
-
-    // Clean up uploaded file (fire and forget)
-    supabase.storage.from('image-search').remove([fileName]).catch(() => {});
+    console.log(`Image search returned ${items.length} items via method: ${searchMethod}, fileId: ${fileId}`);
 
     return new Response(JSON.stringify({
       success: true,
       data,
-      meta: { method: 'image_url', provider: 'otapi', searchMethod },
+      meta: { method: 'batch_image_file_id', provider: 'otapi', searchMethod, fileId },
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
