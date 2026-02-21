@@ -5,7 +5,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const GOOGLE_LENS_HOST = 'google-lens2.p.rapidapi.com';
+const GOOGLE_LENS_HOST = 'real-time-lens-data.p.rapidapi.com';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -54,7 +54,7 @@ Deno.serve(async (req) => {
     console.log('Step 1: Image URL ready:', publicImageUrl);
 
     // Step 2: Use Google Lens to identify the product
-    const lensUrl = `https://${GOOGLE_LENS_HOST}/image-search?url=${encodeURIComponent(publicImageUrl)}&country=us&language=en`;
+    const lensUrl = `https://${GOOGLE_LENS_HOST}/search?url=${encodeURIComponent(publicImageUrl)}&country=us&language=en`;
 
     console.log('Step 2: Calling Google Lens...');
     const lensResp = await fetch(lensUrl, {
