@@ -3,171 +3,185 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const RAPIDAPI_HOST = '1688-product2.p.rapidapi.com';
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { imageBase64, page = 1, pageSize = 40, keyword = '' } = await req.json();
+    const { imageBase64, imageUrl, page = 1, pageSize = 20, keyword = '', sort = 'default' } = await req.json();
 
-    if (!imageBase64) {
+    if (!imageBase64 && !imageUrl) {
       return new Response(JSON.stringify({ success: false, error: 'Image is required' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const otapiKey = (Deno.env.get('OTCOMMERCE_API_KEY') ?? '').trim();
-    if (!otapiKey) {
-      return new Response(JSON.stringify({ success: false, error: '1688 API not configured' }), {
+    const rapidApiKey = (Deno.env.get('RAPIDAPI_KEY') ?? '').trim();
+    if (!rapidApiKey) {
+      return new Response(JSON.stringify({ success: false, error: 'RapidAPI key not configured' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Run image search + optional text search in parallel
-    const promises: Promise<any>[] = [otapiImageSearch(otapiKey, imageBase64, page, pageSize, keyword)];
+    const headers = {
+      'x-rapidapi-key': rapidApiKey,
+      'x-rapidapi-host': RAPIDAPI_HOST,
+      'Content-Type': 'application/json',
+    };
 
-    if (keyword.trim()) {
-      promises.push(otapiTextSearch(otapiKey, keyword.trim(), page, pageSize));
+    // Step 1: Get Ali-compatible image URL
+    let aliImageUrl = imageUrl || '';
+
+    if (!aliImageUrl && imageBase64) {
+      // Upload to temp storage to get a public URL, then convert via TMAPI
+      const publicUrl = await uploadToTempStorage(imageBase64);
+      if (!publicUrl) {
+        return new Response(JSON.stringify({ success: false, error: 'Failed to upload image' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Convert to Ali-compatible URL via TMAPI
+      const convertResp = await fetch(`https://${RAPIDAPI_HOST}/api/image-url-convert`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ url: publicUrl }),
+      });
+
+      const convertData = await convertResp.json().catch(() => null);
+      console.log('Image URL conversion response:', JSON.stringify(convertData));
+
+      if (!convertResp.ok || convertData?.code !== 200 || !convertData?.data?.image_url) {
+        return new Response(JSON.stringify({ 
+          success: false, 
+          error: convertData?.msg || 'Failed to convert image URL' 
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      aliImageUrl = convertData.data.image_url;
+      // If it's a relative path, prepend the base
+      if (aliImageUrl.startsWith('/')) {
+        aliImageUrl = `https://cbu01.alicdn.com${aliImageUrl}`;
+      }
     }
 
-    const results = await Promise.all(promises);
-    const imageResult = results[0];
-    const textResult = keyword.trim() ? results[1] : null;
+    console.log('Using image URL for search:', aliImageUrl);
 
-    // If we have both image and text results, merge them prioritizing text matches
-    if (textResult?.success && imageResult?.success) {
-      const merged = mergeResults(imageResult.data, textResult.data);
+    // Step 2: Search by image using multilingual endpoint (returns English)
+    const searchParams = new URLSearchParams({
+      img_url: aliImageUrl,
+      page: String(page),
+      page_size: String(Math.min(pageSize, 20)),
+      language: 'en',
+      sort,
+    });
+
+    const searchResp = await fetch(
+      `https://${RAPIDAPI_HOST}/api/search/image?${searchParams.toString()}`,
+      { method: 'GET', headers: { 'x-rapidapi-key': rapidApiKey, 'x-rapidapi-host': RAPIDAPI_HOST } }
+    );
+
+    const searchData = await searchResp.json().catch(() => null);
+
+    if (!searchResp.ok || searchData?.code !== 200) {
+      console.error('Image search failed:', searchData);
       return new Response(JSON.stringify({
-        success: true,
-        data: merged,
-        meta: { method: 'otapi_merged', provider: 'otapi' },
+        success: false,
+        error: searchData?.msg || `Image search failed: ${searchResp.status}`,
       }), {
+        status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Fallback to whichever succeeded
-    const finalResult = imageResult?.success ? imageResult : textResult;
-    return new Response(JSON.stringify(finalResult || { success: false, error: 'Search failed' }), {
+    const items = searchData?.data?.item_list || [];
+    const total = searchData?.data?.total_count || items.length;
+
+    console.log(`TMAPI image search returned ${items.length} items (total: ${total})`);
+
+    // Parse items into our standard format
+    const parsedItems = items.map((item: any) => ({
+      num_iid: item.item_id || 0,
+      title: item.title || '',
+      pic_url: item.pic_url || item.img_url || '',
+      price: parseFloat(item.price || '0') || 0,
+      promotion_price: item.promotion_price ? parseFloat(item.promotion_price) : undefined,
+      sales: item.sales ? parseInt(item.sales, 10) : undefined,
+      detail_url: item.detail_url || `https://detail.1688.com/offer/${item.item_id}.html`,
+      location: item.province || '',
+      vendor_name: item.seller_nick || '',
+    }));
+
+    return new Response(JSON.stringify({
+      success: true,
+      data: { items: parsedItems, total },
+      meta: { method: 'tmapi_rapidapi', provider: 'tmapi' },
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
     console.error('Error in image search:', error);
-    return new Response(JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Failed to search by image' }), {
+    return new Response(JSON.stringify({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to search by image',
+    }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });
 
-// Merge image search results with text search results, prioritizing text matches
-function mergeResults(imageData: any, textData: any): any {
-  const imageItems = imageData?.Result?.Items?.Content || [];
-  const textItems = textData?.Result?.Items?.Content || [];
-
-  // Use text items as primary (more relevant to keyword), dedupe image items
-  const seenIds = new Set(textItems.map((i: any) => i?.Id));
-  const uniqueImageItems = imageItems.filter((i: any) => !seenIds.has(i?.Id));
-
-  // Text results first, then remaining image results
-  const merged = [...textItems, ...uniqueImageItems];
-
-  return {
-    ...imageData,
-    Result: {
-      ...imageData?.Result,
-      Items: {
-        Content: merged,
-        TotalCount: merged.length,
-      },
-      SearchMethod: 'Merged_Text_Image',
-    },
-  };
-}
-
-// OTAPI text search by keyword
-async function otapiTextSearch(apiKey: string, keyword: string, page: number, pageSize: number) {
+// Upload base64 image to Supabase temp storage and return public URL
+async function uploadToTempStorage(base64: string): Promise<string | null> {
   try {
-    const framePosition = (page - 1) * pageSize;
-    const xmlParams = `<SearchItemsParameters><ItemTitle>${keyword}</ItemTitle></SearchItemsParameters>`;
-    const url = `https://otapi.net/service-json/SearchItemsFrame?instanceKey=${encodeURIComponent(apiKey)}&language=en&xmlParameters=${encodeURIComponent(xmlParams)}&framePosition=${framePosition}&frameSize=${pageSize}`;
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+    if (!supabaseUrl || !serviceKey) return null;
 
-    const resp = await fetch(url, { method: 'GET', headers: { Accept: 'application/json' } });
-    const data = await resp.json().catch(() => null);
+    const b = base64.slice(0, 20);
+    const ext = b.startsWith('/9j/') ? 'jpg' : b.startsWith('iVBOR') ? 'png' : b.startsWith('UklGR') ? 'webp' : 'jpg';
+    const mime = ext === 'jpg' ? 'image/jpeg' : ext === 'png' ? 'image/png' : 'image/webp';
+    const fileName = `img-search-${Date.now()}.${ext}`;
 
-    if (!resp.ok || (data?.ErrorCode && data.ErrorCode !== 'Ok' && data.ErrorCode !== 'None')) {
-      console.error('Text search failed:', data?.ErrorMessage);
-      return { success: false };
+    const binaryStr = atob(base64);
+    const bytes = new Uint8Array(binaryStr.length);
+    for (let i = 0; i < binaryStr.length; i++) {
+      bytes[i] = binaryStr.charCodeAt(i);
     }
 
-    const items = data?.Result?.Items?.Content || [];
-    console.log(`OTAPI text search returned ${items.length} items for keyword: ${keyword}`);
-    return { success: true, data };
+    const uploadResp = await fetch(
+      `${supabaseUrl}/storage/v1/object/image-search/${fileName}`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${serviceKey}`,
+          'Content-Type': mime,
+          'x-upsert': 'true',
+        },
+        body: bytes,
+      }
+    );
+
+    if (!uploadResp.ok) {
+      console.error('Storage upload failed:', uploadResp.status);
+      await uploadResp.text();
+      return null;
+    }
+    await uploadResp.json();
+
+    return `${supabaseUrl}/storage/v1/object/public/image-search/${fileName}`;
   } catch (err) {
-    console.error('Text search error:', err);
-    return { success: false };
+    console.error('Upload error:', err);
+    return null;
   }
-}
-
-// OTAPI image search with ImageFileId
-async function otapiImageSearch(apiKey: string, imageBase64: string, page: number, pageSize: number, keyword: string) {
-  const b = imageBase64.slice(0, 20);
-  const ext = b.startsWith('/9j/') ? 'jpg' : b.startsWith('iVBOR') ? 'png' : b.startsWith('UklGR') ? 'webp' : 'jpg';
-  const mime = ext === 'jpg' ? 'image/jpeg' : ext === 'png' ? 'image/png' : 'image/webp';
-  const fileName = `search-${Date.now()}.${ext}`;
-
-  const binaryStr = atob(imageBase64);
-  const bytes = new Uint8Array(binaryStr.length);
-  for (let i = 0; i < binaryStr.length; i++) {
-    bytes[i] = binaryStr.charCodeAt(i);
-  }
-
-  // Step 1: Get upload URL
-  const uploadUrlResp = await fetch(
-    `https://otapi.net/service-json/GetFileUploadUrl?instanceKey=${encodeURIComponent(apiKey)}&language=en&fileName=${encodeURIComponent(fileName)}&fileType=Image`,
-    { method: 'GET', headers: { Accept: 'application/json' } }
-  );
-  const uploadUrlData = await uploadUrlResp.json().catch(() => null);
-
-  if (!uploadUrlData || uploadUrlData.ErrorCode !== 'Ok' || !uploadUrlData.Result) {
-    return { success: false, error: 'Failed to get upload URL' };
-  }
-
-  const fileId = uploadUrlData.Result.Id;
-  const uploadUrl = uploadUrlData.Result.UploadUrl;
-
-  // Step 2: Upload image
-  const uploadResp = await fetch(uploadUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': mime },
-    body: bytes,
-  });
-
-  if (!uploadResp.ok) {
-    return { success: false, error: 'Failed to upload image' };
-  }
-  await uploadResp.text().catch(() => '');
-
-  // Step 3: Search using ImageFileId
-  const framePosition = (page - 1) * pageSize;
-  const keywordTag = keyword ? `<ItemTitle>${keyword}</ItemTitle>` : '';
-  const xmlParams = `<SearchItemsParameters><ImageFileId>${fileId}</ImageFileId>${keywordTag}</SearchItemsParameters>`;
-
-  const url = `https://otapi.net/service-json/SearchItemsFrame?instanceKey=${encodeURIComponent(apiKey)}&language=en&xmlParameters=${encodeURIComponent(xmlParams)}&framePosition=${framePosition}&frameSize=${pageSize}`;
-
-  const resp = await fetch(url, { method: 'GET', headers: { Accept: 'application/json' } });
-  const data = await resp.json().catch(() => null);
-
-  if (!resp.ok || (data?.ErrorCode && data.ErrorCode !== 'Ok' && data.ErrorCode !== 'None')) {
-    return { success: false, error: data?.ErrorMessage || `Failed: ${resp.status}` };
-  }
-
-  const items = data?.Result?.Items?.Content || [];
-  console.log(`OTAPI image search returned ${items.length} items`);
-
-  return { success: true, data };
 }
