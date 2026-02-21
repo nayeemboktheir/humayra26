@@ -925,7 +925,7 @@ const Index = () => {
           </div>
 
           {/* Top Category - Circular Icons */}
-          <section id="top-categories" className="mb-8">
+          <section id="top-categories" className="mb-8 sticky top-[52px] md:top-[64px] z-40 bg-background py-3 -mx-3 px-3 sm:-mx-6 sm:px-6">
             <div className="flex items-center gap-2 mb-4">
               <Zap className="h-5 w-5 text-primary fill-primary" />
               <h2 className="text-lg font-bold text-foreground">Top Category</h2>
