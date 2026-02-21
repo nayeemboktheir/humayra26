@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
     // Do NOT pass language parameter - let OTAPI use the native image search method
     const framePosition = (page - 1) * pageSize;
     const xmlParams = `<SearchItemsParameters><Provider>Alibaba1688</Provider><ImageUrl>${imageUrl}</ImageUrl></SearchItemsParameters>`;
-    const url = `https://otapi.net/service-json/SearchItemsFrame?instanceKey=${encodeURIComponent(apiKey)}&xmlParameters=${encodeURIComponent(xmlParams)}&framePosition=${framePosition}&frameSize=${pageSize}`;
+    const url = `https://otapi.net/service-json/SearchItemsFrame?instanceKey=${encodeURIComponent(apiKey)}&language=en&xmlParameters=${encodeURIComponent(xmlParams)}&framePosition=${framePosition}&frameSize=${pageSize}`;
 
     console.log('Calling OTAPI SearchItemsFrame with ImageUrl (no language param)...');
     const resp = await fetch(url, { method: 'GET', headers: { Accept: 'application/json' } });

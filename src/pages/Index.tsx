@@ -100,13 +100,8 @@ const fallbackTrendingProducts = [
   { id: "abb-868362523543", title: "Travel to Beautiful China 30 Postcards Night Scenery", image: "https://cbu01.alicdn.com/img/ibank/O1CN01Ti6Bv71FKqRCoR1mD_!!2458430469-0-cib.310x310.jpg", price: 95, oldPrice: 98, sold: 2326810 },
 ];
 
-async function translateTextsBackground(texts: string[]): Promise<string[]> {
-  try {
-    const { data, error } = await supabase.functions.invoke('translate-text', { body: { texts } });
-    if (error || !data?.translations) return texts;
-    return data.translations;
-  } catch { return texts; }
-}
+
+
 
 const Index = () => {
   const navigate = useNavigate();
@@ -115,12 +110,12 @@ const Index = () => {
   const { settings } = useAppSettings();
   const [query, setQuery] = useState("");
   const [products, setProducts] = useState<Product1688[]>([]);
-  const [translatedTitles, setTranslatedTitles] = useState<Record<number, string>>({});
+  const [_translatedTitles] = useState<Record<number, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<ProductDetail1688 | null>(null);
   const [isLoadingProduct, setIsLoadingProduct] = useState(false);
-  const [isTranslatingProduct, setIsTranslatingProduct] = useState(false);
+  const [isTranslatingProduct] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounterRef = useRef(0);
@@ -134,7 +129,7 @@ const Index = () => {
     altQueries: string[];
   } | null>(null);
   const [altQueryIndex, setAltQueryIndex] = useState(0);
-  const [isTranslatingTitles, setIsTranslatingTitles] = useState(false);
+  const [_isTranslatingTitles] = useState(false);
   const [filters, setFilters] = useState<SearchFilterValues>(getDefaultFilters());
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -225,26 +220,15 @@ const Index = () => {
     }
   };
 
-  const handleTranslateTitles = async () => {
-    if (products.length === 0 || isTranslatingTitles) return;
-    setIsTranslatingTitles(true);
-    try {
-      const titles = products.map((p) => p.title);
-      const translated = await translateTextsBackground(titles);
-      const titleMap: Record<number, string> = {};
-      products.forEach((product, index) => {
-        const t = translated[index];
-        if (t && t !== product.title) titleMap[product.num_iid] = t;
-      });
-      setTranslatedTitles(titleMap);
-    } finally { setIsTranslatingTitles(false); }
-  };
+
+
 
   const performSearch = async (searchQuery: string, page = 1) => {
     setIsLoading(true);
     setHasSearched(true);
     setSelectedProduct(null);
-    setTranslatedTitles({});
+
+
     setCurrentPage(page);
     if (page === 1) { setTotalResults(null); setAltQueryIndex(0); }
     setActiveSearch({ mode: "text", query: searchQuery, altQueries: [] });
@@ -256,10 +240,7 @@ const Index = () => {
     setSearchParams(params, { replace: true });
 
     try {
-      const result = await alibaba1688Api.search(searchQuery, page, 40, (translatedItems) => {
-        // Background translation complete — update product titles seamlessly
-        setProducts(translatedItems);
-      });
+      const result = await alibaba1688Api.search(searchQuery, page, 40);
       if (result.success && result.data) {
         setProducts(result.data.items);
         setTotalResults(result.data.total);
@@ -372,7 +353,8 @@ const Index = () => {
     setIsLoading(true);
     setHasSearched(true);
     setSelectedProduct(null);
-    setTranslatedTitles({});
+
+
     setCurrentPage(1);
     setTotalResults(null);
     setAltQueryIndex(0);
@@ -388,9 +370,7 @@ const Index = () => {
       const imageBase64 = await base64Promise;
       toast.info("Uploading image and searching...");
 
-      const result = await alibaba1688Api.searchByImage(imageBase64, 1, 40, (translatedItems) => {
-        setProducts(translatedItems);
-      });
+      const result = await alibaba1688Api.searchByImage(imageBase64, 1, 40);
       if (result.success && result.data) {
         setProducts(result.data.items);
         setTotalResults(result.data.total);
@@ -422,7 +402,7 @@ const Index = () => {
     if (!activeSearch || isLoading) return;
     if (page < 1 || (totalPages > 0 && page > totalPages)) return;
     setIsLoading(true);
-    setTranslatedTitles({});
+    
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
     // Update URL with page
@@ -433,9 +413,7 @@ const Index = () => {
 
     try {
       const searchQuery = activeSearch.query || query.trim();
-      const resp = await alibaba1688Api.search(searchQuery, page, 40, (translatedItems) => {
-        setProducts(translatedItems);
-      });
+      const resp = await alibaba1688Api.search(searchQuery, page, 40);
       if (resp.success && resp.data) {
         setProducts(resp.data.items);
         setCurrentPage(page);
@@ -510,33 +488,21 @@ const Index = () => {
     };
     setSelectedProduct(fallback);
     setIsLoadingProduct(true);
-    setIsTranslatingProduct(true);
     setSearchParams({ product: String(product.num_iid) });
     try {
-      const result = await alibaba1688Api.getProduct(
-        product.num_iid,
-        0,
-        // 🚀 Show raw (untranslated) product immediately — keep translating banner visible
-        (rawProduct) => { setSelectedProduct(rawProduct); setIsLoadingProduct(false); },
-      );
+      const result = await alibaba1688Api.getProduct(product.num_iid);
       if (result.success && result.data) setSelectedProduct(result.data);
     } catch (error) { console.error("Product details error:", error); }
-    finally { setIsLoadingProduct(false); setIsTranslatingProduct(false); }
+    finally { setIsLoadingProduct(false); }
   };
 
   const handleTrendingClick = async (productId: string) => {
     const numIid = parseInt(productId.replace('abb-', ''));
     setIsLoadingProduct(true);
-    setIsTranslatingProduct(true);
     setSelectedProduct(null);
     setSearchParams({ product: String(numIid) });
     try {
-      const result = await alibaba1688Api.getProduct(
-        numIid,
-        0,
-        // 🚀 Show raw product as soon as data arrives, before translation
-        (rawProduct) => { setSelectedProduct(rawProduct); setIsLoadingProduct(false); },
-      );
+      const result = await alibaba1688Api.getProduct(numIid);
       if (result.success && result.data) {
         setSelectedProduct(result.data);
       } else if (!result.success) {
@@ -549,7 +515,7 @@ const Index = () => {
       setSelectedProduct(null);
       setSearchParams({});
     }
-    finally { setIsLoadingProduct(false); setIsTranslatingProduct(false); }
+    finally { setIsLoadingProduct(false); }
   };
 
   const handleBackToSearch = () => { setSelectedProduct(null); setActiveCategoryView(null); setSearchParams({}); };
@@ -586,7 +552,7 @@ const Index = () => {
     }
   }, []);
 
-  const getDisplayTitle = (product: Product1688) => translatedTitles[product.num_iid] || product.title;
+  const getDisplayTitle = (product: Product1688) => product.title;
 
   const scrollTopCat = (dir: 'left' | 'right') => {
     if (!topCatScrollRef.current) return;
