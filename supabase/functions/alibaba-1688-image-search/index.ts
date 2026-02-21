@@ -56,7 +56,8 @@ Deno.serve(async (req) => {
     // Step 2: Use Google Lens to identify the product
     const lensUrl = `https://${GOOGLE_LENS_HOST}/search?url=${encodeURIComponent(publicImageUrl)}&country=us&language=en`;
 
-    console.log('Step 2: Calling Google Lens...');
+    console.log('Step 2: Calling Google Lens at:', lensUrl);
+    console.log('Using RapidAPI key (first 8 chars):', rapidApiKey.slice(0, 8) + '...');
     const lensResp = await fetch(lensUrl, {
       method: 'GET',
       headers: {
@@ -64,6 +65,7 @@ Deno.serve(async (req) => {
         'x-rapidapi-host': GOOGLE_LENS_HOST,
       },
     });
+    console.log('Lens response status:', lensResp.status);
 
     const lensData = await lensResp.json().catch(() => null);
 
