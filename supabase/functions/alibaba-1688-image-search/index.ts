@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
       }
 
       // Convert to Ali-compatible URL via TMAPI
-      const convertResp = await fetch(`https://${RAPIDAPI_HOST}/api/image-url-convert`, {
+      const convertResp = await fetch(`https://${RAPIDAPI_HOST}/1688/image-url-convert`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ url: publicUrl }),
@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
     });
 
     const searchResp = await fetch(
-      `https://${RAPIDAPI_HOST}/api/search/image?${searchParams.toString()}`,
+      `https://${RAPIDAPI_HOST}/1688/search/image?${searchParams.toString()}`,
       { method: 'GET', headers: { 'x-rapidapi-key': rapidApiKey, 'x-rapidapi-host': RAPIDAPI_HOST } }
     );
 
