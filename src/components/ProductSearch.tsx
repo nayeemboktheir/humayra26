@@ -34,8 +34,6 @@ export const ProductSearch = () => {
         query,
         1,
         40,
-        // Background translation callback — updates titles once Gemini responds
-        (translatedItems) => setProducts(translatedItems),
       );
 
       if (response.success && response.data) {
