@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
 
     // Search using ImageUrl for accurate visual matching
     const framePosition = (page - 1) * pageSize;
-    const xmlParams = `<SearchItemsParameters><ImageUrl>${imageUrl}</ImageUrl></SearchItemsParameters>`;
+    const xmlParams = `<SearchItemsParameters><Provider>Alibaba1688</Provider><ImageUrl>${imageUrl}</ImageUrl></SearchItemsParameters>`;
     console.log('Searching with ImageUrl');
 
     const url = `https://otapi.net/service-json/SearchItemsFrame?instanceKey=${encodeURIComponent(apiKey)}&language=en&xmlParameters=${encodeURIComponent(xmlParams)}&framePosition=${framePosition}&frameSize=${pageSize}`;
