@@ -136,76 +136,94 @@ async function uploadToTempBucket(imageBase64: string): Promise<string> {
   return pub.publicUrl;
 }
 
-// ── RapidAPI 1688-datahub: Direct image search ──
+// ── RapidAPI "1688 Product" (TMAPI wrapper): image search ──
 async function tryRapidApiImageSearch(
   imageUrl: string,
   page: number,
-  _pageSize: number,
+  pageSize: number,
   apiKey: string,
   startTime: number,
 ): Promise<any | null> {
+  const host = '1688-product2.p.rapidapi.com';
   try {
-    console.log('RapidAPI datahub: Starting image search...');
-    const url = `https://1688-datahub.p.rapidapi.com/item_search_image?imgUrl=${encodeURIComponent(imageUrl)}&page=${page}&sort=default`;
+    // Step 1: Convert image URL to Alibaba-compatible format
+    console.log('RapidAPI 1688-product: Converting image URL...');
+    const convertResp = await fetch(`https://${host}/1688/tools/image/convert_url`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-rapidapi-host': host,
+        'x-rapidapi-key': apiKey,
+      },
+      body: JSON.stringify({ url: imageUrl }),
+    });
 
-    const resp = await fetch(url, {
+    if (!convertResp.ok) {
+      const body = await convertResp.text();
+      console.error(`Image convert failed: ${convertResp.status}`, body.slice(0, 300));
+      return null;
+    }
+
+    const convertData = await convertResp.json();
+    const convertedUrl = convertData?.data?.url || convertData?.data || '';
+    if (!convertedUrl) {
+      console.error('Image convert returned no URL:', JSON.stringify(convertData).slice(0, 300));
+      return null;
+    }
+    console.log(`Image converted in ${Date.now() - startTime}ms`);
+
+    // Step 2: Search by converted image URL
+    const searchUrl = `https://${host}/1688/search/image?img_url=${encodeURIComponent(convertedUrl)}&page=${page}&page_size=${Math.min(pageSize, 20)}&sort=default`;
+    const searchResp = await fetch(searchUrl, {
       method: 'GET',
       headers: {
-        'x-rapidapi-host': '1688-datahub.p.rapidapi.com',
+        'x-rapidapi-host': host,
         'x-rapidapi-key': apiKey,
       },
     });
 
-    if (!resp.ok) {
-      console.error(`RapidAPI datahub failed: ${resp.status}`);
-      const body = await resp.text();
-      console.error('Response:', body.slice(0, 300));
+    if (!searchResp.ok) {
+      const body = await searchResp.text();
+      console.error(`Image search failed: ${searchResp.status}`, body.slice(0, 300));
       return null;
     }
 
-    const data = await resp.json();
-    const statusCode = data?.result?.status?.code;
-    if (statusCode !== 200) {
-      console.error(`RapidAPI datahub API error: ${statusCode}`);
+    const data = await searchResp.json();
+    const rawItems = data?.data?.items || [];
+    const total = data?.data?.total_results || rawItems.length;
+
+    if (!rawItems.length) {
+      console.warn('RapidAPI 1688-product: No items found');
       return null;
     }
 
-    const resultList = data?.result?.resultList || [];
-    if (!resultList.length) {
-      console.warn('RapidAPI datahub: No items found');
-      return null;
-    }
+    console.log(`RapidAPI 1688-product: ${rawItems.length} items in ${Date.now() - startTime}ms`);
 
-    console.log(`RapidAPI datahub: ${resultList.length} items in ${Date.now() - startTime}ms`);
-
-    const items = resultList.map((entry: any) => {
-      const item = entry?.item || entry;
-      const itemId = parseInt(String(item?.itemId || '0'), 10) || 0;
-      let picUrl = item?.image || '';
+    const items = rawItems.map((item: any) => {
+      const itemId = parseInt(String(item?.num_iid || item?.item_id || '0'), 10) || 0;
+      let picUrl = item?.pic_url || item?.image || '';
       if (picUrl.startsWith('//')) picUrl = 'https:' + picUrl;
-      const price = parseFloat(item?.sku?.def?.price || '0') || 0;
-      let itemUrl = item?.itemUrl || '';
-      if (itemUrl.startsWith('//')) itemUrl = 'https:' + itemUrl;
+      const price = parseFloat(String(item?.price || item?.promotion_price || '0')) || 0;
 
       return {
         num_iid: itemId,
         title: item?.title || '',
         pic_url: picUrl,
         price,
-        sales: item?.sales || undefined,
-        detail_url: itemUrl || `https://detail.1688.com/offer/${itemId}.html`,
-        location: '',
-        vendor_name: '',
+        sales: item?.sales ? parseInt(String(item.sales), 10) : undefined,
+        detail_url: item?.detail_url || `https://detail.1688.com/offer/${itemId}.html`,
+        location: item?.area || item?.location || '',
+        vendor_name: item?.seller_nick || '',
       };
     });
 
     return {
       success: true,
-      data: { items, total: items.length },
-      meta: { method: 'rapidapi_datahub_image', provider: 'rapidapi' },
+      data: { items, total },
+      meta: { method: 'rapidapi_1688_product_image', provider: 'rapidapi_tmapi' },
     };
   } catch (e) {
-    console.error('RapidAPI datahub error:', e);
+    console.error('RapidAPI 1688-product error:', e);
     return null;
   }
 }
