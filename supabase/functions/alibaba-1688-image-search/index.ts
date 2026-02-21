@@ -20,61 +20,34 @@ Deno.serve(async (req) => {
     }
 
     const startTime = Date.now();
-    const rapidApiKey = Deno.env.get('RAPIDAPI_KEY');
+    const tmapiToken = Deno.env.get('TMAPI_TOKEN');
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
     const otapiKey = Deno.env.get('OTCOMMERCE_API_KEY');
 
-    // ── Upload image to get public URL (needed for RapidAPI) ──
-    let searchImageUrl = imageUrl || '';
+    // ── Get a public URL for the image ──
+    let publicImageUrl = imageUrl || '';
     if (imageBase64 && !imageUrl) {
-      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+      publicImageUrl = await uploadToTempBucket(imageBase64);
+    }
 
-      const b = imageBase64.slice(0, 20);
-      const ext = b.startsWith('/9j/') ? 'jpg' : b.startsWith('iVBOR') ? 'png' : 'jpg';
-      const mime = ext === 'png' ? 'image/png' : 'image/jpeg';
-      const binaryStr = atob(imageBase64);
-      const bytes = new Uint8Array(binaryStr.length);
-      for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
-
-      const fileName = `search-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-      const { error: uploadError } = await supabase.storage
-        .from('temp-images')
-        .upload(fileName, bytes, { contentType: mime, upsert: true });
-
-      if (!uploadError) {
-        const { data: pub } = supabase.storage.from('temp-images').getPublicUrl(fileName);
-        searchImageUrl = pub.publicUrl;
-        setTimeout(async () => {
-          try { await supabase.storage.from('temp-images').remove([fileName]); } catch {}
-        }, 60000);
+    // ── PRIMARY: TMAPI direct Pailitao visual search ──
+    if (tmapiToken && publicImageUrl) {
+      const result = await tryTmapi(publicImageUrl, page, pageSize, tmapiToken, startTime);
+      if (result) {
+        return new Response(JSON.stringify(result), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
     }
 
-    // ── Start Gemini identification IN PARALLEL with RapidAPI attempts ──
-    // This way if RapidAPI fails, Gemini result is already ready
-    let geminiPromise: Promise<string | null> | null = null;
-    if (lovableApiKey && otapiKey) {
-      geminiPromise = identifyWithGemini(imageBase64, imageUrl, keyword, lovableApiKey);
-    }
-
-    // ── Try all RapidAPI endpoints IN PARALLEL for speed ──
-    if (rapidApiKey && searchImageUrl) {
-      const result = await tryRapidApiParallel(searchImageUrl, page, pageSize, rapidApiKey, startTime);
-      if (result) return new Response(JSON.stringify(result), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // ── Fallback: Use Gemini result (already started above) ──
-    if (!geminiPromise) {
+    // ── FALLBACK: Gemini AI identification → OTAPI text search ──
+    if (!lovableApiKey || !otapiKey) {
       return new Response(JSON.stringify({ success: false, error: 'No search API configured' }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const detectedQuery = await geminiPromise;
+    const detectedQuery = await identifyWithGemini(imageBase64, imageUrl, keyword, lovableApiKey);
     console.log(`Gemini detected: "${detectedQuery}" in ${Date.now() - startTime}ms`);
 
     if (!detectedQuery) {
@@ -86,13 +59,12 @@ Deno.serve(async (req) => {
     // Search via OTAPI
     const framePosition = (page - 1) * pageSize;
     const xmlParams = `<SearchItemsParameters><ItemTitle>${escapeXml(detectedQuery)}</ItemTitle><Provider>Alibaba1688</Provider></SearchItemsParameters>`;
-    const otapiUrl = `https://otapi.net/service-json/SearchItemsFrame?instanceKey=${encodeURIComponent(otapiKey!)}&language=en&xmlParameters=${encodeURIComponent(xmlParams)}&framePosition=${framePosition}&frameSize=${pageSize}`;
+    const otapiUrl = `https://otapi.net/service-json/SearchItemsFrame?instanceKey=${encodeURIComponent(otapiKey)}&language=en&xmlParameters=${encodeURIComponent(xmlParams)}&framePosition=${framePosition}&frameSize=${pageSize}`;
 
     const searchResp = await fetch(otapiUrl, { method: 'GET', headers: { 'Accept': 'application/json' } });
     const searchData = await searchResp.json().catch(() => null);
 
     if (!searchResp.ok || (searchData?.ErrorCode && searchData.ErrorCode !== 'Ok' && searchData.ErrorCode !== 'None')) {
-      console.error('OTAPI search failed:', searchData);
       return new Response(JSON.stringify({ success: false, error: searchData?.ErrorMessage || 'Failed to search 1688' }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -100,7 +72,6 @@ Deno.serve(async (req) => {
 
     const rawItems = searchData?.Result?.Items?.Content || [];
     const totalCount = searchData?.Result?.Items?.TotalCount || rawItems.length;
-    console.log(`Found ${rawItems.length} items in ${Date.now() - startTime}ms total`);
 
     const items = rawItems.map((item: any) => {
       const price = item?.Price?.OriginalPrice || item?.Price?.ConvertedPriceList?.Internal?.Price || 0;
@@ -137,7 +108,112 @@ Deno.serve(async (req) => {
   }
 });
 
-// ── Gemini identification (uses flash-lite for speed) ──
+// ── Upload base64 image to temp bucket and return public URL ──
+async function uploadToTempBucket(imageBase64: string): Promise<string> {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+  const b = imageBase64.slice(0, 20);
+  const ext = b.startsWith('/9j/') ? 'jpg' : b.startsWith('iVBOR') ? 'png' : 'jpg';
+  const mime = ext === 'png' ? 'image/png' : 'image/jpeg';
+  const binaryStr = atob(imageBase64);
+  const bytes = new Uint8Array(binaryStr.length);
+  for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+
+  const fileName = `search-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const { error } = await supabase.storage
+    .from('temp-images')
+    .upload(fileName, bytes, { contentType: mime, upsert: true });
+
+  if (error) throw new Error(`Image upload failed: ${error.message}`);
+
+  const { data: pub } = supabase.storage.from('temp-images').getPublicUrl(fileName);
+
+  // Cleanup after 60s
+  setTimeout(async () => {
+    try { await supabase.storage.from('temp-images').remove([fileName]); } catch {}
+  }, 60000);
+
+  return pub.publicUrl;
+}
+
+// ── TMAPI: Convert image URL → Search by image ──
+async function tryTmapi(
+  imageUrl: string,
+  page: number,
+  pageSize: number,
+  apiToken: string,
+  startTime: number,
+): Promise<any | null> {
+  try {
+    // Step 1: Convert non-Ali image URL to Ali-compatible format
+    console.log('TMAPI: Converting image URL...');
+    const convertResp = await fetch(
+      `http://api.tmapi.top/1688/tools/image/convert_url?apiToken=${encodeURIComponent(apiToken)}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: imageUrl, search_api_endpoint: '/search/image' }),
+      }
+    );
+
+    if (!convertResp.ok) {
+      console.error(`TMAPI convert failed: ${convertResp.status}`);
+      return null;
+    }
+
+    const convertData = await convertResp.json();
+    const convertedUrl = convertData?.data?.img_url || convertData?.data?.url || '';
+    if (!convertedUrl) {
+      console.error('TMAPI: No converted URL returned', convertData);
+      return null;
+    }
+    console.log(`TMAPI: Image converted in ${Date.now() - startTime}ms`);
+
+    // Step 2: Visual search with converted image
+    const searchUrl = `http://api.tmapi.top/1688/search/image?apiToken=${encodeURIComponent(apiToken)}&img_url=${encodeURIComponent(convertedUrl)}&page=${page}&page_size=${Math.min(pageSize, 20)}&sort=default`;
+
+    const searchResp = await fetch(searchUrl, { method: 'GET' });
+    if (!searchResp.ok) {
+      console.error(`TMAPI search failed: ${searchResp.status}`);
+      return null;
+    }
+
+    const searchData = await searchResp.json();
+    const rawItems = searchData?.data?.items || [];
+    const total = searchData?.data?.total || rawItems.length;
+
+    if (!rawItems.length) {
+      console.warn('TMAPI: No items found');
+      return null;
+    }
+
+    console.log(`TMAPI: ${rawItems.length} items in ${Date.now() - startTime}ms`);
+
+    const items = rawItems.map((item: any) => ({
+      num_iid: parseInt(item?.num_iid || item?.item_id || item?.offerId || '0', 10) || 0,
+      title: item?.title || item?.subject || '',
+      pic_url: item?.pic_url || item?.image_url || item?.img || '',
+      price: parseFloat(item?.price || item?.original_price || '0') || 0,
+      sales: item?.sales || item?.sold || undefined,
+      detail_url: item?.detail_url || `https://detail.1688.com/offer/${item?.num_iid || 0}.html`,
+      location: item?.location || item?.province || '',
+      vendor_name: item?.vendor_name || item?.company_name || item?.shopName || '',
+    }));
+
+    return {
+      success: true,
+      data: { items, total },
+      meta: { method: 'tmapi_pailitao', provider: 'tmapi' },
+    };
+  } catch (e) {
+    console.error('TMAPI error:', e);
+    return null;
+  }
+}
+
+// ── Gemini identification (fallback) ──
 async function identifyWithGemini(
   imageBase64: string | undefined,
   imageUrl: string | undefined,
@@ -180,75 +256,6 @@ async function identifyWithGemini(
     console.error('Gemini error:', e);
     return null;
   }
-}
-
-// ── Run all 3 RapidAPI endpoints in parallel, return first success ──
-async function tryRapidApiParallel(
-  imageUrl: string,
-  page: number,
-  pageSize: number,
-  apiKey: string,
-  startTime: number,
-): Promise<any | null> {
-  const imgParam = encodeURIComponent(imageUrl);
-
-  const endpoints = [
-    {
-      name: 'open-1688-api',
-      url: `https://open-1688-api.p.rapidapi.com/alibaba/product/imageQuery?imageUrl=${imgParam}&country=en&beginPage=${page}&pageSize=${pageSize}`,
-      host: 'open-1688-api.p.rapidapi.com',
-      parse: (d: any) => ({ items: d?.data?.items || d?.items || d?.result?.items || d?.data?.result || [], total: d?.data?.total || d?.total || 0 }),
-    },
-    {
-      name: '1688-datahub',
-      url: `https://1688-datahub.p.rapidapi.com/item_search_image_2?imgUrl=${imgParam}&page=${page}&sort=default`,
-      host: '1688-datahub.p.rapidapi.com',
-      parse: (d: any) => ({ items: d?.result?.result || d?.result?.items || d?.items || [], total: d?.result?.total_results || d?.result?.real_total_results || 0 }),
-    },
-    {
-      name: '1688-product2',
-      url: `https://1688-product2.p.rapidapi.com/1688/search/image?img_url=${imgParam}&page=${page}&sort=default`,
-      host: '1688-product2.p.rapidapi.com',
-      parse: (d: any) => ({ items: d?.data?.items || d?.items || d?.result?.items || [], total: d?.data?.total || d?.total || 0 }),
-    },
-  ];
-
-  // Fire all 3 in parallel
-  const results = await Promise.allSettled(
-    endpoints.map(async (ep) => {
-      const resp = await fetch(ep.url, {
-        method: 'GET',
-        headers: { 'x-rapidapi-host': ep.host, 'x-rapidapi-key': apiKey },
-      });
-      if (!resp.ok) throw new Error(`${ep.name}: ${resp.status}`);
-      const data = await resp.json();
-      const { items: rawItems, total } = ep.parse(data);
-      if (!rawItems?.length) throw new Error(`${ep.name}: no items`);
-      console.log(`${ep.name}: ${rawItems.length} items in ${Date.now() - startTime}ms`);
-      return { rawItems, total, name: ep.name };
-    })
-  );
-
-  // Use first successful result
-  for (const r of results) {
-    if (r.status === 'fulfilled') {
-      const { rawItems, total, name } = r.value;
-      const items = rawItems.map((item: any) => ({
-        num_iid: parseInt(item?.num_iid || item?.item_id || item?.offerId || item?.productId || '0', 10) || 0,
-        title: item?.title || item?.subject || '',
-        pic_url: item?.pic_url || item?.image_url || item?.img || item?.imageUrl || '',
-        price: parseFloat(item?.price || item?.original_price || item?.priceInfo?.price || '0') || 0,
-        sales: item?.sales || item?.sold || undefined,
-        detail_url: item?.detail_url || item?.productUrl || `https://detail.1688.com/offer/${item?.num_iid || item?.item_id || 0}.html`,
-        location: item?.location || item?.province || '',
-        vendor_name: item?.vendor_name || item?.company_name || item?.shopName || '',
-      }));
-      return { success: true, data: { items, total }, meta: { method: `native_${name}`, provider: 'rapidapi' } };
-    }
-  }
-
-  console.warn('All RapidAPI endpoints failed, falling back to Gemini');
-  return null;
 }
 
 function escapeXml(str: string): string {
