@@ -58,44 +58,95 @@ Deno.serve(async (req) => {
         }
 
         if (searchImageUrl) {
-          const imgParam = encodeURIComponent(searchImageUrl);
-          const apiUrl = `https://1688-product2.p.rapidapi.com/1688/search/image?img_url=${imgParam}&page=${page}&sort=default`;
-          console.log('Trying native 1688 Pailitao via RapidAPI...');
+          // ── Try 1688-datahub first (item_search_image_2) ──
+          try {
+            const imgParam = encodeURIComponent(searchImageUrl);
+            const datahubUrl = `https://1688-datahub.p.rapidapi.com/item_search_image_2?imgUrl=${imgParam}&page=${page}&sort=default`;
+            console.log('Trying 1688-datahub image search...');
 
-          const resp = await fetch(apiUrl, {
-            method: 'GET',
-            headers: {
-              'x-rapidapi-host': '1688-product2.p.rapidapi.com',
-              'x-rapidapi-key': rapidApiKey,
-            },
-          });
+            const dhResp = await fetch(datahubUrl, {
+              method: 'GET',
+              headers: {
+                'x-rapidapi-host': '1688-datahub.p.rapidapi.com',
+                'x-rapidapi-key': rapidApiKey,
+              },
+            });
 
-          if (resp.ok) {
-            const data = await resp.json();
-            const rawItems = data?.data?.items || data?.items || data?.result?.items || [];
-            const totalCount = data?.data?.total || data?.total || rawItems.length;
-            console.log(`RapidAPI Pailitao: ${rawItems.length} items in ${Date.now() - startTime}ms`);
+            if (dhResp.ok) {
+              const dhData = await dhResp.json();
+              const rawItems = dhData?.result?.result || dhData?.result?.items || dhData?.items || [];
+              const totalCount = dhData?.result?.total_results || dhData?.result?.real_total_results || rawItems.length;
+              console.log(`1688-datahub: ${rawItems.length} items in ${Date.now() - startTime}ms`);
 
-            const items = rawItems.map((item: any) => ({
-              num_iid: parseInt(item?.item_id || item?.num_iid || item?.offerId || '0', 10) || 0,
-              title: item?.title || item?.subject || '',
-              pic_url: item?.pic_url || item?.image_url || item?.img || '',
-              price: parseFloat(item?.price || item?.original_price || '0') || 0,
-              sales: item?.sales || item?.sold || undefined,
-              detail_url: item?.detail_url || `https://detail.1688.com/offer/${item?.item_id || item?.num_iid || 0}.html`,
-              location: item?.location || item?.province || '',
-              vendor_name: item?.vendor_name || item?.company_name || '',
-            }));
+              if (rawItems.length > 0) {
+                const items = rawItems.map((item: any) => ({
+                  num_iid: parseInt(item?.num_iid || item?.item_id || item?.offerId || '0', 10) || 0,
+                  title: item?.title || item?.subject || '',
+                  pic_url: item?.pic_url || item?.image_url || item?.img || '',
+                  price: parseFloat(item?.price || item?.original_price || '0') || 0,
+                  sales: item?.sales || item?.sold || undefined,
+                  detail_url: item?.detail_url || `https://detail.1688.com/offer/${item?.num_iid || 0}.html`,
+                  location: item?.location || item?.province || '',
+                  vendor_name: item?.vendor_name || item?.company_name || '',
+                }));
 
-            return new Response(JSON.stringify({
-              success: true,
-              data: { items, total: totalCount },
-              meta: { method: 'native_1688_pailitao', provider: 'rapidapi' },
-            }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+                return new Response(JSON.stringify({
+                  success: true,
+                  data: { items, total: totalCount },
+                  meta: { method: 'native_1688_datahub', provider: 'rapidapi' },
+                }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+              }
+            } else {
+              console.warn(`1688-datahub failed (${dhResp.status}), trying 1688-product2...`);
+            }
+          } catch (e) {
+            console.warn('1688-datahub attempt failed:', e);
           }
 
-          const errBody = await resp.text();
-          console.warn(`RapidAPI failed (${resp.status}), falling back to AI method. Error: ${errBody}`);
+          // ── Fallback to 1688-product2 (Pailitao) ──
+          try {
+            const imgParam = encodeURIComponent(searchImageUrl);
+            const apiUrl = `https://1688-product2.p.rapidapi.com/1688/search/image?img_url=${imgParam}&page=${page}&sort=default`;
+            console.log('Trying native 1688 Pailitao via RapidAPI...');
+
+            const resp = await fetch(apiUrl, {
+              method: 'GET',
+              headers: {
+                'x-rapidapi-host': '1688-product2.p.rapidapi.com',
+                'x-rapidapi-key': rapidApiKey,
+              },
+            });
+
+            if (resp.ok) {
+              const data = await resp.json();
+              const rawItems = data?.data?.items || data?.items || data?.result?.items || [];
+              const totalCount = data?.data?.total || data?.total || rawItems.length;
+              console.log(`RapidAPI Pailitao: ${rawItems.length} items in ${Date.now() - startTime}ms`);
+
+              if (rawItems.length > 0) {
+                const items = rawItems.map((item: any) => ({
+                  num_iid: parseInt(item?.item_id || item?.num_iid || item?.offerId || '0', 10) || 0,
+                  title: item?.title || item?.subject || '',
+                  pic_url: item?.pic_url || item?.image_url || item?.img || '',
+                  price: parseFloat(item?.price || item?.original_price || '0') || 0,
+                  sales: item?.sales || item?.sold || undefined,
+                  detail_url: item?.detail_url || `https://detail.1688.com/offer/${item?.item_id || item?.num_iid || 0}.html`,
+                  location: item?.location || item?.province || '',
+                  vendor_name: item?.vendor_name || item?.company_name || '',
+                }));
+
+                return new Response(JSON.stringify({
+                  success: true,
+                  data: { items, total: totalCount },
+                  meta: { method: 'native_1688_pailitao', provider: 'rapidapi' },
+                }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+              }
+            } else {
+              console.warn(`RapidAPI Pailitao failed (${resp.status}), falling back to AI method.`);
+            }
+          } catch (e) {
+            console.warn('RapidAPI Pailitao attempt failed:', e);
+          }
         }
       } catch (e) {
         console.warn('RapidAPI attempt failed, falling back to AI method:', e);
