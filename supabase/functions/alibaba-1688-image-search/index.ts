@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { imageBase64, imageUrl, page = 1, pageSize = 20, keyword = '' } = await req.json();
+    const { imageBase64, imageUrl, page = 1, pageSize = 20 } = await req.json();
 
     if (!imageBase64 && !imageUrl) {
       return new Response(JSON.stringify({ success: false, error: 'Image is required' }), {
@@ -21,8 +21,6 @@ Deno.serve(async (req) => {
 
     const startTime = Date.now();
     const rapidApiKey = Deno.env.get('RAPIDAPI_KEY');
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
-    const otapiKey = Deno.env.get('OTCOMMERCE_API_KEY');
 
     // ── Get a public URL for the image ──
     let publicImageUrl = imageUrl || '';
@@ -30,7 +28,7 @@ Deno.serve(async (req) => {
       publicImageUrl = await uploadToTempBucket(imageBase64);
     }
 
-    // ── PRIMARY: RapidAPI 1688-datahub visual search ──
+    // ── RapidAPI "1688 Product" image search ──
     if (rapidApiKey && publicImageUrl) {
       const result = await tryRapidApiImageSearch(publicImageUrl, page, pageSize, rapidApiKey, startTime);
       if (result) {
@@ -40,63 +38,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── FALLBACK: Gemini AI identification → OTAPI text search ──
-    if (!lovableApiKey || !otapiKey) {
-      return new Response(JSON.stringify({ success: false, error: 'No search API configured' }), {
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const detectedQuery = await identifyWithGemini(imageBase64, imageUrl, keyword, lovableApiKey);
-    console.log(`Gemini detected: "${detectedQuery}" in ${Date.now() - startTime}ms`);
-
-    if (!detectedQuery) {
-      return new Response(JSON.stringify({ success: false, error: 'Could not identify the product.' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const framePosition = (page - 1) * pageSize;
-    const xmlParams = `<SearchItemsParameters><ItemTitle>${escapeXml(detectedQuery)}</ItemTitle><Provider>Alibaba1688</Provider></SearchItemsParameters>`;
-    const otapiUrl = `https://otapi.net/service-json/SearchItemsFrame?instanceKey=${encodeURIComponent(otapiKey)}&language=en&xmlParameters=${encodeURIComponent(xmlParams)}&framePosition=${framePosition}&frameSize=${pageSize}`;
-
-    const searchResp = await fetch(otapiUrl, { method: 'GET', headers: { 'Accept': 'application/json' } });
-    const searchData = await searchResp.json().catch(() => null);
-
-    if (!searchResp.ok || (searchData?.ErrorCode && searchData.ErrorCode !== 'Ok' && searchData.ErrorCode !== 'None')) {
-      return new Response(JSON.stringify({ success: false, error: searchData?.ErrorMessage || 'Failed to search 1688' }), {
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const rawItems = searchData?.Result?.Items?.Content || [];
-    const totalCount = searchData?.Result?.Items?.TotalCount || rawItems.length;
-
-    const items = rawItems.map((item: any) => {
-      const price = item?.Price?.OriginalPrice || item?.Price?.ConvertedPriceList?.Internal?.Price || 0;
-      const picUrl = item?.MainPictureUrl || item?.Pictures?.[0]?.Url || '';
-      const externalId = item?.Id || '';
-      const numIid = parseInt(externalId.replace(/^abb-/, ''), 10) || 0;
-      const featuredValues = Array.isArray(item?.FeaturedValues) ? item.FeaturedValues : [];
-      const totalSales = parseInt(featuredValues.find((v: any) => v?.Name === 'TotalSales')?.Value || '0', 10) || undefined;
-
-      return {
-        num_iid: numIid,
-        title: item?.Title || '',
-        pic_url: picUrl,
-        price: typeof price === 'number' ? price : parseFloat(price) || 0,
-        sales: totalSales,
-        detail_url: item?.ExternalItemUrl || `https://detail.1688.com/offer/${numIid}.html`,
-        location: item?.Location?.State || item?.Location?.City || '',
-        vendor_name: item?.VendorName || item?.VendorDisplayName || '',
-      };
+    // No fallback — return error if RapidAPI failed
+    return new Response(JSON.stringify({ success: false, error: 'Image search failed. Please try again.' }), {
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
-
-    return new Response(JSON.stringify({
-      success: true,
-      data: { items, total: totalCount },
-      meta: { method: 'gemini_ai_1688_combo', detected_query: detectedQuery, provider: 'otapi' },
-    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {
     console.error('Error in image search:', error);
@@ -228,51 +173,3 @@ async function tryRapidApiImageSearch(
   }
 }
 
-// ── Gemini identification (fallback) ──
-async function identifyWithGemini(
-  imageBase64: string | undefined,
-  imageUrl: string | undefined,
-  keyword: string,
-  apiKey: string,
-): Promise<string | null> {
-  let imageContent: any;
-  if (imageBase64) {
-    const b = imageBase64.slice(0, 20);
-    const mime = b.startsWith('/9j/') ? 'image/jpeg' : b.startsWith('iVBOR') ? 'image/png' : 'image/jpeg';
-    imageContent = { type: 'image_url', image_url: { url: `data:${mime};base64,${imageBase64}` } };
-  } else {
-    imageContent = { type: 'image_url', image_url: { url: imageUrl } };
-  }
-
-  const hint = keyword ? `\nThe user says this product is: "${keyword}". Use this as your primary guide.` : '';
-  const aiPrompt = `Identify this product and output ONLY a precise Chinese (中文) search query (3-8 chars) for 1688.com wholesale search. Be specific: 筋膜枪 not 锤子, 蓝牙耳机 not 头戴式耳机.${hint}\nNo English, no quotes, no explanation.`;
-
-  try {
-    const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash-lite',
-        messages: [{ role: 'user', content: [{ type: 'text', text: aiPrompt }, imageContent] }],
-        max_tokens: 50,
-        temperature: 0.1,
-      }),
-    });
-
-    if (!resp.ok) {
-      console.error('Gemini failed:', resp.status);
-      return null;
-    }
-
-    const data = await resp.json();
-    const query = (data?.choices?.[0]?.message?.content || '').trim().replace(/^["']|["']$/g, '').trim().slice(0, 80);
-    return query || null;
-  } catch (e) {
-    console.error('Gemini error:', e);
-    return null;
-  }
-}
-
-function escapeXml(str: string): string {
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
