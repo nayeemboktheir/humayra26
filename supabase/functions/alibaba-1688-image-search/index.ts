@@ -5,7 +5,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const RAPIDAPI_HOST = '1688-product2.p.rapidapi.com';
+const GOOGLE_LENS_HOST = 'google-lens2.p.rapidapi.com';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -13,7 +13,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { imageBase64, imageUrl, page = 1, pageSize = 20, keyword = '', sort = 'default' } = await req.json();
+    const { imageBase64, imageUrl, page = 1, pageSize = 20, keyword = '' } = await req.json();
 
     if (!imageBase64 && !imageUrl) {
       return new Response(JSON.stringify({ success: false, error: 'Image is required' }), {
@@ -30,103 +30,166 @@ Deno.serve(async (req) => {
       });
     }
 
-    const headers = {
-      'x-rapidapi-key': rapidApiKey,
-      'x-rapidapi-host': RAPIDAPI_HOST,
-      'Content-Type': 'application/json',
-    };
+    const otapiKey = Deno.env.get('OTCOMMERCE_API_KEY');
+    if (!otapiKey) {
+      return new Response(JSON.stringify({ success: false, error: '1688 API not configured' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
-    // Step 1: Get Ali-compatible image URL
-    let aliImageUrl = imageUrl || '';
+    // Step 1: Get a public URL for the image
+    let publicImageUrl = imageUrl || '';
 
-    if (!aliImageUrl && imageBase64) {
-      // Upload to temp storage to get a public URL, then convert via TMAPI
-      const publicUrl = await uploadToTempStorage(imageBase64);
-      if (!publicUrl) {
+    if (!publicImageUrl && imageBase64) {
+      publicImageUrl = await uploadToTempStorage(imageBase64);
+      if (!publicImageUrl) {
         return new Response(JSON.stringify({ success: false, error: 'Failed to upload image' }), {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-
-      // Convert to Ali-compatible URL via TMAPI
-      const convertResp = await fetch(`https://${RAPIDAPI_HOST}/1688/image-url-convert`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ url: publicUrl }),
-      });
-
-      const convertData = await convertResp.json().catch(() => null);
-      console.log('Image URL conversion response:', JSON.stringify(convertData));
-
-      if (!convertResp.ok || convertData?.code !== 200 || !convertData?.data?.image_url) {
-        return new Response(JSON.stringify({ 
-          success: false, 
-          error: convertData?.msg || 'Failed to convert image URL' 
-        }), {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
-      aliImageUrl = convertData.data.image_url;
-      // If it's a relative path, prepend the base
-      if (aliImageUrl.startsWith('/')) {
-        aliImageUrl = `https://cbu01.alicdn.com${aliImageUrl}`;
-      }
     }
 
-    console.log('Using image URL for search:', aliImageUrl);
+    console.log('Step 1: Image URL ready:', publicImageUrl);
 
-    // Step 2: Search by image using multilingual endpoint (returns English)
-    const searchParams = new URLSearchParams({
-      img_url: aliImageUrl,
-      page: String(page),
-      page_size: String(Math.min(pageSize, 20)),
-      language: 'en',
-      sort,
+    // Step 2: Use Google Lens to identify the product
+    const lensUrl = `https://${GOOGLE_LENS_HOST}/image-search?url=${encodeURIComponent(publicImageUrl)}&country=us&language=en`;
+
+    console.log('Step 2: Calling Google Lens...');
+    const lensResp = await fetch(lensUrl, {
+      method: 'GET',
+      headers: {
+        'x-rapidapi-key': rapidApiKey,
+        'x-rapidapi-host': GOOGLE_LENS_HOST,
+      },
     });
 
-    const searchResp = await fetch(
-      `https://${RAPIDAPI_HOST}/1688/search/image?${searchParams.toString()}`,
-      { method: 'GET', headers: { 'x-rapidapi-key': rapidApiKey, 'x-rapidapi-host': RAPIDAPI_HOST } }
-    );
+    const lensData = await lensResp.json().catch(() => null);
 
-    const searchData = await searchResp.json().catch(() => null);
-
-    if (!searchResp.ok || searchData?.code !== 200) {
-      console.error('Image search failed:', searchData);
+    if (!lensResp.ok || !lensData) {
+      console.error('Google Lens failed:', lensResp.status, lensData);
       return new Response(JSON.stringify({
         success: false,
-        error: searchData?.msg || `Image search failed: ${searchResp.status}`,
+        error: 'Google Lens identification failed. Make sure you are subscribed to the Google Lens API on RapidAPI.',
       }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const items = searchData?.data?.item_list || [];
-    const total = searchData?.data?.total_count || items.length;
+    // Extract product name from Lens results
+    let detectedQuery = '';
 
-    console.log(`TMAPI image search returned ${items.length} items (total: ${total})`);
+    // Try visual_matches titles first
+    const visualMatches = lensData?.visual_matches || lensData?.data?.visual_matches || [];
+    if (visualMatches.length > 0) {
+      // Pick the most descriptive title from top matches
+      const titles = visualMatches.slice(0, 5).map((m: any) => m.title || '').filter(Boolean);
+      if (titles.length > 0) {
+        detectedQuery = titles[0];
+      }
+    }
 
-    // Parse items into our standard format
-    const parsedItems = items.map((item: any) => ({
-      num_iid: item.item_id || 0,
-      title: item.title || '',
-      pic_url: item.pic_url || item.img_url || '',
-      price: parseFloat(item.price || '0') || 0,
-      promotion_price: item.promotion_price ? parseFloat(item.promotion_price) : undefined,
-      sales: item.sales ? parseInt(item.sales, 10) : undefined,
-      detail_url: item.detail_url || `https://detail.1688.com/offer/${item.item_id}.html`,
-      location: item.province || '',
-      vendor_name: item.seller_nick || '',
-    }));
+    // Try search text / knowledge graph
+    if (!detectedQuery) {
+      detectedQuery = lensData?.search?.title
+        || lensData?.knowledge_graph?.title
+        || lensData?.data?.search?.title
+        || lensData?.data?.knowledge_graph?.title
+        || '';
+    }
+
+    // Try text annotations
+    if (!detectedQuery && lensData?.text_results?.length) {
+      detectedQuery = lensData.text_results[0]?.text || '';
+    }
+
+    // Use user-provided keyword as fallback or combine
+    if (keyword && detectedQuery) {
+      detectedQuery = `${keyword} ${detectedQuery}`;
+    } else if (keyword && !detectedQuery) {
+      detectedQuery = keyword;
+    }
+
+    if (!detectedQuery) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Could not identify the product from the image. Try adding a keyword hint.',
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Keep query concise for 1688 search (max ~50 chars, remove noise)
+    detectedQuery = detectedQuery.replace(/[^a-zA-Z0-9\s\u4e00-\u9fff]/g, ' ').trim().slice(0, 80);
+
+    console.log('Step 2 result: Detected product query:', detectedQuery);
+
+    // Step 3: Search 1688 via OTAPI using the detected product name
+    const framePosition = (page - 1) * pageSize;
+    const xmlParams = `<SearchItemsParameters><ItemTitle>${escapeXml(detectedQuery)}</ItemTitle><Provider>Alibaba1688</Provider></SearchItemsParameters>`;
+    const otapiUrl = `https://otapi.net/service-json/SearchItemsFrame?instanceKey=${encodeURIComponent(otapiKey)}&language=en&xmlParameters=${encodeURIComponent(xmlParams)}&framePosition=${framePosition}&frameSize=${pageSize}`;
+
+    console.log('Step 3: Searching 1688 for:', detectedQuery);
+
+    const searchResp = await fetch(otapiUrl, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+    });
+
+    const searchData = await searchResp.json().catch(() => null);
+
+    if (!searchResp.ok || (searchData?.ErrorCode && searchData.ErrorCode !== 'Ok' && searchData.ErrorCode !== 'None')) {
+      console.error('OTAPI search failed:', searchData);
+      return new Response(JSON.stringify({
+        success: false,
+        error: searchData?.ErrorMessage || 'Failed to search 1688',
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const rawItems = searchData?.Result?.Items?.Content || [];
+    const totalCount = searchData?.Result?.Items?.TotalCount || rawItems.length;
+
+    console.log(`Step 3 result: Found ${rawItems.length} items on 1688 (total: ${totalCount})`);
+
+    // Parse OTAPI items into standard format
+    const items = rawItems.map((item: any) => {
+      const price = item?.Price?.OriginalPrice || item?.Price?.ConvertedPriceList?.Internal?.Price || 0;
+      const picUrl = item?.MainPictureUrl || item?.Pictures?.[0]?.Url || '';
+      const externalId = item?.Id || '';
+      const numIid = parseInt(externalId.replace(/^abb-/, ''), 10) || 0;
+      const featuredValues = Array.isArray(item?.FeaturedValues) ? item.FeaturedValues : [];
+      const totalSales = parseInt(featuredValues.find((v: any) => v?.Name === 'TotalSales')?.Value || '0', 10) || undefined;
+      const pics = Array.isArray(item?.Pictures) ? item.Pictures : [];
+      const location = item?.Location?.State || item?.Location?.City || '';
+
+      return {
+        num_iid: numIid,
+        title: item?.Title || '',
+        pic_url: picUrl,
+        price: typeof price === 'number' ? price : parseFloat(price) || 0,
+        promotion_price: undefined,
+        sales: totalSales,
+        detail_url: item?.ExternalItemUrl || `https://detail.1688.com/offer/${numIid}.html`,
+        location,
+        vendor_name: item?.VendorName || item?.VendorDisplayName || '',
+      };
+    });
 
     return new Response(JSON.stringify({
       success: true,
-      data: { items: parsedItems, total },
-      meta: { method: 'tmapi_rapidapi', provider: 'tmapi' },
+      data: { items, total: totalCount },
+      meta: {
+        method: 'google_lens_1688_combo',
+        detected_query: detectedQuery,
+        lens_matches: visualMatches.length,
+        provider: 'otapi',
+      },
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -143,7 +206,11 @@ Deno.serve(async (req) => {
   }
 });
 
-// Upload base64 image to Supabase storage and return public URL
+function escapeXml(str: string): string {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// Upload base64 image to storage and return public URL
 async function uploadToTempStorage(base64: string): Promise<string | null> {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
@@ -166,12 +233,9 @@ async function uploadToTempStorage(base64: string): Promise<string | null> {
       bytes[i] = binaryStr.charCodeAt(i);
     }
 
-    const { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from('image-search')
-      .upload(fileName, bytes, {
-        contentType: mime,
-        upsert: true,
-      });
+      .upload(fileName, bytes, { contentType: mime, upsert: true });
 
     if (error) {
       console.error('Storage upload error:', error.message);
