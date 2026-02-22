@@ -128,10 +128,11 @@ export const alibaba1688Api = {
     pageSize = 40,
     keyword = '',
     imageUrl = '',
+    skipOtapi = false,
   ): Promise<ApiResponse<{ items: Product1688[]; total: number }>> {
     try {
       // For page 2+, pass imageUrl (converted Ali URL) instead of re-uploading base64
-      const body: any = { page, pageSize, keyword };
+      const body: any = { page, pageSize, keyword, skipOtapi };
       if (imageUrl) {
         body.imageUrl = imageUrl;
       } else {
