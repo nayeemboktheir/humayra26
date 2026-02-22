@@ -441,32 +441,20 @@ const Index = () => {
   const goToPage = async (page: number) => {
     if (!activeSearch || isLoading) return;
     if (page < 1 || (totalPages > 0 && page > totalPages)) return;
-    setIsLoading(true);
     
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
-    // Update URL with page — for image search, use 'img' param to preserve context
-    const params = new URLSearchParams();
+    // For image search, check cache first for instant display
     if (activeSearch.mode === 'image') {
-      params.set("img", "1");
-    } else {
-      const searchQuery = activeSearch.query || query.trim();
-      if (searchQuery) params.set("q", searchQuery);
-    }
-    if (page > 1) params.set("page", String(page));
-    setSearchParams(params, { replace: true });
-
-    try {
-      if (activeSearch.mode === 'image') {
-        // Check cache first for instant display
-        const cached = imagePageCacheRef.current[page];
-        if (cached && cached.length > 0) {
-          setProducts(cached);
-          setCurrentPage(page);
-          setIsLoading(false);
-          return;
-        }
-        // Not cached — fetch live
+      const cached = imagePageCacheRef.current[page];
+      if (cached && cached.length > 0) {
+        setProducts(cached);
+        setCurrentPage(page);
+        return;
+      }
+      // Not cached — fetch live
+      setIsLoading(true);
+      try {
         if (imageSearchConvertedUrl || imageSearchBase64) {
           const resp = await alibaba1688Api.searchByImage(
             imageSearchBase64 || '', page, 20, '', imageSearchConvertedUrl || ''
@@ -475,18 +463,29 @@ const Index = () => {
             setProducts(resp.data.items);
             setCurrentPage(page);
             setTotalResults(resp.data.total);
-            imagePageCacheRef.current[page] = resp.data.items; // Cache it
+            imagePageCacheRef.current[page] = resp.data.items;
           } else toast.error(resp.error || "Failed to load page");
         }
-      } else {
-        const searchQuery = activeSearch.query || query.trim();
-        const resp = await alibaba1688Api.search(searchQuery, page, 40);
-        if (resp.success && resp.data) {
-          setProducts(resp.data.items);
-          setCurrentPage(page);
-          setTotalResults(resp.data.total);
-        } else toast.error(resp.error || "Failed to load page");
-      }
+      } catch { toast.error("Failed to load page"); }
+      finally { setIsLoading(false); }
+      return;
+    }
+
+    // Text search pagination
+    setIsLoading(true);
+    const params = new URLSearchParams();
+    const searchQuery = activeSearch.query || query.trim();
+    if (searchQuery) params.set("q", searchQuery);
+    if (page > 1) params.set("page", String(page));
+    setSearchParams(params, { replace: true });
+
+    try {
+      const resp = await alibaba1688Api.search(searchQuery, page, 40);
+      if (resp.success && resp.data) {
+        setProducts(resp.data.items);
+        setCurrentPage(page);
+        setTotalResults(resp.data.total);
+      } else toast.error(resp.error || "Failed to load page");
     } catch { toast.error("Failed to load page"); }
     finally { setIsLoading(false); }
   };
