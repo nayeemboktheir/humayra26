@@ -136,7 +136,7 @@ export const alibaba1688Api = {
       if (error) return { success: false, error: error.message };
       if (!data?.success) return { success: false, error: data?.error || 'Image search failed' };
 
-      // TMAPI returns pre-parsed items from the edge function
+      // Image search now returns OTAPI-formatted items from the edge function
       const items: Product1688[] = data.data?.items || [];
       const total = data.data?.total || 0;
 

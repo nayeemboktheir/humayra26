@@ -26,9 +26,16 @@ Deno.serve(async (req) => {
       });
     }
 
+    const otApiKey = Deno.env.get('OTCOMMERCE_API_KEY');
+    if (!otApiKey) {
+      return new Response(JSON.stringify({ success: false, error: 'OTCOMMERCE_API_KEY not configured' }), {
+        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const startTime = Date.now();
 
-    // Get a public URL for the image (upload base64 to temp bucket if needed)
+    // Step 1: Get a public URL for the image (upload base64 to temp bucket if needed)
     let publicImageUrl = imageUrl || '';
     if (imageBase64 && !imageUrl) {
       publicImageUrl = await uploadToTempBucket(imageBase64);
@@ -36,24 +43,21 @@ Deno.serve(async (req) => {
 
     console.log('Image URL for search:', publicImageUrl.slice(0, 120));
 
-    // Determine if URL needs conversion (non-Alibaba URLs do)
+    // Step 2: Convert image URL if not already Alibaba-hosted
     const needsConversion = !publicImageUrl.includes('alicdn.com') && !publicImageUrl.includes('1688.com');
     let searchImgUrl = publicImageUrl;
 
     if (needsConversion) {
-      // Convert the image URL using TMAPI's convert_url API
       searchImgUrl = await convertImageUrl(publicImageUrl, apiToken);
       console.log('Converted URL:', String(searchImgUrl).slice(0, 120));
     }
 
-    // Search using the converted/original URL
+    // Step 3: Use TMAPI to find matching product IDs via image search
     const searchUrl = `http://api.tmapi.top/1688/search/image?apiToken=${apiToken}&img_url=${encodeURIComponent(searchImgUrl)}&page=${page}&page_size=${Math.min(pageSize, 20)}&sort=default`;
 
-    console.log('TMAPI search request...');
+    console.log('TMAPI image search request...');
     const resp = await fetch(searchUrl);
     const data = await resp.json();
-
-    console.log('TMAPI response status:', resp.status);
 
     if (!resp.ok) {
       console.error('TMAPI error:', JSON.stringify(data).slice(0, 500));
@@ -62,48 +66,38 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Parse TMAPI response
     const resultData = data?.data;
     const rawItems = resultData?.items || [];
     const total = resultData?.total || rawItems.length;
 
     if (!Array.isArray(rawItems) || !rawItems.length) {
-      console.warn('TMAPI: No items found. Response:', JSON.stringify(data).slice(0, 300));
-      return new Response(JSON.stringify({ success: true, data: { items: [], total: 0 }, meta: { method: 'tmapi_image' } }), {
+      console.warn('TMAPI: No items found');
+      return new Response(JSON.stringify({ success: true, data: { items: [], total: 0 }, meta: { method: 'tmapi_image_otapi' } }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    console.log(`TMAPI: ${rawItems.length} items in ${Date.now() - startTime}ms`);
+    // Step 4: Extract product IDs from TMAPI results
+    const productIds = rawItems
+      .map((item: any) => item?.item_id || 0)
+      .filter((id: number) => id > 0);
 
-    const items = rawItems.map((item: any) => {
-      const itemId = item?.item_id || item?.num_iid || 0;
-      let picUrl = item?.img || item?.pic_url || '';
-      if (picUrl.startsWith('//')) picUrl = 'https:' + picUrl;
+    console.log(`TMAPI found ${productIds.length} product IDs in ${Date.now() - startTime}ms`);
 
-      const price = parseFloat(String(item?.price_info?.sale_price || item?.price || '0')) || 0;
-      const sales = item?.sale_info?.sale_quantity_int || item?.sales || undefined;
-      const location = Array.isArray(item?.delivery_info?.area_from)
-        ? item.delivery_info.area_from.join(' ')
-        : (item?.location || '');
-      const vendorName = item?.shop_info?.shop_name || item?.shop_info?.seller_nick || item?.vendor_name || '';
+    if (!productIds.length) {
+      return new Response(JSON.stringify({ success: true, data: { items: [], total: 0 }, meta: { method: 'tmapi_image_otapi' } }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
-      return {
-        num_iid: itemId,
-        title: item?.title || '',
-        pic_url: picUrl,
-        price,
-        sales,
-        detail_url: item?.product_url || item?.detail_url || `https://detail.1688.com/offer/${itemId}.html`,
-        location,
-        vendor_name: vendorName,
-      };
-    });
+    // Step 5: Fetch full product details from OTCommerce for each ID
+    const otapiItems = await fetchOtapiDetails(productIds, otApiKey);
+    console.log(`OTCommerce returned ${otapiItems.length} items in ${Date.now() - startTime}ms`);
 
     return new Response(JSON.stringify({
       success: true,
-      data: { items, total },
-      meta: { method: 'tmapi_image', provider: 'tmapi' },
+      data: { items: otapiItems, total },
+      meta: { method: 'tmapi_image_otapi', provider: 'otapi', tmapiMatches: productIds.length },
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -116,6 +110,73 @@ Deno.serve(async (req) => {
     }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
+
+// Fetch product details from OTCommerce (OTAPI) for a list of product IDs
+async function fetchOtapiDetails(productIds: number[], apiKey: string): Promise<any[]> {
+  // Fetch in parallel, up to 10 at a time
+  const batchSize = 10;
+  const results: any[] = [];
+
+  for (let i = 0; i < productIds.length; i += batchSize) {
+    const batch = productIds.slice(i, i + batchSize);
+    const promises = batch.map(async (numIid) => {
+      try {
+        const itemId = `abb-${numIid}`;
+        const url = `https://otapi.net/service-json/BatchGetItemFullInfo?instanceKey=${encodeURIComponent(apiKey)}&language=en&itemId=${encodeURIComponent(itemId)}&blockList=Description`;
+        const resp = await fetch(url, { headers: { 'Accept': 'application/json' } });
+        const data = await resp.json();
+
+        if (!resp.ok || (data?.ErrorCode && data.ErrorCode !== 'Ok')) {
+          console.warn(`OTAPI error for ${numIid}:`, data?.ErrorCode || resp.status);
+          return null;
+        }
+
+        // Parse the OTAPI item into our standard format
+        const item = data?.Result?.Item;
+        if (!item) return null;
+
+        return parseOtapiSearchItem(item, numIid);
+      } catch (err) {
+        console.warn(`Failed to fetch ${numIid}:`, err);
+        return null;
+      }
+    });
+
+    const batchResults = await Promise.all(promises);
+    results.push(...batchResults.filter(Boolean));
+  }
+
+  return results;
+}
+
+// Parse OTAPI item into the same format used by text search results
+function parseOtapiSearchItem(item: any, numIid: number): any {
+  const price = item?.Price?.OriginalPrice || item?.Price?.ConvertedPriceList?.Internal?.Price || 0;
+  const picUrl = item?.MainPictureUrl || '';
+  const externalId = item?.Id || '';
+  const parsedId = parseInt(externalId.replace(/^abb-/, ''), 10) || numIid;
+
+  const featuredValues = Array.isArray(item?.FeaturedValues) ? item.FeaturedValues : [];
+  const getFeatured = (name: string) => featuredValues.find((v: any) => v?.Name === name)?.Value || '';
+  const totalSales = parseInt(getFeatured('TotalSales') || '0', 10) || undefined;
+
+  const pics = Array.isArray(item?.Pictures) ? item.Pictures : [];
+  const location = item?.Location?.State || item?.Location?.City || '';
+
+  return {
+    num_iid: parsedId,
+    title: item?.Title || '',
+    pic_url: picUrl,
+    price: typeof price === 'number' ? price : parseFloat(price) || 0,
+    sales: totalSales,
+    detail_url: item?.ExternalItemUrl || `https://detail.1688.com/offer/${parsedId}.html`,
+    location,
+    extra_images: pics.map((p: any) => p?.Url || p?.Large?.Url || '').filter(Boolean),
+    vendor_name: item?.VendorName || item?.VendorDisplayName || '',
+    stock: item?.MasterQuantity || undefined,
+    weight: item?.PhysicalParameters?.Weight || undefined,
+  };
+}
 
 // Convert non-Alibaba image URL to Alibaba-recognizable format
 async function convertImageUrl(imageUrl: string, apiToken: string): Promise<string> {
