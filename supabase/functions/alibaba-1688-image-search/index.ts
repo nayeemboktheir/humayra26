@@ -60,27 +60,31 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Step 3: Call TMAPI image search to get item IDs
-    const searchUrl = `${TMAPI_BASE}/search/image?apiToken=${apiToken}&img_url=${encodeURIComponent(imgUrl)}&page=${page}&page_size=${Math.min(pageSize, 40)}&sort=default`;
+    // Step 3: Call TMAPI image search - fetch 2 pages in parallel to get up to 40 results
+    const tmapiPageSize = 20; // TMAPI max per page
+    const page1Url = `${TMAPI_BASE}/search/image?apiToken=${apiToken}&img_url=${encodeURIComponent(imgUrl)}&page=${page}&page_size=${tmapiPageSize}&sort=default`;
+    const page2Url = `${TMAPI_BASE}/search/image?apiToken=${apiToken}&img_url=${encodeURIComponent(imgUrl)}&page=${page + 1}&page_size=${tmapiPageSize}&sort=default`;
 
-    console.log('TMAPI image search request...');
-    const resp = await fetch(searchUrl);
-    const data = await resp.json();
+    console.log('TMAPI image search: fetching 2 pages in parallel...');
+    const [resp1, resp2] = await Promise.all([fetch(page1Url), fetch(page2Url)]);
+    const [data1, data2] = await Promise.all([resp1.json(), resp2.json()]);
 
-    console.log('TMAPI response status:', resp.status, 'items:', data?.data?.items?.length);
+    console.log('TMAPI page1:', resp1.status, 'items:', data1?.data?.items?.length, '| page2:', resp2.status, 'items:', data2?.data?.items?.length);
 
-    if (!resp.ok || data?.code !== 200) {
-      const errMsg = data?.msg || data?.message || `TMAPI error: ${resp.status}`;
+    if (!resp1.ok || data1?.code !== 200) {
+      const errMsg = data1?.msg || data1?.message || `TMAPI error: ${resp1.status}`;
       console.error('TMAPI error:', errMsg);
       return new Response(JSON.stringify({ success: false, error: errMsg }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const rawItems = data?.data?.items || [];
-    const total = data?.data?.total_results || rawItems.length;
+    const items1 = data1?.data?.items || [];
+    const items2 = (data2?.code === 200 ? data2?.data?.items : []) || [];
+    const rawItems = [...items1, ...items2];
+    const total = data1?.data?.total_results || rawItems.length;
 
-    if (!Array.isArray(rawItems) || !rawItems.length) {
+    if (!rawItems.length) {
       return new Response(JSON.stringify({ success: true, data: { items: [], total: 0 }, meta: { method: 'tmapi_image_otapi' } }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -161,7 +165,7 @@ function mapTmapiItem(item: any) {
 // Fetch multiple items from OTAPI in parallel
 async function fetchOtapiItems(itemIds: number[], apiKey: string): Promise<Map<number, any>> {
   const results = new Map<number, any>();
-  const TIMEOUT_MS = 4000;
+  const TIMEOUT_MS = 3000;
 
   const fetchWithTimeout = (numIid: number) => {
     const controller = new AbortController();
