@@ -397,14 +397,17 @@ const Index = () => {
         const convertedUrl = (result as any).meta?.convertedImageUrl;
         if (convertedUrl) {
           setImageSearchConvertedUrl(convertedUrl);
-          // Background prefetch pages 2-6 using converted URL (no re-upload)
-          prefetchImagePages(convertedUrl, 2, 6);
         }
         const derivedQuery = (result.meta as any)?.query;
+        const searchKeyword = typeof derivedQuery === "string" && derivedQuery ? derivedQuery : effectiveKeyword;
+        // Background prefetch pages 2-6 via OTAPI text search using derived keyword
+        if (searchKeyword) {
+          prefetchImagePages(searchKeyword, 2, 6);
+        }
         const altQueries = Array.isArray((result.meta as any)?.altQueries) ? ((result.meta as any).altQueries as string[]) : [];
         setActiveSearch({
           mode: "image",
-          query: typeof derivedQuery === "string" ? derivedQuery : keyword,
+          query: searchKeyword || keyword,
           altQueries: altQueries.filter(Boolean),
         });
         if (result.data.items.length === 0) toast.info("No similar products found");
@@ -438,15 +441,15 @@ const Index = () => {
     }
   };
 
-  // Background prefetch image search pages in parallel for instant navigation
-  const prefetchImagePages = (convertedUrl: string, fromPage: number, toPage: number) => {
+  // Background prefetch pages via OTAPI text search for instant navigation
+  const prefetchImagePages = (keyword: string, fromPage: number, toPage: number) => {
     const pages = Array.from({ length: toPage - fromPage + 1 }, (_, i) => fromPage + i);
     pages.forEach(async (p) => {
       try {
-        const resp = await alibaba1688Api.searchByImage('', p, 20, '', convertedUrl, false);
+        const resp = await alibaba1688Api.search(keyword, p, 40);
         if (resp.success && resp.data && resp.data.items.length > 0) {
           imagePageCacheRef.current[p] = resp.data.items;
-          console.log(`Prefetched image search page ${p}: ${resp.data.items.length} items`);
+          console.log(`Prefetched OTAPI page ${p}: ${resp.data.items.length} items`);
         } else {
           console.log(`No results for page ${p}`);
         }
@@ -474,13 +477,12 @@ const Index = () => {
         setCurrentPage(page);
         return;
       }
-      // Not cached — fetch live
+      // Not cached — fetch via OTAPI text search
       setIsLoading(true);
       try {
-        if (imageSearchConvertedUrl || imageSearchBase64) {
-          const resp = await alibaba1688Api.searchByImage(
-            imageSearchBase64 || '', page, 20, '', imageSearchConvertedUrl || ''
-          );
+        const searchKeyword = activeSearch.query || '';
+        if (searchKeyword) {
+          const resp = await alibaba1688Api.search(searchKeyword, page, 40);
           if (resp.success && resp.data) {
             setProducts(resp.data.items);
             setCurrentPage(page);
