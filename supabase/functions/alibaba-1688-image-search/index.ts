@@ -165,14 +165,10 @@ function mapTmapiItem(item: any) {
 // Fetch multiple items from OTAPI in parallel
 async function fetchOtapiItems(itemIds: number[], apiKey: string): Promise<Map<number, any>> {
   const results = new Map<number, any>();
-  const TIMEOUT_MS = 6000;
   let successCount = 0;
   let errorCount = 0;
 
-  const fetchWithTimeout = (numIid: number) => {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
+  const fetchItem = (numIid: number) => {
     return (async () => {
       try {
         const itemId = `abb-${numIid}`;
@@ -180,9 +176,7 @@ async function fetchOtapiItems(itemIds: number[], apiKey: string): Promise<Map<n
         const response = await fetch(url, {
           method: 'GET',
           headers: { 'Accept': 'application/json' },
-          signal: controller.signal,
         });
-        clearTimeout(timer);
 
         if (!response.ok) {
           errorCount++;
@@ -226,20 +220,13 @@ async function fetchOtapiItems(itemIds: number[], apiKey: string): Promise<Map<n
           weight: item?.PhysicalParameters?.Weight || undefined,
         });
       } catch (err) {
-        clearTimeout(timer);
         errorCount++;
-        const msg = err instanceof Error ? err.message : 'unknown';
-        if (msg.includes('abort')) {
-          console.warn(`OTAPI timeout for ${numIid}`);
-        } else {
-          console.warn(`OTAPI fetch error for ${numIid}: ${msg}`);
-        }
+        console.warn(`OTAPI fetch error for ${numIid}: ${err instanceof Error ? err.message : 'unknown'}`);
       }
     })();
   };
 
-  // Fire ALL requests in parallel (no batching)
-  await Promise.all(itemIds.map(fetchWithTimeout));
+  await Promise.all(itemIds.map(fetchItem));
   console.log(`OTAPI fetch summary: ${successCount} success, ${errorCount} errors out of ${itemIds.length} items`);
 
   return results;
