@@ -381,11 +381,18 @@ const Index = () => {
       // Use filename as hint if no keyword provided
       const effectiveKeyword = keyword || file.name.replace(/\.[^.]+$/, '').replace(/[_\-]+/g, ' ');
       setImageSearchBase64(imageBase64);
-      const result = await alibaba1688Api.searchByImage(imageBase64, 1, 20, effectiveKeyword, '', false);
+      const result = await alibaba1688Api.searchByImage(imageBase64, 1, 20, effectiveKeyword, '', true);
       if (result.success && result.data) {
+        // Show TMAPI results immediately, then translate titles in background
         setProducts(result.data.items);
         setTotalResults(result.data.total);
-        imagePageCacheRef.current[1] = result.data.items; // Cache page 1
+        imagePageCacheRef.current[1] = result.data.items;
+
+        // Background translate Chinese titles to English
+        translateProductTitles(result.data.items).then(translatedItems => {
+          setProducts(translatedItems);
+          imagePageCacheRef.current[1] = translatedItems;
+        });
         // Store converted image URL for faster pagination (no re-upload needed)
         const convertedUrl = (result as any).meta?.convertedImageUrl;
         if (convertedUrl) {
@@ -414,12 +421,29 @@ const Index = () => {
     } finally { setIsLoading(false); }
   };
 
+  // Translate Chinese product titles to English via translate-text edge function
+  const translateProductTitles = async (items: Product1688[]): Promise<Product1688[]> => {
+    try {
+      const titles = items.map(i => i.title);
+      const { data, error } = await supabase.functions.invoke('translate-text', {
+        body: { texts: titles },
+      });
+      if (error || !data?.translations) return items;
+      return items.map((item, idx) => ({
+        ...item,
+        title: data.translations[idx] || item.title,
+      }));
+    } catch {
+      return items;
+    }
+  };
+
   // Background prefetch image search pages in parallel for instant navigation
   const prefetchImagePages = (convertedUrl: string, fromPage: number, toPage: number) => {
     const pages = Array.from({ length: toPage - fromPage + 1 }, (_, i) => fromPage + i);
     pages.forEach(async (p) => {
       try {
-        const resp = await alibaba1688Api.searchByImage('', p, 20, '', convertedUrl, true);
+        const resp = await alibaba1688Api.searchByImage('', p, 20, '', convertedUrl, false);
         if (resp.success && resp.data && resp.data.items.length > 0) {
           imagePageCacheRef.current[p] = resp.data.items;
           console.log(`Prefetched image search page ${p}: ${resp.data.items.length} items`);
