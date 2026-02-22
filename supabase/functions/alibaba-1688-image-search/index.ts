@@ -60,32 +60,28 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Step 3: Call TMAPI image search - fetch 2 pages in parallel to get up to 40 results
+    // Step 3: Call TMAPI image search
     const tmapiPageSize = 20; // TMAPI max per page
-    const page1Url = `${TMAPI_BASE}/search/image?apiToken=${apiToken}&img_url=${encodeURIComponent(imgUrl)}&page=${page}&page_size=${tmapiPageSize}&sort=default`;
-    const page2Url = `${TMAPI_BASE}/search/image?apiToken=${apiToken}&img_url=${encodeURIComponent(imgUrl)}&page=${page + 1}&page_size=${tmapiPageSize}&sort=default`;
+    const searchUrl = `${TMAPI_BASE}/search/image?apiToken=${apiToken}&img_url=${encodeURIComponent(imgUrl)}&page=${page}&page_size=${tmapiPageSize}&sort=default`;
 
-    console.log('TMAPI image search: fetching 2 pages in parallel...');
-    const [resp1, resp2] = await Promise.all([fetch(page1Url), fetch(page2Url)]);
-    const [data1, data2] = await Promise.all([resp1.json(), resp2.json()]);
+    console.log(`TMAPI image search page ${page}...`);
+    const resp = await fetch(searchUrl);
+    const searchData = await resp.json();
 
-    console.log('TMAPI page1:', resp1.status, 'items:', data1?.data?.items?.length, '| page2:', resp2.status, 'items:', data2?.data?.items?.length);
-
-    if (!resp1.ok || data1?.code !== 200) {
-      const errMsg = data1?.msg || data1?.message || `TMAPI error: ${resp1.status}`;
+    if (!resp.ok || searchData?.code !== 200) {
+      const errMsg = searchData?.msg || searchData?.message || `TMAPI error: ${resp.status}`;
       console.error('TMAPI error:', errMsg);
       return new Response(JSON.stringify({ success: false, error: errMsg }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const items1 = data1?.data?.items || [];
-    const items2 = (data2?.code === 200 ? data2?.data?.items : []) || [];
-    const rawItems = [...items1, ...items2];
-    const total = data1?.data?.total_results || rawItems.length;
+    const rawItems = searchData?.data?.items || [];
+    const total = searchData?.data?.total_results || rawItems.length;
+    console.log(`TMAPI page ${page}: ${rawItems.length} items, total: ${total}`);
 
     if (!rawItems.length) {
-      return new Response(JSON.stringify({ success: true, data: { items: [], total: 0 }, meta: { method: 'tmapi_image_otapi' } }), {
+      return new Response(JSON.stringify({ success: true, data: { items: [], total: 0 }, meta: { method: 'tmapi_image' } }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -95,12 +91,23 @@ Deno.serve(async (req) => {
       .map((item: any) => parseInt(String(item.item_id || '0'), 10))
       .filter((id: number) => id > 0);
 
-    console.log(`TMAPI found ${itemIds.length} item IDs, fetching from OTAPI...`);
+    // Step 4: Page 1 returns TMAPI results immediately (fast), page 2+ enriches with OTAPI
+    if (page === 1) {
+      const items = rawItems.map((item: any) => mapTmapiItem(item));
+      console.log(`Image search page 1 (fast): ${items.length} items in ${Date.now() - startTime}ms`);
+      return new Response(JSON.stringify({
+        success: true,
+        data: { items, total },
+        meta: { method: 'tmapi_image_fast', page, pageSize },
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
-    // Step 4: Fetch product details from OTAPI (in parallel batches)
+    // Page 2+: Enrich with OTAPI for translated titles and detailed info
+    console.log(`TMAPI found ${itemIds.length} item IDs, fetching from OTAPI...`);
     const otapiKey = Deno.env.get('OTCOMMERCE_API_KEY');
     if (!otapiKey) {
-      // Fallback to TMAPI results if OTAPI not configured
       console.warn('OTCOMMERCE_API_KEY not configured, returning TMAPI results');
       const items = rawItems.map((item: any) => mapTmapiItem(item));
       return new Response(JSON.stringify({
@@ -112,21 +119,17 @@ Deno.serve(async (req) => {
       });
     }
 
-// Fetch items from OTAPI in parallel (all at once with timeout)
     const otapiItems = await fetchOtapiItems(itemIds, otapiKey);
 
     // Merge: preserve TMAPI order, use OTAPI data where available, fallback to TMAPI
     const mergedItems = rawItems.map((tmapiItem: any) => {
       const itemId = parseInt(String(tmapiItem.item_id || '0'), 10);
       const otapiItem = otapiItems.get(itemId);
-      if (otapiItem) {
-        return otapiItem;
-      }
-      // Fallback to TMAPI data
+      if (otapiItem) return otapiItem;
       return mapTmapiItem(tmapiItem);
     });
 
-    console.log(`Image search completed: ${mergedItems.length} items (${otapiItems.size} from OTAPI) in ${Date.now() - startTime}ms`);
+    console.log(`Image search page ${page}: ${mergedItems.length} items (${otapiItems.size} from OTAPI) in ${Date.now() - startTime}ms`);
 
     return new Response(JSON.stringify({
       success: true,

@@ -122,6 +122,7 @@ const Index = () => {
   const [imageSearchFile, setImageSearchFile] = useState<File | null>(null);
   const [imageSearchKeyword, setImageSearchKeyword] = useState("");
   const [imageSearchPreview, setImageSearchPreview] = useState<string | null>(null);
+  const [imageSearchBase64, setImageSearchBase64] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounterRef = useRef(0);
   const topCatScrollRef = useRef<HTMLDivElement>(null);
@@ -376,7 +377,8 @@ const Index = () => {
 
       // Use filename as hint if no keyword provided
       const effectiveKeyword = keyword || file.name.replace(/\.[^.]+$/, '').replace(/[_\-]+/g, ' ');
-      const result = await alibaba1688Api.searchByImage(imageBase64, 1, 40, effectiveKeyword);
+      setImageSearchBase64(imageBase64);
+      const result = await alibaba1688Api.searchByImage(imageBase64, 1, 20, effectiveKeyword);
       if (result.success && result.data) {
         setProducts(result.data.items);
         setTotalResults(result.data.total);
@@ -418,13 +420,23 @@ const Index = () => {
     setSearchParams(params, { replace: true });
 
     try {
-      const searchQuery = activeSearch.query || query.trim();
-      const resp = await alibaba1688Api.search(searchQuery, page, 40);
-      if (resp.success && resp.data) {
-        setProducts(resp.data.items);
-        setCurrentPage(page);
-        setTotalResults(resp.data.total);
-      } else toast.error(resp.error || "Failed to load page");
+      if (activeSearch.mode === 'image' && imageSearchBase64) {
+        // Image search pagination — page 2+ gets OTAPI-enriched results
+        const resp = await alibaba1688Api.searchByImage(imageSearchBase64, page, 20);
+        if (resp.success && resp.data) {
+          setProducts(resp.data.items);
+          setCurrentPage(page);
+          setTotalResults(resp.data.total);
+        } else toast.error(resp.error || "Failed to load page");
+      } else {
+        const searchQuery = activeSearch.query || query.trim();
+        const resp = await alibaba1688Api.search(searchQuery, page, 40);
+        if (resp.success && resp.data) {
+          setProducts(resp.data.items);
+          setCurrentPage(page);
+          setTotalResults(resp.data.total);
+        } else toast.error(resp.error || "Failed to load page");
+      }
     } catch { toast.error("Failed to load page"); }
     finally { setIsLoading(false); }
   };
