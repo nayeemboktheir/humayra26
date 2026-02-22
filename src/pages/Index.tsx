@@ -368,13 +368,10 @@ const Index = () => {
     setActiveSearch({ mode: "image", query: keyword, altQueries: [] });
 
     try {
-      const reader = new FileReader();
-      const base64Promise = new Promise<string>((resolve, reject) => {
-        reader.onload = () => { resolve((reader.result as string).split(",")[1]); };
-        reader.onerror = reject;
-      });
-      reader.readAsDataURL(file);
-      const imageBase64 = await base64Promise;
+      // Compress image for faster upload & search
+      const { compressImage } = await import('@/lib/compressImage');
+      toast.info("Compressing image...");
+      const imageBase64 = await compressImage(file, 800, 800, 0.7);
       toast.info("Uploading image and searching...");
 
       // Use filename as hint if no keyword provided
