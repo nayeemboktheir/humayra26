@@ -51,8 +51,11 @@ Deno.serve(async (req) => {
       const convertData = await convertResp.json();
       console.log('Convert response:', JSON.stringify(convertData).slice(0, 300));
 
-      if (convertData?.data?.img_url) {
-        imgUrl = convertData.data.img_url;
+      const convertedUrl = convertData?.data?.image_url || convertData?.data?.img_url;
+      if (convertedUrl) {
+        // Use the converted path directly — TMAPI expects it as-is
+        imgUrl = convertedUrl;
+        console.log('Converted image URL:', imgUrl);
       } else {
         console.warn('Image conversion failed, using original URL');
       }
@@ -60,12 +63,13 @@ Deno.serve(async (req) => {
 
     // Step 3: Call TMAPI image search
     const searchUrl = `${TMAPI_BASE}/search/image?apiToken=${apiToken}&img_url=${encodeURIComponent(imgUrl)}&page=${page}&page_size=${Math.min(pageSize, 20)}&sort=default`;
+    console.log('TMAPI search URL:', searchUrl.slice(0, 200));
 
     console.log('TMAPI image search request...');
     const resp = await fetch(searchUrl);
     const data = await resp.json();
 
-    console.log('TMAPI response status:', resp.status);
+    console.log('TMAPI response status:', resp.status, 'code:', data?.code, 'total:', data?.data?.total_results, 'items:', data?.data?.items?.length);
 
     if (!resp.ok || data?.code !== 200) {
       const errMsg = data?.msg || data?.message || `TMAPI error: ${resp.status}`;
