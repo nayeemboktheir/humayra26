@@ -165,7 +165,9 @@ function mapTmapiItem(item: any) {
 // Fetch multiple items from OTAPI in parallel
 async function fetchOtapiItems(itemIds: number[], apiKey: string): Promise<Map<number, any>> {
   const results = new Map<number, any>();
-  const TIMEOUT_MS = 3000;
+  const TIMEOUT_MS = 6000;
+  let successCount = 0;
+  let errorCount = 0;
 
   const fetchWithTimeout = (numIid: number) => {
     const controller = new AbortController();
@@ -182,13 +184,26 @@ async function fetchOtapiItems(itemIds: number[], apiKey: string): Promise<Map<n
         });
         clearTimeout(timer);
 
-        if (!response.ok) return;
+        if (!response.ok) {
+          errorCount++;
+          console.warn(`OTAPI HTTP ${response.status} for ${numIid}`);
+          return;
+        }
         const data = await response.json();
-        if (data?.ErrorCode && data.ErrorCode !== 'Ok') return;
+        if (data?.ErrorCode && data.ErrorCode !== 'Ok') {
+          errorCount++;
+          console.warn(`OTAPI error for ${numIid}: ${data.ErrorCode} - ${data.ErrorDescription || ''}`);
+          return;
+        }
 
         const item = data?.Result?.Item;
-        if (!item) return;
+        if (!item) {
+          errorCount++;
+          console.warn(`OTAPI no item data for ${numIid}`);
+          return;
+        }
 
+        successCount++;
         const price = item?.Price?.OriginalPrice || 0;
         const pics = Array.isArray(item?.Pictures) ? item.Pictures : [];
         const featuredValues = Array.isArray(item?.FeaturedValues) ? item.FeaturedValues : [];
@@ -212,13 +227,20 @@ async function fetchOtapiItems(itemIds: number[], apiKey: string): Promise<Map<n
         });
       } catch (err) {
         clearTimeout(timer);
-        // Timeout or network error — skip silently
+        errorCount++;
+        const msg = err instanceof Error ? err.message : 'unknown';
+        if (msg.includes('abort')) {
+          console.warn(`OTAPI timeout for ${numIid}`);
+        } else {
+          console.warn(`OTAPI fetch error for ${numIid}: ${msg}`);
+        }
       }
     })();
   };
 
   // Fire ALL requests in parallel (no batching)
   await Promise.all(itemIds.map(fetchWithTimeout));
+  console.log(`OTAPI fetch summary: ${successCount} success, ${errorCount} errors out of ${itemIds.length} items`);
 
   return results;
 }
