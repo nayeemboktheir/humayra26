@@ -124,6 +124,7 @@ const Index = () => {
   const [imageSearchPreview, setImageSearchPreview] = useState<string | null>(null);
   const [imageSearchBase64, setImageSearchBase64] = useState<string | null>(null);
   const [imageSearchConvertedUrl, setImageSearchConvertedUrl] = useState<string | null>(null);
+  const imagePageCacheRef = useRef<Record<number, Product1688[]>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounterRef = useRef(0);
   const topCatScrollRef = useRef<HTMLDivElement>(null);
@@ -368,6 +369,7 @@ const Index = () => {
     setTotalResults(null);
     setAltQueryIndex(0);
     setActiveSearch({ mode: "image", query: keyword, altQueries: [] });
+    imagePageCacheRef.current = {}; // Clear cache for new search
 
     try {
       // Compress image for faster upload & search
@@ -383,9 +385,14 @@ const Index = () => {
       if (result.success && result.data) {
         setProducts(result.data.items);
         setTotalResults(result.data.total);
+        imagePageCacheRef.current[1] = result.data.items; // Cache page 1
         // Store converted image URL for faster pagination (no re-upload needed)
         const convertedUrl = (result as any).meta?.convertedImageUrl;
-        if (convertedUrl) setImageSearchConvertedUrl(convertedUrl);
+        if (convertedUrl) {
+          setImageSearchConvertedUrl(convertedUrl);
+          // Background prefetch pages 2-6 using converted URL (no re-upload)
+          prefetchImagePages(convertedUrl, 2, 6);
+        }
         const derivedQuery = (result.meta as any)?.query;
         const altQueries = Array.isArray((result.meta as any)?.altQueries) ? ((result.meta as any).altQueries as string[]) : [];
         setActiveSearch({
@@ -405,6 +412,26 @@ const Index = () => {
       setProducts([]);
       setTotalResults(0);
     } finally { setIsLoading(false); }
+  };
+
+  // Background prefetch image search pages for instant navigation
+  const prefetchImagePages = async (convertedUrl: string, fromPage: number, toPage: number) => {
+    for (let p = fromPage; p <= toPage; p++) {
+      try {
+        const resp = await alibaba1688Api.searchByImage('', p, 20, '', convertedUrl);
+        if (resp.success && resp.data && resp.data.items.length > 0) {
+          imagePageCacheRef.current[p] = resp.data.items;
+          console.log(`Prefetched image search page ${p}: ${resp.data.items.length} items`);
+        } else {
+          // No more results, stop prefetching
+          console.log(`No results for page ${p}, stopping prefetch`);
+          break;
+        }
+      } catch {
+        console.warn(`Failed to prefetch page ${p}`);
+        break;
+      }
+    }
   };
 
   const IMAGE_PAGE_SIZE = 20;
@@ -430,16 +457,27 @@ const Index = () => {
     setSearchParams(params, { replace: true });
 
     try {
-      if (activeSearch.mode === 'image' && (imageSearchConvertedUrl || imageSearchBase64)) {
-        // Image search pagination — use converted URL if available (faster, no re-upload)
-        const resp = await alibaba1688Api.searchByImage(
-          imageSearchBase64 || '', page, 20, '', imageSearchConvertedUrl || ''
-        );
-        if (resp.success && resp.data) {
-          setProducts(resp.data.items);
+      if (activeSearch.mode === 'image') {
+        // Check cache first for instant display
+        const cached = imagePageCacheRef.current[page];
+        if (cached && cached.length > 0) {
+          setProducts(cached);
           setCurrentPage(page);
-          setTotalResults(resp.data.total);
-        } else toast.error(resp.error || "Failed to load page");
+          setIsLoading(false);
+          return;
+        }
+        // Not cached — fetch live
+        if (imageSearchConvertedUrl || imageSearchBase64) {
+          const resp = await alibaba1688Api.searchByImage(
+            imageSearchBase64 || '', page, 20, '', imageSearchConvertedUrl || ''
+          );
+          if (resp.success && resp.data) {
+            setProducts(resp.data.items);
+            setCurrentPage(page);
+            setTotalResults(resp.data.total);
+            imagePageCacheRef.current[page] = resp.data.items; // Cache it
+          } else toast.error(resp.error || "Failed to load page");
+        }
       } else {
         const searchQuery = activeSearch.query || query.trim();
         const resp = await alibaba1688Api.search(searchQuery, page, 40);
