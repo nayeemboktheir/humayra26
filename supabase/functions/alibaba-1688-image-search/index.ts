@@ -19,44 +19,50 @@ Deno.serve(async (req) => {
       });
     }
 
-    const tmapiToken = Deno.env.get('TMAPI_TOKEN');
-    if (!tmapiToken) {
+    const apiToken = Deno.env.get('TMAPI_TOKEN');
+    if (!apiToken) {
       return new Response(JSON.stringify({ success: false, error: 'TMAPI_TOKEN not configured' }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Get a public URL for the image
+    const startTime = Date.now();
+
+    // Step 1: Get a public URL for the image (upload base64 to temp bucket if needed)
     let publicImageUrl = imageUrl || '';
     if (imageBase64 && !imageUrl) {
       publicImageUrl = await uploadToTempBucket(imageBase64);
     }
 
-    const startTime = Date.now();
+    console.log('Image URL for search:', publicImageUrl.slice(0, 100));
 
-    // TMAPI image search endpoint
-    const searchUrl = `https://api.tmapi.top/1688/item_search_image?key=${tmapiToken}&imgid=${encodeURIComponent(publicImageUrl)}&page=${page}&page_size=${Math.min(pageSize, 20)}`;
+    // Step 2: Convert image URL to Alibaba-recognizable format via TMAPI convert_url
+    const convertedUrl = await convertImageUrl(publicImageUrl, apiToken);
+    console.log('Converted image URL:', convertedUrl.slice(0, 100));
 
-    console.log('TMAPI image search request:', searchUrl.split('key=')[0] + 'key=***');
+    // Step 3: Search using the converted URL
+    const searchUrl = `http://api.tmapi.top/1688/search/image?apiToken=${apiToken}&img_url=${encodeURIComponent(convertedUrl)}&page=${page}&page_size=${Math.min(pageSize, 20)}&sort=default`;
 
+    console.log('TMAPI search request...');
     const resp = await fetch(searchUrl);
     const data = await resp.json();
 
-    console.log('TMAPI response status:', resp.status, 'keys:', JSON.stringify(Object.keys(data)).slice(0, 200));
+    console.log('TMAPI response status:', resp.status);
 
     if (!resp.ok) {
       console.error('TMAPI error:', JSON.stringify(data).slice(0, 500));
-      return new Response(JSON.stringify({ success: false, error: `TMAPI error: ${resp.status}` }), {
+      return new Response(JSON.stringify({ success: false, error: `TMAPI error: ${resp.status} - ${data?.message || 'Unknown error'}` }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     // Parse TMAPI response
-    const rawItems = data?.data?.items || data?.result?.items?.item || data?.result?.items || data?.items || [];
-    const total = data?.data?.total || data?.result?.items?.real_total_results || rawItems.length;
+    const resultData = data?.data;
+    const rawItems = resultData?.items || [];
+    const total = resultData?.total || rawItems.length;
 
     if (!Array.isArray(rawItems) || !rawItems.length) {
-      console.warn('TMAPI: No items found. Response:', JSON.stringify(data).slice(0, 500));
+      console.warn('TMAPI: No items found. Response keys:', JSON.stringify(Object.keys(data || {})));
       return new Response(JSON.stringify({ success: true, data: { items: [], total: 0 }, meta: { method: 'tmapi_image' } }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -65,21 +71,26 @@ Deno.serve(async (req) => {
     console.log(`TMAPI: ${rawItems.length} items in ${Date.now() - startTime}ms`);
 
     const items = rawItems.map((item: any) => {
-      const itemId = parseInt(String(item?.num_iid || item?.nid || '0'), 10) || 0;
-      let picUrl = item?.pic_url || item?.pic || '';
+      const itemId = item?.item_id || 0;
+      let picUrl = item?.img || '';
       if (picUrl.startsWith('//')) picUrl = 'https:' + picUrl;
 
-      const price = parseFloat(String(item?.price || item?.promotion_price || '0')) || 0;
+      const price = parseFloat(String(item?.price_info?.sale_price || item?.price || '0')) || 0;
+      const sales = item?.sale_info?.sale_quantity_int || undefined;
+      const location = Array.isArray(item?.delivery_info?.area_from)
+        ? item.delivery_info.area_from.join(' ')
+        : '';
+      const vendorName = item?.shop_info?.shop_name || item?.shop_info?.seller_nick || '';
 
       return {
         num_iid: itemId,
         title: item?.title || '',
         pic_url: picUrl,
         price,
-        sales: item?.sales ? parseInt(String(item.sales), 10) : undefined,
-        detail_url: item?.detail_url || `https://detail.1688.com/offer/${itemId}.html`,
-        location: item?.area || item?.location || '',
-        vendor_name: item?.seller_nick || item?.vendor_name || '',
+        sales,
+        detail_url: item?.product_url || `https://detail.1688.com/offer/${itemId}.html`,
+        location,
+        vendor_name: vendorName,
       };
     });
 
@@ -100,6 +111,38 @@ Deno.serve(async (req) => {
   }
 });
 
+// Convert non-Alibaba image URL to Alibaba-recognizable format
+async function convertImageUrl(imageUrl: string, apiToken: string): Promise<string> {
+  // If already an Alibaba/1688 URL, no conversion needed
+  if (imageUrl.includes('alicdn.com') || imageUrl.includes('1688.com')) {
+    return imageUrl;
+  }
+
+  const convertUrl = `http://api.tmapi.top/1688/tools/image/convert_url?apiToken=${apiToken}`;
+  console.log('Converting image URL via TMAPI...');
+
+  const resp = await fetch(convertUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      url: imageUrl,
+      search_api_endpoint: '/search/image',
+    }),
+  });
+
+  const data = await resp.json();
+  console.log('Convert response status:', resp.status, 'keys:', JSON.stringify(Object.keys(data || {})));
+
+  if (!resp.ok || !data?.data) {
+    console.error('Convert URL failed:', JSON.stringify(data).slice(0, 500));
+    throw new Error(`Image URL conversion failed: ${data?.message || resp.status}`);
+  }
+
+  // The converted result is typically an image path that can be used directly as img_url
+  return data.data;
+}
+
+// Upload base64 image to temp bucket and return public URL
 async function uploadToTempBucket(imageBase64: string): Promise<string> {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
