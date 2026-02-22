@@ -123,6 +123,7 @@ const Index = () => {
   const [imageSearchKeyword, setImageSearchKeyword] = useState("");
   const [imageSearchPreview, setImageSearchPreview] = useState<string | null>(null);
   const [imageSearchBase64, setImageSearchBase64] = useState<string | null>(null);
+  const [imageSearchConvertedUrl, setImageSearchConvertedUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounterRef = useRef(0);
   const topCatScrollRef = useRef<HTMLDivElement>(null);
@@ -382,6 +383,9 @@ const Index = () => {
       if (result.success && result.data) {
         setProducts(result.data.items);
         setTotalResults(result.data.total);
+        // Store converted image URL for faster pagination (no re-upload needed)
+        const convertedUrl = (result as any).meta?.convertedImageUrl;
+        if (convertedUrl) setImageSearchConvertedUrl(convertedUrl);
         const derivedQuery = (result.meta as any)?.query;
         const altQueries = Array.isArray((result.meta as any)?.altQueries) ? ((result.meta as any).altQueries as string[]) : [];
         setActiveSearch({
@@ -420,9 +424,11 @@ const Index = () => {
     setSearchParams(params, { replace: true });
 
     try {
-      if (activeSearch.mode === 'image' && imageSearchBase64) {
-        // Image search pagination — page 2+ gets OTAPI-enriched results
-        const resp = await alibaba1688Api.searchByImage(imageSearchBase64, page, 20);
+      if (activeSearch.mode === 'image' && (imageSearchConvertedUrl || imageSearchBase64)) {
+        // Image search pagination — use converted URL if available (faster, no re-upload)
+        const resp = await alibaba1688Api.searchByImage(
+          imageSearchBase64 || '', page, 20, '', imageSearchConvertedUrl || ''
+        );
         if (resp.success && resp.data) {
           setProducts(resp.data.items);
           setCurrentPage(page);

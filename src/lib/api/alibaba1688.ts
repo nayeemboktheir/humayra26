@@ -55,7 +55,7 @@ type ApiResponse<T = any> = {
   success: boolean;
   error?: string;
   data?: T;
-  meta?: unknown;
+  meta?: any;
 };
 
 // Helper to get a featured value from the OTAPI FeaturedValues array
@@ -127,10 +127,18 @@ export const alibaba1688Api = {
     page = 1,
     pageSize = 40,
     keyword = '',
+    imageUrl = '',
   ): Promise<ApiResponse<{ items: Product1688[]; total: number }>> {
     try {
+      // For page 2+, pass imageUrl (converted Ali URL) instead of re-uploading base64
+      const body: any = { page, pageSize, keyword };
+      if (imageUrl) {
+        body.imageUrl = imageUrl;
+      } else {
+        body.imageBase64 = imageBase64;
+      }
       const { data, error } = await supabase.functions.invoke('alibaba-1688-image-search', {
-        body: { imageBase64, page, pageSize, keyword },
+        body,
       });
 
       if (error) return { success: false, error: error.message };
@@ -143,6 +151,7 @@ export const alibaba1688Api = {
       return {
         success: true,
         data: { items, total },
+        meta: { ...data.meta, convertedImageUrl: data.meta?.convertedImageUrl },
       };
     } catch (error) {
       console.error('Error searching 1688 by image:', error);
