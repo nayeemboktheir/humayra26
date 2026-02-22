@@ -2,7 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 Deno.serve(async (req) => {
@@ -19,16 +19,16 @@ Deno.serve(async (req) => {
       });
     }
 
-    const appKey = Deno.env.get('ATP_1688_API_KEY');
-    if (!appKey) {
-      return new Response(JSON.stringify({ success: false, error: 'ATP_1688_API_KEY not configured' }), {
+    const apiToken = Deno.env.get('TMAPI_TOKEN');
+    if (!apiToken) {
+      return new Response(JSON.stringify({ success: false, error: 'TMAPI_TOKEN not configured' }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     const startTime = Date.now();
 
-    // Step 1: Get a public URL for the image
+    // Get a public URL for the image
     let publicImageUrl = imageUrl || '';
     if (imageBase64 && !imageUrl) {
       publicImageUrl = await uploadToTempBucket(imageBase64);
@@ -36,77 +36,50 @@ Deno.serve(async (req) => {
 
     console.log('Image URL for search:', publicImageUrl.slice(0, 120));
 
-    // Step 2: Convert non-Alibaba image URLs via TMAPI (1688 API only accepts Alibaba-hosted images)
-    let searchImgUrl = publicImageUrl;
-    const needsConversion = !publicImageUrl.includes('alicdn.com') && !publicImageUrl.includes('1688.com');
+    // Call TMAPI image search endpoint
+    const url = `http://api.tmapi.top/1688/search/image?apiToken=${apiToken}&img_url=${encodeURIComponent(publicImageUrl)}&page=${page}&page_size=${Math.min(pageSize, 50)}&sort=default`;
 
-    if (needsConversion) {
-      const tmapiToken = Deno.env.get('TMAPI_TOKEN');
-      if (tmapiToken) {
-        searchImgUrl = await convertImageUrl(publicImageUrl, tmapiToken);
-        console.log('Converted URL:', String(searchImgUrl).slice(0, 120));
-      } else {
-        console.warn('TMAPI_TOKEN not set, using original URL — may fail if not Alibaba-hosted');
-      }
-    }
-
-    // Step 3: Call ATP 1688 image search
-    const atpUrl = `https://gw.open.1688.com/openapi/param2/1/com.alibaba.search.image/${appKey}`;
-
-    const formData = new URLSearchParams();
-    formData.append('imageAddress', searchImgUrl);
-    formData.append('beginPage', String(page));
-    formData.append('pageSize', String(Math.min(pageSize, 50)));
-
-    console.log('ATP image search request...');
-    const resp = await fetch(atpUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: formData.toString(),
-    });
-
+    console.log('TMAPI image search request...');
+    const resp = await fetch(url);
     const data = await resp.json();
-    console.log('ATP response status:', resp.status, 'keys:', JSON.stringify(Object.keys(data)).slice(0, 200));
 
-    if (!resp.ok) {
-      console.error('ATP error:', JSON.stringify(data).slice(0, 500));
-      return new Response(JSON.stringify({ success: false, error: `ATP error: ${resp.status}` }), {
+    console.log('TMAPI response status:', resp.status);
+
+    if (!resp.ok || data?.code !== 0) {
+      console.error('TMAPI error:', JSON.stringify(data).slice(0, 500));
+      return new Response(JSON.stringify({ success: false, error: data?.msg || `TMAPI error: ${resp.status}` }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // ATP response: { items: { page, pagecount, page_size, total_results, item: [...] } }
-    const itemsContainer = data?.items;
-    const rawItems = itemsContainer?.item || [];
-    const total = itemsContainer?.total_results || itemsContainer?.real_total_results || rawItems.length;
+    const rawItems = data?.data?.item || data?.data?.items || [];
+    const total = data?.data?.total_results || data?.data?.total || rawItems.length;
 
     if (!Array.isArray(rawItems) || !rawItems.length) {
-      console.warn('ATP: No items found');
-      return new Response(JSON.stringify({ success: true, data: { items: [], total: 0 }, meta: { method: 'atp_image' } }), {
+      return new Response(JSON.stringify({ success: true, data: { items: [], total: 0 }, meta: { method: 'tmapi_image' } }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Map ATP items to Product1688 format
+    // Map items to Product1688 format
     const items = rawItems.map((item: any) => ({
-      num_iid: item.num_iid || 0,
-      title: item.title || '',
-      pic_url: item.pic_url || '',
-      price: parseFloat(item.price) || 0,
-      promotion_price: parseFloat(item.promotion_price) || undefined,
-      sales: item.sales || undefined,
-      detail_url: item.detail_url || `https://detail.1688.com/offer/${item.num_iid}.html`,
-      tag_percent: item.turn_head || undefined,
+      num_iid: parseInt(item.num_iid || item.offerId || '0', 10) || 0,
+      title: item.title || item.subject || '',
+      pic_url: item.pic_url || item.image?.imgUrl || '',
+      price: parseFloat(item.price || item.priceInfo?.price || '0') || 0,
+      promotion_price: item.promotion_price ? parseFloat(item.promotion_price) : undefined,
+      sales: item.sales || item.monthSold || undefined,
+      detail_url: item.detail_url || `https://detail.1688.com/offer/${item.num_iid || item.offerId}.html`,
       location: item.location || '',
-      vendor_name: item.vendor_name || '',
+      vendor_name: item.vendor_name || item.sellerName || '',
     }));
 
-    console.log(`ATP image search returned ${items.length}/${total} items in ${Date.now() - startTime}ms`);
+    console.log(`TMAPI image search returned ${items.length}/${total} items in ${Date.now() - startTime}ms`);
 
     return new Response(JSON.stringify({
       success: true,
       data: { items, total },
-      meta: { method: 'atp_image', provider: 'atp', page: itemsContainer?.page, pagecount: itemsContainer?.pagecount },
+      meta: { method: 'tmapi_image', page, pageSize },
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -119,30 +92,6 @@ Deno.serve(async (req) => {
     }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
-
-// Convert non-Alibaba image URL via TMAPI
-async function convertImageUrl(imageUrl: string, apiToken: string): Promise<string> {
-  const convertUrl = `http://api.tmapi.top/1688/tools/image/convert_url?apiToken=${apiToken}`;
-  console.log('Converting image URL via TMAPI...');
-
-  const resp = await fetch(convertUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url: imageUrl, search_api_endpoint: '/search/image' }),
-  });
-
-  const data = await resp.json();
-  if (!resp.ok || !data?.data) {
-    throw new Error(`Image URL conversion failed (${resp.status}): ${data?.msg || 'Unknown error'}`);
-  }
-
-  const result = data.data;
-  if (typeof result === 'string') return result;
-  if (typeof result === 'object' && result !== null) {
-    return result.img_url || result.url || result.image_url || String(result);
-  }
-  return String(result);
-}
 
 // Upload base64 image to temp bucket and return public URL
 async function uploadToTempBucket(imageBase64: string): Promise<string> {
