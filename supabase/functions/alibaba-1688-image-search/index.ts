@@ -19,11 +19,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    const startTime = Date.now();
-    const rapidApiKey = Deno.env.get('RAPIDAPI_KEY');
-
-    if (!rapidApiKey) {
-      return new Response(JSON.stringify({ success: false, error: 'RAPIDAPI_KEY not configured' }), {
+    const tmapiToken = Deno.env.get('TMAPI_TOKEN');
+    if (!tmapiToken) {
+      return new Response(JSON.stringify({ success: false, error: 'TMAPI_TOKEN not configured' }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -34,15 +32,63 @@ Deno.serve(async (req) => {
       publicImageUrl = await uploadToTempBucket(imageBase64);
     }
 
-    const result = await search1688DataHub(publicImageUrl, page, pageSize, rapidApiKey, startTime);
-    if (result) {
-      return new Response(JSON.stringify(result), {
+    const startTime = Date.now();
+
+    // TMAPI image search endpoint
+    const searchUrl = `https://api.tmapi.top/1688/item_search_image?key=${tmapiToken}&imgid=${encodeURIComponent(publicImageUrl)}&page=${page}&page_size=${Math.min(pageSize, 20)}`;
+
+    console.log('TMAPI image search request:', searchUrl.split('key=')[0] + 'key=***');
+
+    const resp = await fetch(searchUrl);
+    const data = await resp.json();
+
+    console.log('TMAPI response status:', resp.status, 'keys:', JSON.stringify(Object.keys(data)).slice(0, 200));
+
+    if (!resp.ok) {
+      console.error('TMAPI error:', JSON.stringify(data).slice(0, 500));
+      return new Response(JSON.stringify({ success: false, error: `TMAPI error: ${resp.status}` }), {
+        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Parse TMAPI response
+    const rawItems = data?.data?.items || data?.result?.items?.item || data?.result?.items || data?.items || [];
+    const total = data?.data?.total || data?.result?.items?.real_total_results || rawItems.length;
+
+    if (!Array.isArray(rawItems) || !rawItems.length) {
+      console.warn('TMAPI: No items found. Response:', JSON.stringify(data).slice(0, 500));
+      return new Response(JSON.stringify({ success: true, data: { items: [], total: 0 }, meta: { method: 'tmapi_image' } }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    return new Response(JSON.stringify({ success: false, error: 'Image search failed. Please try again.' }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    console.log(`TMAPI: ${rawItems.length} items in ${Date.now() - startTime}ms`);
+
+    const items = rawItems.map((item: any) => {
+      const itemId = parseInt(String(item?.num_iid || item?.nid || '0'), 10) || 0;
+      let picUrl = item?.pic_url || item?.pic || '';
+      if (picUrl.startsWith('//')) picUrl = 'https:' + picUrl;
+
+      const price = parseFloat(String(item?.price || item?.promotion_price || '0')) || 0;
+
+      return {
+        num_iid: itemId,
+        title: item?.title || '',
+        pic_url: picUrl,
+        price,
+        sales: item?.sales ? parseInt(String(item.sales), 10) : undefined,
+        detail_url: item?.detail_url || `https://detail.1688.com/offer/${itemId}.html`,
+        location: item?.area || item?.location || '',
+        vendor_name: item?.seller_nick || item?.vendor_name || '',
+      };
+    });
+
+    return new Response(JSON.stringify({
+      success: true,
+      data: { items, total },
+      meta: { method: 'tmapi_image', provider: 'tmapi' },
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
@@ -54,7 +100,6 @@ Deno.serve(async (req) => {
   }
 });
 
-// Upload base64 image to temp bucket and return public URL
 async function uploadToTempBucket(imageBase64: string): Promise<string> {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -81,99 +126,4 @@ async function uploadToTempBucket(imageBase64: string): Promise<string> {
   }, 60000);
 
   return pub.publicUrl;
-}
-
-// 1688 DataHub RapidAPI: image search
-async function search1688DataHub(
-  imageUrl: string,
-  page: number,
-  pageSize: number,
-  apiKey: string,
-  startTime: number,
-): Promise<any | null> {
-  const host = '1688-datahub.p.rapidapi.com';
-  try {
-    // Try endpoint #1 first, then #2
-    const endpoints = [
-      `https://${host}/item_search_image?imgid=${encodeURIComponent(imageUrl)}&page=${page}&page_size=${Math.min(pageSize, 20)}`,
-      `https://${host}/item_search_image_2?imgUrl=${encodeURIComponent(imageUrl)}&page=${page}&sort=default`,
-    ];
-
-    let resp: Response | null = null;
-    let data: any = null;
-
-    for (const searchUrl of endpoints) {
-      console.log(`1688 DataHub: Trying ${searchUrl.split('?')[0].split('/').pop()}...`);
-      const r = await fetch(searchUrl, {
-        method: 'GET',
-        headers: {
-          'x-rapidapi-host': host,
-          'x-rapidapi-key': apiKey,
-        },
-      });
-
-      if (r.ok) {
-        resp = r;
-        data = await r.json();
-        break;
-      }
-      const body = await r.text();
-      console.error(`Endpoint failed: ${r.status}`, body.slice(0, 300));
-      return null;
-    }
-
-    if (!data) {
-      console.error('All 1688 DataHub endpoints failed');
-      return null;
-    }
-
-    console.log('1688 DataHub response keys:', JSON.stringify(Object.keys(data)).slice(0, 200));
-
-    // Parse response — 1688 DataHub returns { result: { status: {...}, items: { item: [...] } } }
-    const result = data?.result;
-    const status = result?.status;
-    
-    if (status?.data === 'error') {
-      console.error('1688 DataHub API error:', status?.msg?.['internal-error'] || JSON.stringify(status));
-      return null;
-    }
-
-    const rawItems = result?.items?.item || result?.items || [];
-    const total = result?.items?.real_total_results || result?.items?.total_results || rawItems.length;
-
-    if (!Array.isArray(rawItems) || !rawItems.length) {
-      console.warn('1688 DataHub: No items found');
-      return null;
-    }
-
-    console.log(`1688 DataHub: ${rawItems.length} items in ${Date.now() - startTime}ms`);
-
-    const items = rawItems.map((item: any) => {
-      const itemId = parseInt(String(item?.num_iid || '0'), 10) || 0;
-      let picUrl = item?.pic_url || '';
-      if (picUrl.startsWith('//')) picUrl = 'https:' + picUrl;
-
-      const price = parseFloat(String(item?.price || item?.promotion_price || '0')) || 0;
-
-      return {
-        num_iid: itemId,
-        title: item?.title || '',
-        pic_url: picUrl,
-        price,
-        sales: item?.sales ? parseInt(String(item.sales), 10) : undefined,
-        detail_url: item?.detail_url || `https://detail.1688.com/offer/${itemId}.html`,
-        location: item?.area || item?.location || '',
-        vendor_name: item?.seller_nick || '',
-      };
-    });
-
-    return {
-      success: true,
-      data: { items, total },
-      meta: { method: 'rapidapi_1688_datahub_image', provider: '1688-datahub' },
-    };
-  } catch (e) {
-    console.error('1688 DataHub error:', e);
-    return null;
-  }
 }
