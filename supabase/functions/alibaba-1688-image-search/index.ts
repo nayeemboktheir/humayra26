@@ -28,20 +28,26 @@ Deno.serve(async (req) => {
 
     const startTime = Date.now();
 
-    // Step 1: Get a public URL for the image (upload base64 to temp bucket if needed)
+    // Get a public URL for the image (upload base64 to temp bucket if needed)
     let publicImageUrl = imageUrl || '';
     if (imageBase64 && !imageUrl) {
       publicImageUrl = await uploadToTempBucket(imageBase64);
     }
 
-    console.log('Image URL for search:', publicImageUrl.slice(0, 100));
+    console.log('Image URL for search:', publicImageUrl.slice(0, 120));
 
-    // Step 2: Convert image URL to Alibaba-recognizable format via TMAPI convert_url
-    const convertedUrl = await convertImageUrl(publicImageUrl, apiToken);
-    console.log('Converted image URL:', convertedUrl.slice(0, 100));
+    // Determine if URL needs conversion (non-Alibaba URLs do)
+    const needsConversion = !publicImageUrl.includes('alicdn.com') && !publicImageUrl.includes('1688.com');
+    let searchImgUrl = publicImageUrl;
 
-    // Step 3: Search using the converted URL
-    const searchUrl = `http://api.tmapi.top/1688/search/image?apiToken=${apiToken}&img_url=${encodeURIComponent(convertedUrl)}&page=${page}&page_size=${Math.min(pageSize, 20)}&sort=default`;
+    if (needsConversion) {
+      // Convert the image URL using TMAPI's convert_url API
+      searchImgUrl = await convertImageUrl(publicImageUrl, apiToken);
+      console.log('Converted URL:', String(searchImgUrl).slice(0, 120));
+    }
+
+    // Search using the converted/original URL
+    const searchUrl = `http://api.tmapi.top/1688/search/image?apiToken=${apiToken}&img_url=${encodeURIComponent(searchImgUrl)}&page=${page}&page_size=${Math.min(pageSize, 20)}&sort=default`;
 
     console.log('TMAPI search request...');
     const resp = await fetch(searchUrl);
@@ -51,7 +57,7 @@ Deno.serve(async (req) => {
 
     if (!resp.ok) {
       console.error('TMAPI error:', JSON.stringify(data).slice(0, 500));
-      return new Response(JSON.stringify({ success: false, error: `TMAPI error: ${resp.status} - ${data?.message || 'Unknown error'}` }), {
+      return new Response(JSON.stringify({ success: false, error: `TMAPI error: ${resp.status} - ${data?.msg || 'Unknown error'}` }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -62,7 +68,7 @@ Deno.serve(async (req) => {
     const total = resultData?.total || rawItems.length;
 
     if (!Array.isArray(rawItems) || !rawItems.length) {
-      console.warn('TMAPI: No items found. Response keys:', JSON.stringify(Object.keys(data || {})));
+      console.warn('TMAPI: No items found. Response:', JSON.stringify(data).slice(0, 300));
       return new Response(JSON.stringify({ success: true, data: { items: [], total: 0 }, meta: { method: 'tmapi_image' } }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -71,16 +77,16 @@ Deno.serve(async (req) => {
     console.log(`TMAPI: ${rawItems.length} items in ${Date.now() - startTime}ms`);
 
     const items = rawItems.map((item: any) => {
-      const itemId = item?.item_id || 0;
-      let picUrl = item?.img || '';
+      const itemId = item?.item_id || item?.num_iid || 0;
+      let picUrl = item?.img || item?.pic_url || '';
       if (picUrl.startsWith('//')) picUrl = 'https:' + picUrl;
 
       const price = parseFloat(String(item?.price_info?.sale_price || item?.price || '0')) || 0;
-      const sales = item?.sale_info?.sale_quantity_int || undefined;
+      const sales = item?.sale_info?.sale_quantity_int || item?.sales || undefined;
       const location = Array.isArray(item?.delivery_info?.area_from)
         ? item.delivery_info.area_from.join(' ')
-        : '';
-      const vendorName = item?.shop_info?.shop_name || item?.shop_info?.seller_nick || '';
+        : (item?.location || '');
+      const vendorName = item?.shop_info?.shop_name || item?.shop_info?.seller_nick || item?.vendor_name || '';
 
       return {
         num_iid: itemId,
@@ -88,7 +94,7 @@ Deno.serve(async (req) => {
         pic_url: picUrl,
         price,
         sales,
-        detail_url: item?.product_url || `https://detail.1688.com/offer/${itemId}.html`,
+        detail_url: item?.product_url || item?.detail_url || `https://detail.1688.com/offer/${itemId}.html`,
         location,
         vendor_name: vendorName,
       };
@@ -113,11 +119,6 @@ Deno.serve(async (req) => {
 
 // Convert non-Alibaba image URL to Alibaba-recognizable format
 async function convertImageUrl(imageUrl: string, apiToken: string): Promise<string> {
-  // If already an Alibaba/1688 URL, no conversion needed
-  if (imageUrl.includes('alicdn.com') || imageUrl.includes('1688.com')) {
-    return imageUrl;
-  }
-
   const convertUrl = `http://api.tmapi.top/1688/tools/image/convert_url?apiToken=${apiToken}`;
   console.log('Converting image URL via TMAPI...');
 
@@ -131,15 +132,18 @@ async function convertImageUrl(imageUrl: string, apiToken: string): Promise<stri
   });
 
   const data = await resp.json();
-  console.log('Convert response status:', resp.status, 'keys:', JSON.stringify(Object.keys(data || {})));
+  console.log('Convert response:', resp.status, JSON.stringify(data).slice(0, 300));
 
   if (!resp.ok || !data?.data) {
-    console.error('Convert URL failed:', JSON.stringify(data).slice(0, 500));
-    throw new Error(`Image URL conversion failed: ${data?.message || resp.status}`);
+    throw new Error(`Image URL conversion failed (${resp.status}): ${data?.msg || 'Unknown error'}`);
   }
 
-  // The converted result is typically an image path that can be used directly as img_url
-  return data.data;
+  const result = data.data;
+  if (typeof result === 'string') return result;
+  if (typeof result === 'object' && result !== null) {
+    return result.img_url || result.url || result.image_url || String(result);
+  }
+  return String(result);
 }
 
 // Upload base64 image to temp bucket and return public URL
