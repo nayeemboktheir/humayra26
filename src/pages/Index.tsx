@@ -414,24 +414,22 @@ const Index = () => {
     } finally { setIsLoading(false); }
   };
 
-  // Background prefetch image search pages for instant navigation
-  const prefetchImagePages = async (convertedUrl: string, fromPage: number, toPage: number) => {
-    for (let p = fromPage; p <= toPage; p++) {
+  // Background prefetch image search pages in parallel for instant navigation
+  const prefetchImagePages = (convertedUrl: string, fromPage: number, toPage: number) => {
+    const pages = Array.from({ length: toPage - fromPage + 1 }, (_, i) => fromPage + i);
+    pages.forEach(async (p) => {
       try {
         const resp = await alibaba1688Api.searchByImage('', p, 20, '', convertedUrl);
         if (resp.success && resp.data && resp.data.items.length > 0) {
           imagePageCacheRef.current[p] = resp.data.items;
           console.log(`Prefetched image search page ${p}: ${resp.data.items.length} items`);
         } else {
-          // No more results, stop prefetching
-          console.log(`No results for page ${p}, stopping prefetch`);
-          break;
+          console.log(`No results for page ${p}`);
         }
       } catch {
         console.warn(`Failed to prefetch page ${p}`);
-        break;
       }
-    }
+    });
   };
 
   const IMAGE_PAGE_SIZE = 20;
