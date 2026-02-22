@@ -84,17 +84,19 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Map items to Product1688 format
+    // Map items to Product1688 format using actual TMAPI field names
     const items = rawItems.map((item: any) => ({
-      num_iid: parseInt(String(item.num_iid || item.id || '0'), 10) || 0,
+      num_iid: parseInt(String(item.item_id || '0'), 10) || 0,
       title: item.title || '',
-      pic_url: item.pic_url || item.img || '',
-      price: parseFloat(String(item.price || item.promotion_price || '0')) || 0,
-      promotion_price: item.promotion_price ? parseFloat(String(item.promotion_price)) : undefined,
-      sales: typeof item.sales === 'number' ? item.sales : (parseInt(String(item.sales || '0'), 10) || undefined),
-      detail_url: item.detail_url || `https://detail.1688.com/offer/${item.num_iid || item.id}.html`,
-      location: item.area || item.location || '',
-      vendor_name: item.seller_nick || item.vendor_name || '',
+      pic_url: item.img || '',
+      price: parseFloat(String(item.price_info?.sale_price || item.price || '0')) || 0,
+      promotion_price: item.price_info?.origin_price !== item.price_info?.sale_price
+        ? parseFloat(String(item.price_info?.origin_price || '0')) || undefined
+        : undefined,
+      sales: item.sale_info?.sale_quantity_int || parseInt(String(item.sale_info?.sale_quantity || '0'), 10) || undefined,
+      detail_url: item.product_url || `https://detail.1688.com/offer/${item.item_id}.html`,
+      location: item.delivery_info?.area_from || '',
+      vendor_name: item.shop_info?.shop_name || item.shop_info?.seller_nick || '',
     }));
 
     console.log(`TMAPI image search returned ${items.length}/${total} items in ${Date.now() - startTime}ms`);
