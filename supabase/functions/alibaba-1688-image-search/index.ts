@@ -40,6 +40,7 @@ Deno.serve(async (req) => {
     console.log('Image URL for search:', imgUrl.slice(0, 120));
 
     // Step 2: Check if the image is from an Alibaba domain; if not, convert it
+    let convertedImageUrl = imgUrl;
     const isAliImage = /alicdn\.com|1688\.com|taobao\.com|tmall\.com/i.test(imgUrl);
     if (!isAliImage) {
       console.log('Non-Ali image detected, converting via TMAPI...');
@@ -51,10 +52,10 @@ Deno.serve(async (req) => {
       const convertData = await convertResp.json();
       console.log('Convert response:', JSON.stringify(convertData).slice(0, 300));
 
-      const convertedUrl = convertData?.data?.image_url || convertData?.data?.img_url;
-      if (convertedUrl) {
-        imgUrl = convertedUrl;
-        console.log('Converted image URL:', imgUrl);
+      const converted = convertData?.data?.image_url || convertData?.data?.img_url;
+      if (converted) {
+        convertedImageUrl = converted;
+        console.log('Converted image URL:', convertedImageUrl);
       } else {
         console.warn('Image conversion failed, using original URL');
       }
@@ -62,7 +63,7 @@ Deno.serve(async (req) => {
 
     // Step 3: Call TMAPI image search
     const tmapiPageSize = 20; // TMAPI max per page
-    const searchUrl = `${TMAPI_BASE}/search/image?apiToken=${apiToken}&img_url=${encodeURIComponent(imgUrl)}&page=${page}&page_size=${tmapiPageSize}&sort=default`;
+    const searchUrl = `${TMAPI_BASE}/search/image?apiToken=${apiToken}&img_url=${encodeURIComponent(convertedImageUrl)}&page=${page}&page_size=${tmapiPageSize}&sort=default`;
 
     console.log(`TMAPI image search page ${page}...`);
     const resp = await fetch(searchUrl);
@@ -77,11 +78,17 @@ Deno.serve(async (req) => {
     }
 
     const rawItems = searchData?.data?.items || [];
-    const total = searchData?.data?.total_results || rawItems.length;
-    console.log(`TMAPI page ${page}: ${rawItems.length} items, total: ${total}`);
+    // TMAPI often reports low totals for image search; use at least 100 to enable pagination
+    const reportedTotal = searchData?.data?.total_results || rawItems.length;
+    const total = Math.max(reportedTotal, rawItems.length > 0 ? 100 : 0);
+    console.log(`TMAPI page ${page}: ${rawItems.length} items, reported total: ${reportedTotal}, effective total: ${total}`);
 
     if (!rawItems.length) {
-      return new Response(JSON.stringify({ success: true, data: { items: [], total: 0 }, meta: { method: 'tmapi_image' } }), {
+      return new Response(JSON.stringify({ 
+        success: true, 
+        data: { items: [], total: 0 }, 
+        meta: { method: 'tmapi_image', convertedImageUrl } 
+      }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -91,34 +98,21 @@ Deno.serve(async (req) => {
       .map((item: any) => parseInt(String(item.item_id || '0'), 10))
       .filter((id: number) => id > 0);
 
-    // Step 4: Page 1 returns TMAPI results immediately (fast), page 2+ enriches with OTAPI
-    if (page === 1) {
-      const items = rawItems.map((item: any) => mapTmapiItem(item));
-      console.log(`Image search page 1 (fast): ${items.length} items in ${Date.now() - startTime}ms`);
-      return new Response(JSON.stringify({
-        success: true,
-        data: { items, total },
-        meta: { method: 'tmapi_image_fast', page, pageSize },
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Page 2+: Enrich with OTAPI for translated titles and detailed info
-    console.log(`TMAPI found ${itemIds.length} item IDs, fetching from OTAPI...`);
+    // Always enrich with OTAPI for English titles
     const otapiKey = Deno.env.get('OTCOMMERCE_API_KEY');
     if (!otapiKey) {
-      console.warn('OTCOMMERCE_API_KEY not configured, returning TMAPI results');
+      console.warn('OTCOMMERCE_API_KEY not configured, returning TMAPI results (Chinese)');
       const items = rawItems.map((item: any) => mapTmapiItem(item));
       return new Response(JSON.stringify({
         success: true,
         data: { items, total },
-        meta: { method: 'tmapi_image', page, pageSize },
+        meta: { method: 'tmapi_image', page, pageSize, convertedImageUrl },
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
+    console.log(`Fetching ${itemIds.length} items from OTAPI for English titles...`);
     const otapiItems = await fetchOtapiItems(itemIds, otapiKey);
 
     // Merge: preserve TMAPI order, use OTAPI data where available, fallback to TMAPI
@@ -134,7 +128,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({
       success: true,
       data: { items: mergedItems, total },
-      meta: { method: 'tmapi_image_otapi', page, pageSize },
+      meta: { method: 'tmapi_image_otapi', page, pageSize, convertedImageUrl },
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
