@@ -13,7 +13,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { imageBase64, imageUrl, page = 1, pageSize = 20 } = await req.json();
+    const { imageBase64, imageUrl, page = 1, pageSize = 40 } = await req.json();
 
     if (!imageBase64 && !imageUrl) {
       return new Response(JSON.stringify({ success: false, error: 'Image is required' }), {
@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
     }
 
     // Step 3: Call TMAPI image search to get item IDs
-    const searchUrl = `${TMAPI_BASE}/search/image?apiToken=${apiToken}&img_url=${encodeURIComponent(imgUrl)}&page=${page}&page_size=${Math.min(pageSize, 20)}&sort=default`;
+    const searchUrl = `${TMAPI_BASE}/search/image?apiToken=${apiToken}&img_url=${encodeURIComponent(imgUrl)}&page=${page}&page_size=${Math.min(pageSize, 40)}&sort=default`;
 
     console.log('TMAPI image search request...');
     const resp = await fetch(searchUrl);
