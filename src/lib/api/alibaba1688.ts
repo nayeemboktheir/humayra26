@@ -125,7 +125,7 @@ export const alibaba1688Api = {
   async searchByImage(
     imageBase64: string,
     page = 1,
-    pageSize = 20,
+    pageSize = 40,
     keyword = '',
   ): Promise<ApiResponse<{ items: Product1688[]; total: number }>> {
     try {
