@@ -381,7 +381,7 @@ const Index = () => {
       // Use filename as hint if no keyword provided
       const effectiveKeyword = keyword || file.name.replace(/\.[^.]+$/, '').replace(/[_\-]+/g, ' ');
       setImageSearchBase64(imageBase64);
-      const result = await alibaba1688Api.searchByImage(imageBase64, 1, 20, effectiveKeyword);
+      const result = await alibaba1688Api.searchByImage(imageBase64, 1, 20, effectiveKeyword, '', true);
       if (result.success && result.data) {
         setProducts(result.data.items);
         setTotalResults(result.data.total);
@@ -419,7 +419,7 @@ const Index = () => {
     const pages = Array.from({ length: toPage - fromPage + 1 }, (_, i) => fromPage + i);
     pages.forEach(async (p) => {
       try {
-        const resp = await alibaba1688Api.searchByImage('', p, 20, '', convertedUrl, true);
+        const resp = await alibaba1688Api.searchByImage('', p, 20, '', convertedUrl, false);
         if (resp.success && resp.data && resp.data.items.length > 0) {
           imagePageCacheRef.current[p] = resp.data.items;
           console.log(`Prefetched image search page ${p}: ${resp.data.items.length} items`);
