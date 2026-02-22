@@ -108,7 +108,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Fetch items from OTAPI in parallel (max 5 concurrent)
+// Fetch items from OTAPI in parallel (all at once with timeout)
     const otapiItems = await fetchOtapiItems(itemIds, otapiKey);
 
     // Merge: preserve TMAPI order, use OTAPI data where available, fallback to TMAPI
@@ -161,29 +161,26 @@ function mapTmapiItem(item: any) {
 // Fetch multiple items from OTAPI in parallel
 async function fetchOtapiItems(itemIds: number[], apiKey: string): Promise<Map<number, any>> {
   const results = new Map<number, any>();
-  const BATCH_SIZE = 5;
+  const TIMEOUT_MS = 4000;
 
-  for (let i = 0; i < itemIds.length; i += BATCH_SIZE) {
-    const batch = itemIds.slice(i, i + BATCH_SIZE);
-    const promises = batch.map(async (numIid) => {
+  const fetchWithTimeout = (numIid: number) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+    return (async () => {
       try {
         const itemId = `abb-${numIid}`;
         const url = `https://otapi.net/service-json/BatchGetItemFullInfo?instanceKey=${encodeURIComponent(apiKey)}&language=en&itemId=${encodeURIComponent(itemId)}&blockList=Description`;
         const response = await fetch(url, {
           method: 'GET',
           headers: { 'Accept': 'application/json' },
+          signal: controller.signal,
         });
+        clearTimeout(timer);
 
-        if (!response.ok) {
-          console.warn(`OTAPI HTTP ${response.status} for item ${numIid}`);
-          return;
-        }
-
+        if (!response.ok) return;
         const data = await response.json();
-        if (data?.ErrorCode && data.ErrorCode !== 'Ok') {
-          console.warn(`OTAPI error for item ${numIid}: ${data.ErrorCode} - ${data.ErrorDescription || data.ErrorMessage || ''}`);
-          return;
-        }
+        if (data?.ErrorCode && data.ErrorCode !== 'Ok') return;
 
         const item = data?.Result?.Item;
         if (!item) return;
@@ -210,12 +207,14 @@ async function fetchOtapiItems(itemIds: number[], apiKey: string): Promise<Map<n
           weight: item?.PhysicalParameters?.Weight || undefined,
         });
       } catch (err) {
-        console.warn(`Failed to fetch OTAPI item ${numIid}:`, err);
+        clearTimeout(timer);
+        // Timeout or network error — skip silently
       }
-    });
+    })();
+  };
 
-    await Promise.all(promises);
-  }
+  // Fire ALL requests in parallel (no batching)
+  await Promise.all(itemIds.map(fetchWithTimeout));
 
   return results;
 }
