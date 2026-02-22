@@ -419,7 +419,7 @@ const Index = () => {
     const pages = Array.from({ length: toPage - fromPage + 1 }, (_, i) => fromPage + i);
     pages.forEach(async (p) => {
       try {
-        const resp = await alibaba1688Api.searchByImage('', p, 20, '', convertedUrl);
+        const resp = await alibaba1688Api.searchByImage('', p, 20, '', convertedUrl, true);
         if (resp.success && resp.data && resp.data.items.length > 0) {
           imagePageCacheRef.current[p] = resp.data.items;
           console.log(`Prefetched image search page ${p}: ${resp.data.items.length} items`);

@@ -13,7 +13,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { imageBase64, imageUrl, page = 1, pageSize = 40 } = await req.json();
+    const { imageBase64, imageUrl, page = 1, pageSize = 40, skipOtapi = false } = await req.json();
 
     if (!imageBase64 && !imageUrl) {
       return new Response(JSON.stringify({ success: false, error: 'Image is required' }), {
@@ -98,7 +98,20 @@ Deno.serve(async (req) => {
       .map((item: any) => parseInt(String(item.item_id || '0'), 10))
       .filter((id: number) => id > 0);
 
-    // Always enrich with OTAPI for English titles
+    // Skip OTAPI enrichment if requested (for prefetch/page 2+)
+    if (skipOtapi) {
+      console.log(`Skipping OTAPI enrichment (skipOtapi=true), returning ${rawItems.length} TMAPI items`);
+      const items = rawItems.map((item: any) => mapTmapiItem(item));
+      return new Response(JSON.stringify({
+        success: true,
+        data: { items, total },
+        meta: { method: 'tmapi_image', page, pageSize, convertedImageUrl },
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Enrich with OTAPI for English titles (page 1 only typically)
     const otapiKey = Deno.env.get('OTCOMMERCE_API_KEY');
     if (!otapiKey) {
       console.warn('OTCOMMERCE_API_KEY not configured, returning TMAPI results (Chinese)');
@@ -115,7 +128,6 @@ Deno.serve(async (req) => {
     console.log(`Fetching ${itemIds.length} items from OTAPI for English titles...`);
     const otapiItems = await fetchOtapiItems(itemIds, otapiKey);
 
-    // Merge: preserve TMAPI order, use OTAPI data where available, fallback to TMAPI
     const mergedItems = rawItems.map((tmapiItem: any) => {
       const itemId = parseInt(String(tmapiItem.item_id || '0'), 10);
       const otapiItem = otapiItems.get(itemId);
