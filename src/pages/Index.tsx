@@ -407,7 +407,8 @@ const Index = () => {
     } finally { setIsLoading(false); }
   };
 
-  const PAGE_SIZE = 40;
+  const IMAGE_PAGE_SIZE = 20;
+  const PAGE_SIZE = activeSearch?.mode === 'image' ? IMAGE_PAGE_SIZE : 40;
   const totalPages = totalResults ? Math.ceil(totalResults / PAGE_SIZE) : 0;
 
   const goToPage = async (page: number) => {
@@ -417,10 +418,15 @@ const Index = () => {
     
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
-    // Update URL with page
-    const params = new URLSearchParams(searchParams);
+    // Update URL with page — for image search, use 'img' param to preserve context
+    const params = new URLSearchParams();
+    if (activeSearch.mode === 'image') {
+      params.set("img", "1");
+    } else {
+      const searchQuery = activeSearch.query || query.trim();
+      if (searchQuery) params.set("q", searchQuery);
+    }
     if (page > 1) params.set("page", String(page));
-    else params.delete("page");
     setSearchParams(params, { replace: true });
 
     try {
