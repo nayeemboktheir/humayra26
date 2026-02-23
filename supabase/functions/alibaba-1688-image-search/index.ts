@@ -6,6 +6,7 @@ const corsHeaders = {
 };
 
 const ATP_BASE = 'https://api.icom.la/1688/api/call.php';
+const IMG_CONVERT_BASE = 'https://icom.la/ima/index.php';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -37,9 +38,27 @@ Deno.serve(async (req) => {
       imgUrl = await uploadToTempBucket(imageBase64);
     }
 
-    console.log('Image URL for ATP search:', imgUrl.slice(0, 120));
+    console.log('Image URL before conversion:', imgUrl.slice(0, 120));
 
-    // Step 2: Call ATP item_search_img API
+    // Step 2: Convert non-Alibaba images to Ali-compatible URL via icom.la converter
+    if (!imgUrl.includes('alicdn.com') && !imgUrl.includes('aliyuncs.com')) {
+      console.log('Converting image to Ali-compatible URL...');
+      const convertUrl = `${IMG_CONVERT_BASE}?imgcode=${encodeURIComponent(imgUrl)}&key=test`;
+      try {
+        const convertResp = await fetch(convertUrl);
+        const convertData = await convertResp.json();
+        if (convertData?.status === 'success' && convertData?.items?.item?.file_url) {
+          imgUrl = convertData.items.item.file_url;
+          console.log('Converted image URL:', imgUrl.slice(0, 120));
+        } else {
+          console.warn('Image conversion failed, using original URL:', JSON.stringify(convertData).slice(0, 200));
+        }
+      } catch (convErr) {
+        console.warn('Image conversion error, using original URL:', convErr);
+      }
+    }
+
+    // Step 3: Call ATP item_search_img API
     const effectivePageSize = Math.min(pageSize, 40);
     const searchUrl = `${ATP_BASE}?api_key=${encodeURIComponent(apiKey)}&item_search_img&imgid=${encodeURIComponent(imgUrl)}&lang=zh-CN&page=${page}&page_size=${effectivePageSize}`;
 
