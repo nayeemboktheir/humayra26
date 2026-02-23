@@ -164,7 +164,12 @@ async function convertImageUrl(imgUrl: string, apiToken: string): Promise<string
     const convertData = await convertResp.json();
     if (convertData?.code === 200 && convertData?.data) {
       const d = convertData.data;
-      return d.image_url || d.img_url || d.url || (typeof d === 'string' ? d : '') || imgUrl;
+      let result = d.image_url || d.img_url || d.url || (typeof d === 'string' ? d : '') || imgUrl;
+      // Ensure full URL — TMAPI sometimes returns relative paths like /search/imgextra5/...
+      if (result && result.startsWith('/')) {
+        result = `https://cbu01.alicdn.com${result}`;
+      }
+      return result;
     }
   } catch {}
   return imgUrl;
