@@ -65,13 +65,14 @@ Deno.serve(async (req) => {
     }
 
     const framePosition = (page - 1) * pageSize;
+    // XML-escape special characters to prevent ValidationError
+    const xmlEscape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
     let xmlParams: string;
     if (isImageSearch) {
-      // OTAPI image search: use proper XML with ImageUrl inside SearchItemsParameters
-      xmlParams = `<SearchItemsParameters><ImageUrl>${imageUrl}</ImageUrl><Provider>Alibaba1688</Provider></SearchItemsParameters>`;
+      xmlParams = `<SearchItemsParameters><ImageUrl>${xmlEscape(imageUrl)}</ImageUrl><Provider>Alibaba1688</Provider></SearchItemsParameters>`;
       console.log(`OTAPI image search page ${page}, imageUrl: ${imageUrl.slice(0, 120)}`);
     } else {
-      xmlParams = `<SearchItemsParameters><ItemTitle>${query}</ItemTitle><Provider>Alibaba1688</Provider></SearchItemsParameters>`;
+      xmlParams = `<SearchItemsParameters><ItemTitle>${xmlEscape(query)}</ItemTitle><Provider>Alibaba1688</Provider></SearchItemsParameters>`;
     }
     const url = `https://otapi.net/service-json/SearchItemsFrame?instanceKey=${encodeURIComponent(apiKey)}&language=en&xmlParameters=${encodeURIComponent(xmlParams)}&framePosition=${framePosition}&frameSize=${pageSize}`;
 
