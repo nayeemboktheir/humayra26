@@ -392,15 +392,15 @@ const Index = () => {
           setImageSearchConvertedUrl(convertedUrl);
         }
 
-        // Derive a keyword from the top result title for keyword-based pagination on pages 2+
-        // Keyword search gives more accurate/relevant continuation than OTAPI image search
+        // Store both: first product's image (for OTAPI image search) + title (for keyword search)
+        const firstProductImg = result.data.items[0]?.pic_url || '';
         const derivedKeyword = result.data.items[0]?.title || '';
-        console.log('Image search: derived keyword for pages 2+:', derivedKeyword);
-        setImageSearchDerivedKeyword(derivedKeyword);
+        console.log('Image search hybrid: img=', firstProductImg.slice(0, 80), 'keyword=', derivedKeyword.slice(0, 60));
+        setImageSearchDerivedKeyword(JSON.stringify({ img: firstProductImg, keyword: derivedKeyword }));
 
-        // Background prefetch pages 2-6 via keyword search (OTAPI cached)
-        if (derivedKeyword) {
-          prefetchImagePagesByKeyword(derivedKeyword, 2, 6);
+        // Background prefetch pages 2-6 via hybrid (image + keyword, merged)
+        if (firstProductImg || derivedKeyword) {
+          prefetchHybridPages(firstProductImg, derivedKeyword, 2, 6);
         }
 
         setActiveSearch({
@@ -439,18 +439,43 @@ const Index = () => {
     }
   };
 
-  // Background prefetch image search pages 2+ via keyword search (OTAPI cached)
-  const prefetchImagePagesByKeyword = (keyword: string, fromPage: number, toPage: number) => {
+  // Merge + deduplicate items by num_iid, interleaving image results first
+  const mergeAndDedupe = (imageItems: Product1688[], keywordItems: Product1688[]): Product1688[] => {
+    const seen = new Set<number>();
+    const merged: Product1688[] = [];
+    // Interleave: image result, keyword result, image, keyword...
+    const maxLen = Math.max(imageItems.length, keywordItems.length);
+    for (let i = 0; i < maxLen; i++) {
+      if (i < imageItems.length && !seen.has(imageItems[i].num_iid)) {
+        seen.add(imageItems[i].num_iid);
+        merged.push(imageItems[i]);
+      }
+      if (i < keywordItems.length && !seen.has(keywordItems[i].num_iid)) {
+        seen.add(keywordItems[i].num_iid);
+        merged.push(keywordItems[i]);
+      }
+    }
+    return merged;
+  };
+
+  // Background prefetch pages 2+ via hybrid: OTAPI image search + keyword search, merged
+  const prefetchHybridPages = (imageUrl: string, keyword: string, fromPage: number, toPage: number) => {
     const pages = Array.from({ length: toPage - fromPage + 1 }, (_, i) => fromPage + i);
     pages.forEach(async (p) => {
       try {
-        const resp = await alibaba1688Api.search(keyword, p, 20);
-        if (resp.success && resp.data && resp.data.items.length > 0) {
-          imagePageCacheRef.current[p] = resp.data.items;
-          console.log(`Prefetched keyword page ${p}: ${resp.data.items.length} items`);
+        const [imgResp, kwResp] = await Promise.allSettled([
+          imageUrl ? alibaba1688Api.searchByImageOtapi(imageUrl, p, 20) : Promise.resolve({ success: false } as any),
+          keyword ? alibaba1688Api.search(keyword, p, 20) : Promise.resolve({ success: false } as any),
+        ]);
+        const imgItems = imgResp.status === 'fulfilled' && imgResp.value.success ? imgResp.value.data?.items || [] : [];
+        const kwItems = kwResp.status === 'fulfilled' && kwResp.value.success ? kwResp.value.data?.items || [] : [];
+        const merged = mergeAndDedupe(imgItems, kwItems);
+        if (merged.length > 0) {
+          imagePageCacheRef.current[p] = merged;
+          console.log(`Prefetched hybrid page ${p}: ${imgItems.length} img + ${kwItems.length} kw = ${merged.length} merged`);
         }
       } catch {
-        console.warn(`Failed to prefetch image page ${p}`);
+        console.warn(`Failed to prefetch hybrid page ${p}`);
       }
     });
   };
@@ -475,25 +500,36 @@ const Index = () => {
         setCurrentPage(page);
         return;
       }
-      // Not cached — fetch via keyword search using derived keyword
-      console.log(`[goToPage] cache MISS page ${page}, fetching via keyword search`);
+      // Not cached — fetch via hybrid (image + keyword) search
+      console.log(`[goToPage] cache MISS page ${page}, fetching via hybrid search`);
       setIsLoading(true);
       try {
-        const keyword = imageSearchDerivedKeyword;
-        if (keyword) {
-          const resp = await alibaba1688Api.search(keyword, page, 20);
-          console.log(`[goToPage] keyword resp page ${page}: success=${resp.success}, items=${resp.data?.items?.length}`);
-          if (resp.success && resp.data && resp.data.items.length > 0) {
-            setProducts(resp.data.items);
+        const stored = imageSearchDerivedKeyword;
+        let img = '', kw = '';
+        try { const parsed = JSON.parse(stored); img = parsed.img || ''; kw = parsed.keyword || ''; } catch { kw = stored; }
+        if (img || kw) {
+          const [imgResp, kwResp] = await Promise.allSettled([
+            img ? alibaba1688Api.searchByImageOtapi(img, page, 20) : Promise.resolve({ success: false } as any),
+            kw ? alibaba1688Api.search(kw, page, 20) : Promise.resolve({ success: false } as any),
+          ]);
+          const imgItems = imgResp.status === 'fulfilled' && imgResp.value.success ? imgResp.value.data?.items || [] : [];
+          const kwItems = kwResp.status === 'fulfilled' && kwResp.value.success ? kwResp.value.data?.items || [] : [];
+          const merged = mergeAndDedupe(imgItems, kwItems);
+          console.log(`[goToPage] hybrid page ${page}: ${imgItems.length} img + ${kwItems.length} kw = ${merged.length} merged`);
+          if (merged.length > 0) {
+            setProducts(merged);
             setCurrentPage(page);
-            setTotalResults(resp.data.total);
-            imagePageCacheRef.current[page] = resp.data.items;
+            const maxTotal = Math.max(
+              imgResp.status === 'fulfilled' && imgResp.value.data?.total || 0,
+              kwResp.status === 'fulfilled' && kwResp.value.data?.total || 0,
+            );
+            setTotalResults(maxTotal);
+            imagePageCacheRef.current[page] = merged;
           } else {
-            toast.error(resp.error || "No products found for this page");
+            toast.error("No products found for this page");
           }
         } else {
-          console.warn('[goToPage] no derived keyword for pagination');
-          toast.error("No keyword available for pagination");
+          toast.error("No search data available for pagination");
         }
       } catch (err) { console.error('[goToPage] error:', err); toast.error("Failed to load page"); }
       finally { setIsLoading(false); }
