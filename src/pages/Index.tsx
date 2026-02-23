@@ -383,19 +383,21 @@ const Index = () => {
       setImageSearchBase64(imageBase64);
       const result = await alibaba1688Api.searchByImage(imageBase64, 1, 20);
       
-      // Store converted URL for pagination regardless of TMAPI result
+      // Use originalImageUrl (supabase public URL) for OTAPI — alicdn URLs may not work with OTAPI
+      const originalUrl = (result as any).meta?.originalImageUrl;
       const convertedUrl = (result as any).meta?.convertedImageUrl;
-      if (convertedUrl) {
-        setImageSearchConvertedUrl(convertedUrl);
+      const otapiUrl = originalUrl || convertedUrl; // Prefer original supabase URL for OTAPI
+      if (otapiUrl) {
+        setImageSearchConvertedUrl(otapiUrl);
       }
 
       let finalItems = result.success && result.data ? result.data.items : [];
       let finalTotal = result.success && result.data ? result.data.total : 0;
 
       // TMAPI returned 0 results — fall back to OTAPI image search (paid API, more reliable)
-      if (finalItems.length === 0 && convertedUrl) {
+      if (finalItems.length === 0 && otapiUrl) {
         console.log('TMAPI returned 0 results, falling back to OTAPI image search');
-        const otapiResult = await alibaba1688Api.searchByImageOtapi(convertedUrl, 1, 40);
+        const otapiResult = await alibaba1688Api.searchByImageOtapi(otapiUrl, 1, 40);
         if (otapiResult.success && otapiResult.data && otapiResult.data.items.length > 0) {
           finalItems = otapiResult.data.items;
           finalTotal = otapiResult.data.total;
@@ -406,9 +408,9 @@ const Index = () => {
       setTotalResults(finalTotal);
       imagePageCacheRef.current[1] = finalItems;
 
-      // Prefetch pages 2-6 using OTAPI image search
-      if (convertedUrl) {
-        prefetchOtapiImagePages(convertedUrl, 2, 6);
+      // Prefetch pages 2-6 using OTAPI image search with original URL
+      if (otapiUrl) {
+        prefetchOtapiImagePages(otapiUrl, 2, 6);
       }
 
       setActiveSearch({
