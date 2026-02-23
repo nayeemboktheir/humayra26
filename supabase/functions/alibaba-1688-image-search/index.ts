@@ -57,17 +57,14 @@ Deno.serve(async (req) => {
         const convertData = await convertResp.json();
         console.log('TMAPI convert response:', JSON.stringify(convertData).slice(0, 300));
 
-        if (convertData?.code === 200 && convertData?.data?.img_url) {
-          imgUrl = convertData.data.img_url;
-          console.log('Converted image URL:', imgUrl.slice(0, 120));
-        } else if (convertData?.data) {
-          // Sometimes the data itself is the converted URL string
-          const possibleUrl = typeof convertData.data === 'string' ? convertData.data : convertData.data.img_url || convertData.data.url || '';
+        if (convertData?.code === 200 && convertData?.data) {
+          const d = convertData.data;
+          const possibleUrl = d.image_url || d.img_url || d.url || (typeof d === 'string' ? d : '');
           if (possibleUrl) {
             imgUrl = possibleUrl;
-            console.log('Converted image URL (alt):', imgUrl.slice(0, 120));
+            console.log('Converted image URL:', imgUrl.slice(0, 120));
           } else {
-            console.warn('Image conversion returned unexpected format, using original URL');
+            console.warn('Image conversion returned unexpected data format:', JSON.stringify(d).slice(0, 200));
           }
         } else {
           console.warn('Image conversion failed:', JSON.stringify(convertData).slice(0, 200));
