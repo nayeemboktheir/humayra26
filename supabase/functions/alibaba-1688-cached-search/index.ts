@@ -24,7 +24,12 @@ Deno.serve(async (req) => {
     }
 
     const isImageSearch = !!imageUrl && !query;
-    const queryKey = isImageSearch ? `img:${imageUrl.trim().toLowerCase()}` : query.trim().toLowerCase();
+    // Ensure imageUrl is a full URL (TMAPI sometimes returns relative paths)
+    let normalizedImageUrl = imageUrl;
+    if (normalizedImageUrl && normalizedImageUrl.startsWith('/')) {
+      normalizedImageUrl = `https://cbu01.alicdn.com${normalizedImageUrl}`;
+    }
+    const queryKey = isImageSearch ? `img:${normalizedImageUrl.trim().toLowerCase()}` : query.trim().toLowerCase();
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -69,8 +74,8 @@ Deno.serve(async (req) => {
     const xmlEscape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
     let xmlParams: string;
     if (isImageSearch) {
-      xmlParams = `<SearchItemsParameters><ImageUrl>${xmlEscape(imageUrl)}</ImageUrl><Provider>Alibaba1688</Provider></SearchItemsParameters>`;
-      console.log(`OTAPI image search page ${page}, imageUrl: ${imageUrl.slice(0, 120)}`);
+      xmlParams = `<SearchItemsParameters><ImageUrl>${xmlEscape(normalizedImageUrl)}</ImageUrl><Provider>Alibaba1688</Provider></SearchItemsParameters>`;
+      console.log(`OTAPI image search page ${page}, imageUrl: ${normalizedImageUrl.slice(0, 120)}`);
     } else {
       xmlParams = `<SearchItemsParameters><ItemTitle>${xmlEscape(query)}</ItemTitle><Provider>Alibaba1688</Provider></SearchItemsParameters>`;
     }
