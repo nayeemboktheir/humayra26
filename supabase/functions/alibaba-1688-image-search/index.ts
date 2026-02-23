@@ -1,5 +1,3 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
@@ -31,17 +29,18 @@ Deno.serve(async (req) => {
     const startTime = Date.now();
     let imgUrl = imageUrl || '';
 
-    // Step 1: If base64, upload to temp bucket to get a public URL
-    if (imageBase64 && !imageUrl) {
-      console.log('Uploading base64 image to temp bucket...');
-      imgUrl = await uploadToTempBucket(imageBase64);
-    }
+    // If we already have an alicdn URL (pages 2+), skip conversion entirely
+    const isAlreadyConverted = imgUrl && (imgUrl.includes('alicdn.com') || imgUrl.includes('aliyuncs.com'));
 
-    console.log('Image URL before conversion:', imgUrl.slice(0, 120));
+    if (!isAlreadyConverted) {
+      // Convert image to Alibaba-compatible URL via TMAPI
+      // For base64: create a data URI and let TMAPI convert it
+      // For external URLs: use TMAPI convert endpoint
+      const urlToConvert = imageBase64
+        ? `data:image/jpeg;base64,${imageBase64}`
+        : imgUrl;
 
-    // Step 2: Convert non-Alibaba images using TMAPI image convert endpoint
-    if (!imgUrl.includes('alicdn.com') && !imgUrl.includes('aliyuncs.com')) {
-      console.log('Converting image via TMAPI convert endpoint...');
+      console.log('Converting image via TMAPI...');
       try {
         const convertResp = await fetch(
           `${TMAPI_BASE}/tools/image/convert_url?apiToken=${encodeURIComponent(apiToken)}`,
@@ -49,36 +48,47 @@ Deno.serve(async (req) => {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              url: imgUrl,
+              url: urlToConvert,
               search_api_endpoint: '/global/search/image',
             }),
           }
         );
         const convertData = await convertResp.json();
-        console.log('TMAPI convert response:', JSON.stringify(convertData).slice(0, 300));
+        console.log('Convert response time:', Date.now() - startTime, 'ms');
 
         if (convertData?.code === 200 && convertData?.data) {
           const d = convertData.data;
           const possibleUrl = d.image_url || d.img_url || d.url || (typeof d === 'string' ? d : '');
           if (possibleUrl) {
             imgUrl = possibleUrl;
-            console.log('Converted image URL:', imgUrl.slice(0, 120));
-          } else {
-            console.warn('Image conversion returned unexpected data format:', JSON.stringify(d).slice(0, 200));
+            console.log('Converted URL:', imgUrl.slice(0, 100));
           }
         } else {
-          console.warn('Image conversion failed:', JSON.stringify(convertData).slice(0, 200));
+          console.warn('Convert failed:', JSON.stringify(convertData).slice(0, 200));
+          // If conversion fails and we only have base64, we can't proceed
+          if (!imgUrl) {
+            return new Response(JSON.stringify({ success: false, error: 'Image conversion failed' }), {
+              status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
         }
       } catch (convErr) {
-        console.warn('Image conversion error, using original URL:', convErr);
+        console.warn('Convert error:', convErr);
+        if (!imgUrl) {
+          return new Response(JSON.stringify({ success: false, error: 'Image conversion failed' }), {
+            status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
       }
+    } else {
+      console.log('Using pre-converted alicdn URL, skipping conversion');
     }
 
-    // Step 3: Call TMAPI multilingual image search (max page_size = 20)
+    // Search via TMAPI image search (max page_size = 20)
     const effectivePageSize = Math.min(pageSize, 20);
     const searchUrl = `${TMAPI_BASE}/global/search/image?apiToken=${encodeURIComponent(apiToken)}&img_url=${encodeURIComponent(imgUrl)}&language=en&page=${page}&page_size=${effectivePageSize}&sort=default`;
 
-    console.log(`TMAPI image search page ${page}, pageSize ${effectivePageSize}...`);
+    console.log(`TMAPI image search page ${page}...`);
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 55000);
@@ -89,70 +99,39 @@ Deno.serve(async (req) => {
     } catch (fetchErr: any) {
       clearTimeout(timeout);
       const isTimeout = fetchErr?.name === 'AbortError';
-      console.error('TMAPI fetch failed:', isTimeout ? 'timeout' : fetchErr?.message);
       return new Response(JSON.stringify({
         success: false,
-        error: isTimeout ? 'TMAPI API timed out, please try again' : `TMAPI API request failed: ${fetchErr?.message}`,
+        error: isTimeout ? 'Search timed out, please try again' : `Search failed: ${fetchErr?.message}`,
       }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
     clearTimeout(timeout);
 
-    let rawText: string;
-    try {
-      rawText = await resp.text();
-    } catch (readErr) {
-      console.error('Failed to read TMAPI response body:', readErr);
-      return new Response(JSON.stringify({ success: false, error: 'Failed to read TMAPI response' }), {
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
+    const rawText = await resp.text();
     if (!rawText || rawText.length < 2) {
-      console.error('TMAPI returned empty response, status:', resp.status);
       return new Response(JSON.stringify({
-        success: true,
-        data: { items: [], total: 0 },
-        meta: { method: 'tmapi_image', convertedImageUrl: imgUrl, note: 'empty_response' },
-      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-
-    let searchData: any;
-    try {
-      searchData = JSON.parse(rawText);
-    } catch {
-      console.error('TMAPI JSON parse failed, response:', rawText.slice(0, 500));
-      return new Response(JSON.stringify({
-        success: true,
-        data: { items: [], total: 0 },
-        meta: { method: 'tmapi_image', convertedImageUrl: imgUrl, note: 'parse_error' },
-      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-
-    console.log('TMAPI response code:', searchData?.code, 'status:', resp.status);
-
-    if (searchData?.code && searchData.code !== 200) {
-      const errMsg = searchData?.msg || searchData?.message || `TMAPI error code: ${searchData.code}`;
-      console.error('TMAPI API error:', errMsg);
-      return new Response(JSON.stringify({ success: false, error: errMsg }), {
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Parse TMAPI response — items are in data.items or data.result
-    const resultData = searchData?.data || searchData;
-    const rawItems = resultData?.items || resultData?.result || [];
-    const total = resultData?.total || resultData?.total_count || rawItems.length;
-    console.log(`TMAPI page ${page}: ${rawItems.length} items, total: ${total}, took ${Date.now() - startTime}ms`);
-
-    if (!rawItems.length) {
-      return new Response(JSON.stringify({
-        success: true,
-        data: { items: [], total: 0 },
+        success: true, data: { items: [], total: 0 },
         meta: { method: 'tmapi_image', convertedImageUrl: imgUrl },
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Map TMAPI items to Product1688 format
+    let searchData: any;
+    try { searchData = JSON.parse(rawText); } catch {
+      return new Response(JSON.stringify({
+        success: true, data: { items: [], total: 0 },
+        meta: { method: 'tmapi_image', convertedImageUrl: imgUrl, note: 'parse_error' },
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    if (searchData?.code && searchData.code !== 200) {
+      return new Response(JSON.stringify({
+        success: false, error: searchData?.msg || searchData?.message || `API error: ${searchData.code}`,
+      }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    const resultData = searchData?.data || searchData;
+    const rawItems = resultData?.items || resultData?.result || [];
+    const total = resultData?.total || resultData?.total_count || rawItems.length;
+
     const items = rawItems.map((item: any) => ({
       num_iid: parseInt(String(item.offer_id || item.item_id || item.num_iid || '0'), 10) || 0,
       title: item.title || item.subject || '',
@@ -165,17 +144,13 @@ Deno.serve(async (req) => {
       vendor_name: item.seller_nick || item.shop_name || item.supplier || '',
     }));
 
-    console.log(`TMAPI image search complete: ${items.length} items in ${Date.now() - startTime}ms`);
+    console.log(`Done: ${items.length} items in ${Date.now() - startTime}ms`);
 
-    // Return both the original public URL (for OTAPI reuse) and the converted URL
-    const originalPublicUrl = (imageBase64 && !imageUrl) ? imgUrl : (imageUrl || imgUrl);
     return new Response(JSON.stringify({
       success: true,
       data: { items, total },
-      meta: { method: 'tmapi_image', page, pageSize: effectivePageSize, convertedImageUrl: imgUrl, originalImageUrl: originalPublicUrl },
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+      meta: { method: 'tmapi_image', page, pageSize: effectivePageSize, convertedImageUrl: imgUrl },
+    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {
     console.error('Error in image search:', error);
@@ -185,33 +160,3 @@ Deno.serve(async (req) => {
     }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
-
-// Upload base64 image to temp bucket and return public URL
-async function uploadToTempBucket(imageBase64: string): Promise<string> {
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-  const b = imageBase64.slice(0, 20);
-  const ext = b.startsWith('/9j/') ? 'jpg' : b.startsWith('iVBOR') ? 'png' : 'jpg';
-  const mime = ext === 'png' ? 'image/png' : 'image/jpeg';
-  const binaryStr = atob(imageBase64);
-  const bytes = new Uint8Array(binaryStr.length);
-  for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
-
-  const fileName = `search-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-  const { error } = await supabase.storage
-    .from('temp-images')
-    .upload(fileName, bytes, { contentType: mime, upsert: true });
-
-  if (error) throw new Error(`Image upload failed: ${error.message}`);
-
-  const { data: pub } = supabase.storage.from('temp-images').getPublicUrl(fileName);
-
-  // Keep image available for 15 minutes for OTAPI pagination on pages 2+
-  setTimeout(async () => {
-    try { await supabase.storage.from('temp-images').remove([fileName]); } catch {}
-  }, 900000);
-
-  return pub.publicUrl;
-}
