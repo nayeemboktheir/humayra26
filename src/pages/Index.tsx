@@ -124,6 +124,7 @@ const Index = () => {
   const [imageSearchPreview, setImageSearchPreview] = useState<string | null>(null);
   const [imageSearchBase64, setImageSearchBase64] = useState<string | null>(null);
   const [imageSearchConvertedUrl, setImageSearchConvertedUrl] = useState<string | null>(null);
+  const [imageSearchDerivedKeyword, setImageSearchDerivedKeyword] = useState<string>('');
   const imagePageCacheRef = useRef<Record<number, Product1688[]>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounterRef = useRef(0);
@@ -390,16 +391,33 @@ const Index = () => {
         if (convertedUrl) {
           setImageSearchConvertedUrl(convertedUrl);
         }
-        // Store converted URL for pagination — page 2+ will use same image URL
-        // Background prefetch pages 2-6 via TMAPI image search using converted URL
-        if (convertedUrl) {
-          prefetchImagePagesByImage(convertedUrl, 2, 6);
+
+        // Derive keyword from top results for pages 2+
+        const topTitles = result.data.items.slice(0, 5).map(i => i.title).filter(Boolean);
+        const stopWords = new Set(['the','a','an','and','or','for','of','in','on','to','with','is','are','was','new','style','hot','sale','wholesale','factory','direct','cross','border','trading','free','shipping','high','quality','cheap','good','best','big','small','large','2024','2025','2026']);
+        const wordFreq: Record<string, number> = {};
+        topTitles.forEach(t => {
+          const words = t.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
+          const seen = new Set<string>();
+          words.forEach(w => { if (!seen.has(w)) { seen.add(w); wordFreq[w] = (wordFreq[w] || 0) + 1; } });
+        });
+        const derivedKw = Object.entries(wordFreq)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 4)
+          .map(([w]) => w)
+          .join(' ').trim();
+        console.log('Image search derived keyword for TMAPI:', derivedKw);
+        setImageSearchDerivedKeyword(derivedKw);
+
+        // Background prefetch pages 2-6 via TMAPI keyword search
+        if (derivedKw) {
+          prefetchImagePagesByKeyword(derivedKw, 2, 6);
         }
-        const altQueries = Array.isArray((result.meta as any)?.altQueries) ? ((result.meta as any).altQueries as string[]) : [];
+
         setActiveSearch({
           mode: "image",
           query: keyword,
-          altQueries: altQueries.filter(Boolean),
+          altQueries: [],
         });
         if (result.data.items.length === 0) toast.info("No similar products found");
         else toast.success(`Found ${result.data.items.length} similar products`);
@@ -432,20 +450,18 @@ const Index = () => {
     }
   };
 
-  // Background prefetch image search pages via TMAPI using converted image URL
-  const prefetchImagePagesByImage = (imageUrl: string, fromPage: number, toPage: number) => {
+  // Background prefetch image search pages 2+ via TMAPI keyword search
+  const prefetchImagePagesByKeyword = (keyword: string, fromPage: number, toPage: number) => {
     const pages = Array.from({ length: toPage - fromPage + 1 }, (_, i) => fromPage + i);
     pages.forEach(async (p) => {
       try {
-        const resp = await alibaba1688Api.searchByImage('', p, 20, imageUrl);
+        const resp = await alibaba1688Api.searchByKeywordTmapi(keyword, p, 20);
         if (resp.success && resp.data && resp.data.items.length > 0) {
           imagePageCacheRef.current[p] = resp.data.items;
-          console.log(`Prefetched TMAPI image page ${p}: ${resp.data.items.length} items`);
-        } else {
-          console.log(`No image results for page ${p}`);
+          console.log(`Prefetched TMAPI keyword page ${p}: ${resp.data.items.length} items`);
         }
       } catch {
-        console.warn(`Failed to prefetch image page ${p}`);
+        console.warn(`Failed to prefetch keyword page ${p}`);
       }
     });
   };
@@ -470,14 +486,14 @@ const Index = () => {
         setCurrentPage(page);
         return;
       }
-      // Not cached — fetch via TMAPI image search using converted URL
-      console.log(`[goToPage] cache MISS page ${page}, fetching via TMAPI image search`);
+      // Not cached — fetch via TMAPI keyword search using derived keyword
+      console.log(`[goToPage] cache MISS page ${page}, fetching via TMAPI keyword search`);
       setIsLoading(true);
       try {
-        const imgUrl = imageSearchConvertedUrl || '';
-        if (imgUrl) {
-          const resp = await alibaba1688Api.searchByImage('', page, 20, imgUrl);
-          console.log(`[goToPage] TMAPI image resp page ${page}: success=${resp.success}, items=${resp.data?.items?.length}`);
+        const kw = imageSearchDerivedKeyword;
+        if (kw) {
+          const resp = await alibaba1688Api.searchByKeywordTmapi(kw, page, 20);
+          console.log(`[goToPage] TMAPI keyword resp page ${page}: success=${resp.success}, items=${resp.data?.items?.length}`);
           if (resp.success && resp.data && resp.data.items.length > 0) {
             setProducts(resp.data.items);
             setCurrentPage(page);
@@ -487,8 +503,8 @@ const Index = () => {
             toast.error(resp.error || "No products found for this page");
           }
         } else {
-          console.warn('[goToPage] no converted image URL for pagination');
-          toast.error("Image URL not available for pagination");
+          console.warn('[goToPage] no derived keyword for pagination');
+          toast.error("No keyword available for pagination");
         }
       } catch (err) { console.error('[goToPage] error:', err); toast.error("Failed to load page"); }
       finally { setIsLoading(false); }

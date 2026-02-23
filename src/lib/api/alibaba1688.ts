@@ -248,6 +248,27 @@ export const alibaba1688Api = {
     };
   },
 
+  async searchByKeywordTmapi(
+    keyword: string,
+    page = 1,
+    pageSize = 20,
+  ): Promise<ApiResponse<{ items: Product1688[]; total: number }>> {
+    try {
+      const { data, error } = await supabase.functions.invoke('tmapi-keyword-search', {
+        body: { keyword, page, pageSize },
+      });
+      if (error) return { success: false, error: error.message };
+      if (!data?.success) return { success: false, error: data?.error || 'Keyword search failed' };
+      return {
+        success: true,
+        data: { items: data.data?.items || [], total: data.data?.total || 0 },
+      };
+    } catch (error) {
+      console.error('Error in TMAPI keyword search:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Keyword search failed' };
+    }
+  },
+
   async getProduct(
     numIid: number,
     _retries = 0,
