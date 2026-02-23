@@ -392,14 +392,17 @@ const Index = () => {
           setImageSearchConvertedUrl(convertedUrl);
         }
 
-        // Use the top result's title as keyword for pages 2+ (OTAPI cached search → similar products)
+        // Extract short keyword from top result's title for OTAPI pages 2+ (similar products)
         const topTitle = result.data.items[0]?.title || '';
-        console.log('Image search: using top product title for OTAPI pages 2+:', topTitle);
-        setImageSearchDerivedKeyword(topTitle);
+        const stopWords = new Set(['the','a','an','and','or','for','of','in','on','to','with','is','are','was','new','style','hot','sale','wholesale','factory','direct','cross','border','cross-border','trading','free','shipping','high','quality','cheap','good','best','big','small','large','set','toy','toys','summer','children','amazon','men','women','2024','2025','2026']);
+        const keywords = topTitle.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
+        const derivedKw = keywords.slice(0, 4).join(' ').trim();
+        console.log('Image search derived keyword for OTAPI:', derivedKw, '(from title:', topTitle, ')');
+        setImageSearchDerivedKeyword(derivedKw);
 
-        // Background prefetch pages 2-6 via OTAPI cached search using product title
-        if (topTitle) {
-          prefetchImagePagesByKeyword(topTitle, 2, 6);
+        // Background prefetch pages 2-6 via OTAPI cached search using derived keyword
+        if (derivedKw) {
+          prefetchImagePagesByKeyword(derivedKw, 2, 6);
         }
 
         setActiveSearch({
