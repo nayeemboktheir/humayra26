@@ -391,8 +391,8 @@ const Index = () => {
         const convertedUrl = (result as any).meta?.convertedImageUrl;
         if (convertedUrl) {
           setImageSearchConvertedUrl(convertedUrl);
-          // Prefetch pages 2-6 using pure TMAPI with the converted URL (no hybrid needed)
-          prefetchTmapiPages(convertedUrl, 2, 6);
+          // Prefetch pages 2-6 using OTAPI image search (paid API = accurate results + 40 per page)
+          prefetchOtapiImagePages(convertedUrl, 2, 6);
         }
 
         setActiveSearch({
@@ -416,23 +416,23 @@ const Index = () => {
 
 
 
-  // Prefetch pages 2+ via pure TMAPI image search using the converted alicdn URL
-  const prefetchTmapiPages = (convertedUrl: string, fromPage: number, toPage: number) => {
+  // Prefetch pages 2+ via OTAPI image search using the converted alicdn URL (paid OTAPI = accurate + fast)
+  const prefetchOtapiImagePages = (convertedUrl: string, fromPage: number, toPage: number) => {
     const pages = Array.from({ length: toPage - fromPage + 1 }, (_, i) => fromPage + i);
     pages.forEach(async (p) => {
       try {
-        const resp = await alibaba1688Api.searchByImage('', p, 20, convertedUrl);
+        const resp = await alibaba1688Api.searchByImageOtapi(convertedUrl, p, 40);
         if (resp.success && resp.data && resp.data.items.length > 0) {
           imagePageCacheRef.current[p] = resp.data.items;
-          console.log(`Prefetched TMAPI page ${p}: ${resp.data.items.length} items`);
+          console.log(`Prefetched OTAPI image page ${p}: ${resp.data.items.length} items`);
         }
       } catch {
-        console.warn(`Failed to prefetch page ${p}`);
+        console.warn(`Failed to prefetch image page ${p}`);
       }
     });
   };
 
-  const IMAGE_PAGE_SIZE = 20;
+  const IMAGE_PAGE_SIZE = 40; // OTAPI returns 40 items per page for image search pages 2+
   const PAGE_SIZE = activeSearch?.mode === 'image' ? IMAGE_PAGE_SIZE : 40;
   const totalPages = totalResults ? Math.ceil(totalResults / PAGE_SIZE) : 0;
 
@@ -452,13 +452,13 @@ const Index = () => {
         setCurrentPage(page);
         return;
       }
-      // Not cached — fetch via pure TMAPI using converted URL
-      console.log(`[goToPage] cache MISS page ${page}, fetching via TMAPI`);
+      // Not cached — fetch via OTAPI image search (accurate results like TMAPI)
+      console.log(`[goToPage] cache MISS page ${page}, fetching via OTAPI image search`);
       setIsLoading(true);
       try {
         const convertedUrl = imageSearchConvertedUrl;
         if (convertedUrl) {
-          const resp = await alibaba1688Api.searchByImage('', page, 20, convertedUrl);
+          const resp = await alibaba1688Api.searchByImageOtapi(convertedUrl, page, 40);
           if (resp.success && resp.data && resp.data.items.length > 0) {
             setProducts(resp.data.items);
             setCurrentPage(page);

@@ -118,6 +118,30 @@ export const alibaba1688Api = {
     }
   },
 
+  // OTAPI image search using converted alicdn URL — for pages 2+ (paid OTAPI, accurate results)
+  async searchByImageOtapi(
+    imageUrl: string,
+    page = 1,
+    pageSize = 40,
+  ): Promise<ApiResponse<{ items: Product1688[]; total: number }>> {
+    try {
+      const { data, error } = await supabase.functions.invoke('alibaba-1688-cached-search', {
+        body: { imageUrl, page, pageSize },
+      });
+
+      if (error) return { success: false, error: error.message };
+      if (!data?.success) return { success: false, error: data?.error || 'Image search failed' };
+
+      const items: Product1688[] = data.data?.items || [];
+      const total = data.data?.total || 0;
+
+      return { success: true, data: { items, total } };
+    } catch (error) {
+      console.error('Error in OTAPI image search:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Image search failed' };
+    }
+  },
+
   async searchByImage(
     imageBase64: string,
     page = 1,
