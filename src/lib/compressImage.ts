@@ -2,7 +2,7 @@
  * Compress an image file by resizing and reducing quality.
  * Returns a base64 string (without the data URI prefix).
  */
-export async function compressImage(
+export function compressImage(
   file: File,
   maxWidth = 800,
   maxHeight = 800,
@@ -17,7 +17,6 @@ export async function compressImage(
 
       let { width, height } = img;
 
-      // Scale down preserving aspect ratio
       if (width > maxWidth || height > maxHeight) {
         const ratio = Math.min(maxWidth / width, maxHeight / height);
         width = Math.round(width * ratio);
@@ -36,7 +35,6 @@ export async function compressImage(
 
       ctx.drawImage(img, 0, 0, width, height);
 
-      // Always output as JPEG for smaller size
       const dataUrl = canvas.toDataURL('image/jpeg', quality);
       const base64 = dataUrl.split(',')[1];
 
@@ -53,4 +51,12 @@ export async function compressImage(
 
     img.src = url;
   });
+}
+
+/**
+ * Fast compress for image search — smaller dimensions & lower quality
+ * for minimal upload time.
+ */
+export function compressImageForSearch(file: File): Promise<string> {
+  return compressImage(file, 400, 400, 0.5);
 }
