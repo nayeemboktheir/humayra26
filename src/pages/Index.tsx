@@ -438,6 +438,9 @@ const Index = () => {
         }
       }
 
+      setProducts(finalItems);
+      setTotalResults(finalTotal);
+      imagePageCacheRef.current[1] = finalItems;
       setActiveSearch({
         mode: "image",
         query: keyword,
