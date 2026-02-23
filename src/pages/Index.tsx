@@ -390,33 +390,15 @@ const Index = () => {
         if (convertedUrl) {
           setImageSearchConvertedUrl(convertedUrl);
         }
-        // Use first result's title (shortened) as keyword for OTAPI text search on page 2+
-        // Derive a keyword from top results by finding common words across titles
-        const topTitles = result.data.items.slice(0, 5).map(i => i.title).filter(Boolean);
-        const stopWords = new Set(['the','a','an','and','or','for','of','to','in','on','with','is','it','at','by','from','as','cross','border','trading','new','style','hot','sale','wholesale','factory','direct']);
-        const wordFreq: Record<string, number> = {};
-        topTitles.forEach(t => {
-          const words = t.toLowerCase().replace(/[^\w\s]/g, ' ').split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
-          const unique = [...new Set(words)];
-          unique.forEach(w => { wordFreq[w] = (wordFreq[w] || 0) + 1; });
-        });
-        // Pick top 3-4 most common words (appearing in multiple titles)
-        const sortedWords = Object.entries(wordFreq)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 4)
-          .map(([w]) => w);
-        const derivedKeyword = sortedWords.join(' ').trim();
-        const derivedQuery = (result.meta as any)?.query;
-        const searchKeyword = derivedKeyword || (typeof derivedQuery === "string" && derivedQuery ? derivedQuery : effectiveKeyword);
-        console.log('Image search derived keyword for OTAPI:', searchKeyword, 'word freq:', wordFreq);
-        // Background prefetch pages 2-6 via OTAPI text search using first result's title
-        if (searchKeyword) {
-          prefetchImagePages(searchKeyword, 2, 6);
+        // Store converted URL for pagination — page 2+ will use same image URL
+        // Background prefetch pages 2-6 via TMAPI image search using converted URL
+        if (convertedUrl) {
+          prefetchImagePagesByImage(convertedUrl, 2, 6);
         }
         const altQueries = Array.isArray((result.meta as any)?.altQueries) ? ((result.meta as any).altQueries as string[]) : [];
         setActiveSearch({
           mode: "image",
-          query: searchKeyword || keyword,
+          query: keyword,
           altQueries: altQueries.filter(Boolean),
         });
         if (result.data.items.length === 0) toast.info("No similar products found");
@@ -450,20 +432,20 @@ const Index = () => {
     }
   };
 
-  // Background prefetch pages via OTAPI text search for instant navigation
-  const prefetchImagePages = (keyword: string, fromPage: number, toPage: number) => {
+  // Background prefetch image search pages via TMAPI using converted image URL
+  const prefetchImagePagesByImage = (imageUrl: string, fromPage: number, toPage: number) => {
     const pages = Array.from({ length: toPage - fromPage + 1 }, (_, i) => fromPage + i);
     pages.forEach(async (p) => {
       try {
-        const resp = await alibaba1688Api.search(keyword, p, 40);
+        const resp = await alibaba1688Api.searchByImage('', p, 20, imageUrl);
         if (resp.success && resp.data && resp.data.items.length > 0) {
           imagePageCacheRef.current[p] = resp.data.items;
-          console.log(`Prefetched OTAPI page ${p}: ${resp.data.items.length} items`);
+          console.log(`Prefetched TMAPI image page ${p}: ${resp.data.items.length} items`);
         } else {
-          console.log(`No results for page ${p}`);
+          console.log(`No image results for page ${p}`);
         }
       } catch {
-        console.warn(`Failed to prefetch page ${p}`);
+        console.warn(`Failed to prefetch image page ${p}`);
       }
     });
   };
@@ -488,14 +470,14 @@ const Index = () => {
         setCurrentPage(page);
         return;
       }
-      // Not cached — fetch via OTAPI text search
-      console.log(`[goToPage] cache MISS page ${page}, fetching via OTAPI`);
+      // Not cached — fetch via TMAPI image search using converted URL
+      console.log(`[goToPage] cache MISS page ${page}, fetching via TMAPI image search`);
       setIsLoading(true);
       try {
-        const searchKeyword = activeSearch.query || '';
-        if (searchKeyword) {
-          const resp = await alibaba1688Api.search(searchKeyword, page, 40);
-          console.log(`[goToPage] OTAPI resp page ${page}: success=${resp.success}, items=${resp.data?.items?.length}`);
+        const imgUrl = imageSearchConvertedUrl || '';
+        if (imgUrl) {
+          const resp = await alibaba1688Api.searchByImage('', page, 20, imgUrl);
+          console.log(`[goToPage] TMAPI image resp page ${page}: success=${resp.success}, items=${resp.data?.items?.length}`);
           if (resp.success && resp.data && resp.data.items.length > 0) {
             setProducts(resp.data.items);
             setCurrentPage(page);
@@ -505,8 +487,8 @@ const Index = () => {
             toast.error(resp.error || "No products found for this page");
           }
         } else {
-          console.warn('[goToPage] no search keyword for image mode fallback');
-          toast.error("No search keyword available");
+          console.warn('[goToPage] no converted image URL for pagination');
+          toast.error("Image URL not available for pagination");
         }
       } catch (err) { console.error('[goToPage] error:', err); toast.error("Failed to load page"); }
       finally { setIsLoading(false); }
