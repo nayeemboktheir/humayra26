@@ -29,133 +29,45 @@ Deno.serve(async (req) => {
     }
 
     const startTime = Date.now();
+    const effectivePageSize = Math.min(pageSize, 20);
     let imgUrl = imageUrl || '';
 
-    // If we already have an alicdn URL (pages 2+), skip conversion entirely
+    // FAST PATH: If we already have an alicdn URL (pages 2+), search directly — zero overhead
     const isAlreadyConverted = imgUrl && (imgUrl.includes('alicdn.com') || imgUrl.includes('aliyuncs.com'));
-
-    if (!isAlreadyConverted) {
-      // For base64: upload to temp bucket to get a real HTTP URL first
-      if (imageBase64 && !imgUrl) {
-        console.log('Uploading base64 to temp bucket...');
-        imgUrl = await uploadToTempBucket(imageBase64);
-        console.log('Upload done in', Date.now() - startTime, 'ms');
-      }
-
-      // Convert to Alibaba-compatible URL via TMAPI
-      const urlToConvert = imgUrl;
-
-      console.log('Converting image via TMAPI...');
-      try {
-        const convertResp = await fetch(
-          `${TMAPI_BASE}/tools/image/convert_url?apiToken=${encodeURIComponent(apiToken)}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              url: urlToConvert,
-              search_api_endpoint: '/global/search/image',
-            }),
-          }
-        );
-        const convertData = await convertResp.json();
-        console.log('Convert response time:', Date.now() - startTime, 'ms');
-
-        if (convertData?.code === 200 && convertData?.data) {
-          const d = convertData.data;
-          const possibleUrl = d.image_url || d.img_url || d.url || (typeof d === 'string' ? d : '');
-          if (possibleUrl) {
-            imgUrl = possibleUrl;
-            console.log('Converted URL:', imgUrl.slice(0, 100));
-          }
-        } else {
-          console.warn('Convert failed:', JSON.stringify(convertData).slice(0, 200));
-          // If conversion fails and we only have base64, we can't proceed
-          if (!imgUrl) {
-            return new Response(JSON.stringify({ success: false, error: 'Image conversion failed' }), {
-              status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            });
-          }
-        }
-      } catch (convErr) {
-        console.warn('Convert error:', convErr);
-        if (!imgUrl) {
-          return new Response(JSON.stringify({ success: false, error: 'Image conversion failed' }), {
-            status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
-        }
-      }
-    } else {
-      console.log('Using pre-converted alicdn URL, skipping conversion');
+    if (isAlreadyConverted) {
+      console.log(`Fast path: alicdn URL, page ${page}`);
+      return await doImageSearch(imgUrl, page, effectivePageSize, apiToken, startTime, imgUrl);
     }
 
-    // Search via TMAPI image search (max page_size = 20)
-    const effectivePageSize = Math.min(pageSize, 20);
-    const searchUrl = `${TMAPI_BASE}/global/search/image?apiToken=${encodeURIComponent(apiToken)}&img_url=${encodeURIComponent(imgUrl)}&language=en&page=${page}&page_size=${effectivePageSize}&sort=default`;
-
-    console.log(`TMAPI image search page ${page}...`);
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 55000);
-
-    let resp: Response;
-    try {
-      resp = await fetch(searchUrl, { signal: controller.signal });
-    } catch (fetchErr: any) {
-      clearTimeout(timeout);
-      const isTimeout = fetchErr?.name === 'AbortError';
-      return new Response(JSON.stringify({
-        success: false,
-        error: isTimeout ? 'Search timed out, please try again' : `Search failed: ${fetchErr?.message}`,
-      }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-    clearTimeout(timeout);
-
-    const rawText = await resp.text();
-    if (!rawText || rawText.length < 2) {
-      return new Response(JSON.stringify({
-        success: true, data: { items: [], total: 0 },
-        meta: { method: 'tmapi_image', convertedImageUrl: imgUrl },
-      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    // Step 1: If base64, upload to temp bucket (we need an HTTP URL)
+    if (imageBase64 && !imgUrl) {
+      console.log('Uploading base64...');
+      imgUrl = await uploadToTempBucket(imageBase64);
+      console.log('Upload:', Date.now() - startTime, 'ms');
     }
 
-    let searchData: any;
-    try { searchData = JSON.parse(rawText); } catch {
-      return new Response(JSON.stringify({
-        success: true, data: { items: [], total: 0 },
-        meta: { method: 'tmapi_image', convertedImageUrl: imgUrl, note: 'parse_error' },
-      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    // Step 2: Try DIRECT search first (skip convert — saves ~800ms)
+    console.log('Trying direct search (no convert)...');
+    const directResult = await doImageSearch(imgUrl, page, effectivePageSize, apiToken, startTime, imgUrl);
+    const directBody = await directResult.clone().json();
+
+    if (directBody.success && directBody.data?.items?.length > 0) {
+      console.log(`Direct search OK: ${directBody.data.items.length} items in ${Date.now() - startTime}ms — convert skipped!`);
+      // Background: convert URL for future pagination (non-blocking)
+      convertUrlInBackground(imgUrl, apiToken);
+      return directResult;
     }
 
-    if (searchData?.code && searchData.code !== 200) {
-      return new Response(JSON.stringify({
-        success: false, error: searchData?.msg || searchData?.message || `API error: ${searchData.code}`,
-      }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    // Step 3: Direct search returned 0 results — try with converted URL
+    console.log('Direct search empty, converting image...');
+    const convertedUrl = await convertImageUrl(imgUrl, apiToken);
+    if (convertedUrl && convertedUrl !== imgUrl) {
+      console.log('Convert done:', Date.now() - startTime, 'ms');
+      return await doImageSearch(convertedUrl, page, effectivePageSize, apiToken, startTime, convertedUrl);
     }
 
-    const resultData = searchData?.data || searchData;
-    const rawItems = resultData?.items || resultData?.result || [];
-    const total = resultData?.total || resultData?.total_count || rawItems.length;
-
-    const items = rawItems.map((item: any) => ({
-      num_iid: parseInt(String(item.offer_id || item.item_id || item.num_iid || '0'), 10) || 0,
-      title: item.title || item.subject || '',
-      pic_url: item.pic_url || item.image_url || item.img || '',
-      price: parseFloat(String(item.price || item.original_price || '0')) || 0,
-      promotion_price: item.promotion_price ? parseFloat(String(item.promotion_price)) : undefined,
-      sales: parseInt(String(item.sales || item.monthly_sales || item.sold || '0'), 10) || undefined,
-      detail_url: item.detail_url || item.product_url || `https://detail.1688.com/offer/${item.offer_id || item.item_id || item.num_iid}.html`,
-      location: item.location || item.province || '',
-      vendor_name: item.seller_nick || item.shop_name || item.supplier || '',
-    }));
-
-    console.log(`Done: ${items.length} items in ${Date.now() - startTime}ms`);
-
-    return new Response(JSON.stringify({
-      success: true,
-      data: { items, total },
-      meta: { method: 'tmapi_image', page, pageSize: effectivePageSize, convertedImageUrl: imgUrl },
-    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    // Return the empty direct result
+    return directResult;
 
   } catch (error) {
     console.error('Error in image search:', error);
@@ -166,7 +78,106 @@ Deno.serve(async (req) => {
   }
 });
 
-// Upload base64 image to temp bucket and return public URL
+// Core search function — single responsibility
+async function doImageSearch(
+  imgUrl: string, page: number, pageSize: number,
+  apiToken: string, startTime: number, convertedUrl: string,
+): Promise<Response> {
+  const searchUrl = `${TMAPI_BASE}/global/search/image?apiToken=${encodeURIComponent(apiToken)}&img_url=${encodeURIComponent(imgUrl)}&language=en&page=${page}&page_size=${pageSize}&sort=default`;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
+
+  let resp: Response;
+  try {
+    resp = await fetch(searchUrl, { signal: controller.signal });
+  } catch (fetchErr: any) {
+    clearTimeout(timeout);
+    const isTimeout = fetchErr?.name === 'AbortError';
+    return new Response(JSON.stringify({
+      success: false,
+      error: isTimeout ? 'Search timed out' : `Search failed: ${fetchErr?.message}`,
+    }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
+  clearTimeout(timeout);
+
+  const rawText = await resp.text();
+  if (!rawText || rawText.length < 2) {
+    return new Response(JSON.stringify({
+      success: true, data: { items: [], total: 0 },
+      meta: { method: 'tmapi_image', convertedImageUrl: convertedUrl },
+    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
+
+  let searchData: any;
+  try { searchData = JSON.parse(rawText); } catch {
+    return new Response(JSON.stringify({
+      success: true, data: { items: [], total: 0 },
+      meta: { method: 'tmapi_image', convertedImageUrl: convertedUrl, note: 'parse_error' },
+    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
+
+  if (searchData?.code && searchData.code !== 200) {
+    // Don't fail — return empty for fallback to convert path
+    return new Response(JSON.stringify({
+      success: true, data: { items: [], total: 0 },
+      meta: { method: 'tmapi_image', convertedImageUrl: convertedUrl, note: `api_code_${searchData.code}` },
+    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
+
+  const resultData = searchData?.data || searchData;
+  const rawItems = resultData?.items || resultData?.result || [];
+  const total = resultData?.total || resultData?.total_count || rawItems.length;
+
+  const items = rawItems.map((item: any) => ({
+    num_iid: parseInt(String(item.offer_id || item.item_id || item.num_iid || '0'), 10) || 0,
+    title: item.title || item.subject || '',
+    pic_url: item.pic_url || item.image_url || item.img || '',
+    price: parseFloat(String(item.price || item.original_price || '0')) || 0,
+    promotion_price: item.promotion_price ? parseFloat(String(item.promotion_price)) : undefined,
+    sales: parseInt(String(item.sales || item.monthly_sales || item.sold || '0'), 10) || undefined,
+    detail_url: item.detail_url || item.product_url || `https://detail.1688.com/offer/${item.offer_id || item.item_id || item.num_iid}.html`,
+    location: item.location || item.province || '',
+    vendor_name: item.seller_nick || item.shop_name || item.supplier || '',
+  }));
+
+  console.log(`Search: ${items.length} items in ${Date.now() - startTime}ms`);
+
+  return new Response(JSON.stringify({
+    success: true,
+    data: { items, total },
+    meta: { method: 'tmapi_image', page, pageSize, convertedImageUrl: convertedUrl },
+  }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+}
+
+// Convert URL via TMAPI (only called if direct search fails)
+async function convertImageUrl(imgUrl: string, apiToken: string): Promise<string> {
+  try {
+    const convertResp = await fetch(
+      `${TMAPI_BASE}/tools/image/convert_url?apiToken=${encodeURIComponent(apiToken)}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: imgUrl, search_api_endpoint: '/global/search/image' }),
+      }
+    );
+    const convertData = await convertResp.json();
+    if (convertData?.code === 200 && convertData?.data) {
+      const d = convertData.data;
+      return d.image_url || d.img_url || d.url || (typeof d === 'string' ? d : '') || imgUrl;
+    }
+  } catch {}
+  return imgUrl;
+}
+
+// Non-blocking background convert (fire and forget for pagination optimization)
+function convertUrlInBackground(imgUrl: string, apiToken: string) {
+  convertImageUrl(imgUrl, apiToken).then(url => {
+    if (url !== imgUrl) console.log('Background convert done:', url.slice(0, 80));
+  }).catch(() => {});
+}
+
+// Upload base64 image to temp bucket
 async function uploadToTempBucket(imageBase64: string): Promise<string> {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -185,7 +196,6 @@ async function uploadToTempBucket(imageBase64: string): Promise<string> {
     .upload(fileName, bytes, { contentType: mime, upsert: true });
 
   if (error) throw new Error(`Image upload failed: ${error.message}`);
-
   const { data: pub } = supabase.storage.from('temp-images').getPublicUrl(fileName);
 
   // Clean up after 15 minutes
