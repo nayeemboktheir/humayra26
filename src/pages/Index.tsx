@@ -404,12 +404,21 @@ const Index = () => {
 
       let finalItems = result.success && result.data ? result.data.items : [];
       let finalTotal = result.success && result.data ? result.data.total : 0;
+      const convertedPath = (result as any).meta?.convertedImageUrl || '';
+      const originalImageUrl = (result as any).meta?.originalImageUrl || '';
+
+      // TMAPI returned results — use converted path for pages 2+ via TMAPI V2
+      if (finalItems.length > 0 && convertedPath) {
+        console.log(`TMAPI page 1: ${finalItems.length} items, convertedPath: ${convertedPath}`);
+        // Store converted path for TMAPI pagination on pages 2+
+        imageSearchDerivedKeywordRef.current = `__tmapi_path__${convertedPath}`;
+        // Prefetch pages 2-6 via TMAPI using converted path
+        prefetchTmapiPages(convertedPath, 2, 6);
+      }
 
       // TMAPI returned 0 results — fall back to OTAPI image search for page 1
       if (finalItems.length === 0) {
-        const originalUrl = (result as any).meta?.originalImageUrl;
-        const convertedUrl = (result as any).meta?.convertedImageUrl;
-        const otapiUrl = originalUrl || convertedUrl;
+        const otapiUrl = originalImageUrl || convertedPath;
         if (otapiUrl) {
           console.log('TMAPI returned 0 results, falling back to OTAPI image search for page 1');
           const otapiResult = await alibaba1688Api.searchByImageOtapi(otapiUrl, 1, 40);
@@ -418,19 +427,14 @@ const Index = () => {
             finalTotal = otapiResult.data.total;
           }
         }
-      }
-
-      setProducts(finalItems);
-      setTotalResults(finalTotal);
-      imagePageCacheRef.current[1] = finalItems;
-
-      // Derive keywords from page 1 titles, then prefetch pages 2-6 via OTAPI text search (cached)
-      if (finalItems.length > 0) {
-        const derivedKeyword = extractSearchKeywords(finalItems);
-        imageSearchDerivedKeywordRef.current = derivedKeyword;
-        console.log(`Derived keyword from page 1 titles: "${derivedKeyword}"`);
-        if (derivedKeyword) {
-          prefetchTextPages(derivedKeyword, 2, 6);
+        // For OTAPI fallback, derive keywords for pagination
+        if (finalItems.length > 0) {
+          const derivedKeyword = extractSearchKeywords(finalItems);
+          imageSearchDerivedKeywordRef.current = derivedKeyword;
+          console.log(`Derived keyword from OTAPI page 1 titles: "${derivedKeyword}"`);
+          if (derivedKeyword) {
+            prefetchTextPages(derivedKeyword, 2, 6);
+          }
         }
       }
 
@@ -465,7 +469,25 @@ const Index = () => {
     });
   };
 
-  const IMAGE_PAGE_SIZE = 40; // OTAPI returns 40 items per page for image search pages 2+
+  // Prefetch pages 2+ via TMAPI using converted image path (for visual consistency)
+  const prefetchTmapiPages = (convertedPath: string, fromPage: number, toPage: number) => {
+    const pages = Array.from({ length: toPage - fromPage + 1 }, (_, i) => fromPage + i);
+    pages.forEach(async (p) => {
+      try {
+        const resp = await alibaba1688Api.searchByImage('', p, 20, convertedPath);
+        if (resp.success && resp.data && resp.data.items.length > 0) {
+          imagePageCacheRef.current[p] = resp.data.items;
+          console.log(`Prefetched TMAPI page ${p}: ${resp.data.items.length} items`);
+        }
+      } catch {
+        console.warn(`Failed to prefetch TMAPI page ${p}`);
+      }
+    });
+  };
+
+  // TMAPI returns 20 items, OTAPI returns 40 — use appropriate size based on pagination mode
+  const isTmapiPagination = activeSearch?.mode === 'image' && imageSearchDerivedKeywordRef.current?.startsWith('__tmapi_path__');
+  const IMAGE_PAGE_SIZE = isTmapiPagination ? 20 : 40;
   const PAGE_SIZE = activeSearch?.mode === 'image' ? IMAGE_PAGE_SIZE : 40;
   const totalPages = totalResults ? Math.ceil(totalResults / PAGE_SIZE) : 0;
 
@@ -485,21 +507,40 @@ const Index = () => {
         setCurrentPage(page);
         return;
       }
-      // Not cached — fetch via OTAPI text search using derived keyword from page 1 titles
+      // Not cached — check if we have a TMAPI converted path or derived keyword
       const derivedKw = imageSearchDerivedKeywordRef.current;
-      console.log(`[goToPage] cache MISS page ${page}, fetching via text search: "${derivedKw}"`);
+      console.log(`[goToPage] cache MISS page ${page}, derivedKw: "${derivedKw?.slice(0, 60)}"`);
       if (!derivedKw) {
         toast.error("No search keyword available for pagination");
         return;
       }
       setIsLoading(true);
       try {
-        const resp = await alibaba1688Api.search(derivedKw, page, 40);
-        if (resp.success && resp.data && resp.data.items.length > 0) {
-          setProducts(resp.data.items);
+        let items: any[] = [];
+        let total = 0;
+
+        if (derivedKw.startsWith('__tmapi_path__')) {
+          // Use TMAPI V2 with converted path for visual consistency
+          const path = derivedKw.replace('__tmapi_path__', '');
+          const resp = await alibaba1688Api.searchByImage('', page, 20, path);
+          if (resp.success && resp.data) {
+            items = resp.data.items;
+            total = resp.data.total;
+          }
+        } else {
+          // Use OTAPI text search with derived keyword
+          const resp = await alibaba1688Api.search(derivedKw, page, 40);
+          if (resp.success && resp.data) {
+            items = resp.data.items;
+            total = resp.data.total;
+          }
+        }
+
+        if (items.length > 0) {
+          setProducts(items);
           setCurrentPage(page);
-          setTotalResults(resp.data.total);
-          imagePageCacheRef.current[page] = resp.data.items;
+          setTotalResults(total);
+          imagePageCacheRef.current[page] = items;
         } else {
           toast.error("No products found for this page");
         }
