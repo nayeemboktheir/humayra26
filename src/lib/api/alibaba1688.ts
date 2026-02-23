@@ -126,13 +126,10 @@ export const alibaba1688Api = {
     imageBase64: string,
     page = 1,
     pageSize = 40,
-    keyword = '',
     imageUrl = '',
-    skipOtapi = false,
   ): Promise<ApiResponse<{ items: Product1688[]; total: number }>> {
     try {
-      // For page 2+, pass imageUrl (converted Ali URL) instead of re-uploading base64
-      const body: any = { page, pageSize, keyword, skipOtapi };
+      const body: any = { page, pageSize };
       if (imageUrl) {
         body.imageUrl = imageUrl;
       } else {
@@ -145,7 +142,6 @@ export const alibaba1688Api = {
       if (error) return { success: false, error: error.message };
       if (!data?.success) return { success: false, error: data?.error || 'Image search failed' };
 
-      // Image search now returns OTAPI-formatted items from the edge function
       const items: Product1688[] = data.data?.items || [];
       const total = data.data?.total || 0;
 

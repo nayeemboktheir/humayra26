@@ -381,19 +381,14 @@ const Index = () => {
       // Use filename as hint if no keyword provided
       const effectiveKeyword = keyword || file.name.replace(/\.[^.]+$/, '').replace(/[_\-]+/g, ' ');
       setImageSearchBase64(imageBase64);
-      const result = await alibaba1688Api.searchByImage(imageBase64, 1, 20, effectiveKeyword, '', true);
+      const result = await alibaba1688Api.searchByImage(imageBase64, 1, 20);
       if (result.success && result.data) {
-        // Show TMAPI results immediately, then translate titles in background
+        // ATP returns English titles with lang=en, show immediately
         setProducts(result.data.items);
         setTotalResults(result.data.total);
         imagePageCacheRef.current[1] = result.data.items;
 
-        // Background translate Chinese titles to English
-        translateProductTitles(result.data.items).then(translatedItems => {
-          setProducts(translatedItems);
-          imagePageCacheRef.current[1] = translatedItems;
-        });
-        // Store converted image URL for faster pagination (no re-upload needed)
+        // Store image URL for potential re-use
         const convertedUrl = (result as any).meta?.convertedImageUrl;
         if (convertedUrl) {
           setImageSearchConvertedUrl(convertedUrl);
