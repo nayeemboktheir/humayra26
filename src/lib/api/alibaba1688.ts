@@ -101,7 +101,6 @@ export const alibaba1688Api = {
     pageSize = 40,
   ): Promise<ApiResponse<{ items: Product1688[]; total: number }>> {
     try {
-      // Use cached search — checks DB cache first, falls back to OTAPI with language=en
       const { data, error } = await supabase.functions.invoke('alibaba-1688-cached-search', {
         body: { query, page, pageSize },
       });
@@ -112,13 +111,34 @@ export const alibaba1688Api = {
       const items: Product1688[] = data.data?.items || [];
       const total = data.data?.total || 0;
 
-      return {
-        success: true,
-        data: { items, total },
-      };
+      return { success: true, data: { items, total } };
     } catch (error) {
       console.error('Error searching 1688:', error);
       return { success: false, error: error instanceof Error ? error.message : 'Search failed' };
+    }
+  },
+
+  /** OTAPI image search — uses converted Alibaba image URL for visual similarity */
+  async searchByImageOtapi(
+    imageUrl: string,
+    page = 1,
+    pageSize = 20,
+  ): Promise<ApiResponse<{ items: Product1688[]; total: number }>> {
+    try {
+      const { data, error } = await supabase.functions.invoke('alibaba-1688-cached-search', {
+        body: { imageUrl, page, pageSize },
+      });
+
+      if (error) return { success: false, error: error.message };
+      if (!data?.success) return { success: false, error: data?.error || 'OTAPI image search failed' };
+
+      const items: Product1688[] = data.data?.items || [];
+      const total = data.data?.total || 0;
+
+      return { success: true, data: { items, total } };
+    } catch (error) {
+      console.error('Error in OTAPI image search:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'OTAPI image search failed' };
     }
   },
 
