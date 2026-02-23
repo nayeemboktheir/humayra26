@@ -167,10 +167,12 @@ Deno.serve(async (req) => {
 
     console.log(`TMAPI image search complete: ${items.length} items in ${Date.now() - startTime}ms`);
 
+    // Return both the original public URL (for OTAPI reuse) and the converted URL
+    const originalPublicUrl = (imageBase64 && !imageUrl) ? imgUrl : (imageUrl || imgUrl);
     return new Response(JSON.stringify({
       success: true,
       data: { items, total },
-      meta: { method: 'tmapi_image', page, pageSize: effectivePageSize, convertedImageUrl: imgUrl },
+      meta: { method: 'tmapi_image', page, pageSize: effectivePageSize, convertedImageUrl: imgUrl, originalImageUrl: originalPublicUrl },
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -206,9 +208,10 @@ async function uploadToTempBucket(imageBase64: string): Promise<string> {
 
   const { data: pub } = supabase.storage.from('temp-images').getPublicUrl(fileName);
 
+  // Keep image available for 15 minutes for OTAPI pagination on pages 2+
   setTimeout(async () => {
     try { await supabase.storage.from('temp-images').remove([fileName]); } catch {}
-  }, 60000);
+  }, 900000);
 
   return pub.publicUrl;
 }

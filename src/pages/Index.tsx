@@ -388,14 +388,17 @@ const Index = () => {
         imagePageCacheRef.current[1] = result.data.items;
 
         const convertedUrl = (result as any).meta?.convertedImageUrl;
+        const originalImageUrl = (result as any).meta?.originalImageUrl;
         if (convertedUrl) {
           setImageSearchConvertedUrl(convertedUrl);
         }
 
-        // Use a full alicdn image URL for OTAPI image search pagination on pages 2+
-        // convertedUrl from TMAPI is a relative path — use the first product's pic_url instead
-        const otapiImgUrl = convertedUrl && convertedUrl.startsWith('http') ? convertedUrl : (result.data.items[0]?.pic_url || '');
-        console.log('Image search: using image URL for OTAPI pages 2+:', otapiImgUrl);
+        // Use the original uploaded image URL (full http URL) for OTAPI image search on pages 2+
+        // This is the actual user-uploaded image, not a product's pic_url, so results stay relevant
+        const otapiImgUrl = originalImageUrl && originalImageUrl.startsWith('http')
+          ? originalImageUrl
+          : (convertedUrl && convertedUrl.startsWith('http') ? convertedUrl : (result.data.items[0]?.pic_url || ''));
+        console.log('Image search: using original image URL for OTAPI pages 2+:', otapiImgUrl);
         setImageSearchDerivedKeyword(otapiImgUrl);
 
         // Background prefetch pages 2-6 via OTAPI image search (cached)
