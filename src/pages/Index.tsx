@@ -391,18 +391,24 @@ const Index = () => {
           setImageSearchConvertedUrl(convertedUrl);
         }
         // Use first result's title (shortened) as keyword for OTAPI text search on page 2+
-        const firstTitle = result.data.items[0]?.title || '';
-        // Extract first 3-5 meaningful words to get better OTAPI search results
-        const shortenedTitle = firstTitle
-          .replace(/[^\w\s]/g, ' ')
-          .split(/\s+/)
-          .filter(w => w.length > 1)
+        // Derive a keyword from top results by finding common words across titles
+        const topTitles = result.data.items.slice(0, 5).map(i => i.title).filter(Boolean);
+        const stopWords = new Set(['the','a','an','and','or','for','of','to','in','on','with','is','it','at','by','from','as','cross','border','trading','new','style','hot','sale','wholesale','factory','direct']);
+        const wordFreq: Record<string, number> = {};
+        topTitles.forEach(t => {
+          const words = t.toLowerCase().replace(/[^\w\s]/g, ' ').split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
+          const unique = [...new Set(words)];
+          unique.forEach(w => { wordFreq[w] = (wordFreq[w] || 0) + 1; });
+        });
+        // Pick top 3-4 most common words (appearing in multiple titles)
+        const sortedWords = Object.entries(wordFreq)
+          .sort((a, b) => b[1] - a[1])
           .slice(0, 4)
-          .join(' ')
-          .trim();
+          .map(([w]) => w);
+        const derivedKeyword = sortedWords.join(' ').trim();
         const derivedQuery = (result.meta as any)?.query;
-        const searchKeyword = shortenedTitle || (typeof derivedQuery === "string" && derivedQuery ? derivedQuery : effectiveKeyword);
-        console.log('Image search derived keyword for OTAPI:', searchKeyword);
+        const searchKeyword = derivedKeyword || (typeof derivedQuery === "string" && derivedQuery ? derivedQuery : effectiveKeyword);
+        console.log('Image search derived keyword for OTAPI:', searchKeyword, 'word freq:', wordFreq);
         // Background prefetch pages 2-6 via OTAPI text search using first result's title
         if (searchKeyword) {
           prefetchImagePages(searchKeyword, 2, 6);
