@@ -1,3 +1,5 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
@@ -33,12 +35,15 @@ Deno.serve(async (req) => {
     const isAlreadyConverted = imgUrl && (imgUrl.includes('alicdn.com') || imgUrl.includes('aliyuncs.com'));
 
     if (!isAlreadyConverted) {
-      // Convert image to Alibaba-compatible URL via TMAPI
-      // For base64: create a data URI and let TMAPI convert it
-      // For external URLs: use TMAPI convert endpoint
-      const urlToConvert = imageBase64
-        ? `data:image/jpeg;base64,${imageBase64}`
-        : imgUrl;
+      // For base64: upload to temp bucket to get a real HTTP URL first
+      if (imageBase64 && !imgUrl) {
+        console.log('Uploading base64 to temp bucket...');
+        imgUrl = await uploadToTempBucket(imageBase64);
+        console.log('Upload done in', Date.now() - startTime, 'ms');
+      }
+
+      // Convert to Alibaba-compatible URL via TMAPI
+      const urlToConvert = imgUrl;
 
       console.log('Converting image via TMAPI...');
       try {
@@ -160,3 +165,33 @@ Deno.serve(async (req) => {
     }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
+
+// Upload base64 image to temp bucket and return public URL
+async function uploadToTempBucket(imageBase64: string): Promise<string> {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+  const b = imageBase64.slice(0, 20);
+  const ext = b.startsWith('/9j/') ? 'jpg' : b.startsWith('iVBOR') ? 'png' : 'jpg';
+  const mime = ext === 'png' ? 'image/png' : 'image/jpeg';
+  const binaryStr = atob(imageBase64);
+  const bytes = new Uint8Array(binaryStr.length);
+  for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+
+  const fileName = `search-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const { error } = await supabase.storage
+    .from('temp-images')
+    .upload(fileName, bytes, { contentType: mime, upsert: true });
+
+  if (error) throw new Error(`Image upload failed: ${error.message}`);
+
+  const { data: pub } = supabase.storage.from('temp-images').getPublicUrl(fileName);
+
+  // Clean up after 15 minutes
+  setTimeout(async () => {
+    try { await supabase.storage.from('temp-images').remove([fileName]); } catch {}
+  }, 900000);
+
+  return pub.publicUrl;
+}
