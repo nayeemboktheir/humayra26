@@ -31,24 +31,26 @@ Deno.serve(async (req) => {
     const startTime = Date.now();
     const effectivePageSize = Math.min(pageSize, 20);
     let imgUrl = imageUrl || '';
+    let originalUrl = imgUrl; // Keep track of the original uploaded URL for OTAPI
 
     // FAST PATH: If we already have an alicdn URL (pages 2+), search directly — zero overhead
     const isAlreadyConverted = imgUrl && (imgUrl.includes('alicdn.com') || imgUrl.includes('aliyuncs.com'));
     if (isAlreadyConverted) {
       console.log(`Fast path: alicdn URL, page ${page}`);
-      return await doImageSearch(imgUrl, page, effectivePageSize, apiToken, startTime, imgUrl);
+      return await doImageSearch(imgUrl, page, effectivePageSize, apiToken, startTime, imgUrl, imgUrl);
     }
 
     // Step 1: If base64, upload to temp bucket (we need an HTTP URL)
     if (imageBase64 && !imgUrl) {
       console.log('Uploading base64...');
       imgUrl = await uploadToTempBucket(imageBase64);
+      originalUrl = imgUrl; // This is the supabase public URL — OTAPI can use it
       console.log('Upload:', Date.now() - startTime, 'ms');
     }
 
     // Step 2: Try DIRECT search first (skip convert — saves ~800ms)
     console.log('Trying direct search (no convert)...');
-    const directResult = await doImageSearch(imgUrl, page, effectivePageSize, apiToken, startTime, imgUrl);
+    const directResult = await doImageSearch(imgUrl, page, effectivePageSize, apiToken, startTime, imgUrl, originalUrl);
     const directBody = await directResult.clone().json();
 
     if (directBody.success && directBody.data?.items?.length > 0) {
@@ -63,7 +65,7 @@ Deno.serve(async (req) => {
     const convertedUrl = await convertImageUrl(imgUrl, apiToken);
     if (convertedUrl && convertedUrl !== imgUrl) {
       console.log('Convert done:', Date.now() - startTime, 'ms');
-      return await doImageSearch(convertedUrl, page, effectivePageSize, apiToken, startTime, convertedUrl);
+      return await doImageSearch(convertedUrl, page, effectivePageSize, apiToken, startTime, convertedUrl, originalUrl);
     }
 
     // Return the empty direct result
@@ -81,7 +83,7 @@ Deno.serve(async (req) => {
 // Core search function — single responsibility
 async function doImageSearch(
   imgUrl: string, page: number, pageSize: number,
-  apiToken: string, startTime: number, convertedUrl: string,
+  apiToken: string, startTime: number, convertedUrl: string, originalUrl: string = '',
 ): Promise<Response> {
   const searchUrl = `${TMAPI_BASE}/global/search/image?apiToken=${encodeURIComponent(apiToken)}&img_url=${encodeURIComponent(imgUrl)}&language=en&page=${page}&page_size=${pageSize}&sort=default`;
 
@@ -105,7 +107,7 @@ async function doImageSearch(
   if (!rawText || rawText.length < 2) {
     return new Response(JSON.stringify({
       success: true, data: { items: [], total: 0 },
-      meta: { method: 'tmapi_image', convertedImageUrl: convertedUrl },
+      meta: { method: 'tmapi_image', convertedImageUrl: convertedUrl, originalImageUrl: originalUrl || convertedUrl },
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 
@@ -121,7 +123,7 @@ async function doImageSearch(
     // Don't fail — return empty for fallback to convert path
     return new Response(JSON.stringify({
       success: true, data: { items: [], total: 0 },
-      meta: { method: 'tmapi_image', convertedImageUrl: convertedUrl, note: `api_code_${searchData.code}` },
+      meta: { method: 'tmapi_image', convertedImageUrl: convertedUrl, originalImageUrl: originalUrl || convertedUrl, note: `api_code_${searchData.code}` },
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 
@@ -146,7 +148,7 @@ async function doImageSearch(
   return new Response(JSON.stringify({
     success: true,
     data: { items, total },
-    meta: { method: 'tmapi_image', page, pageSize, convertedImageUrl: convertedUrl },
+    meta: { method: 'tmapi_image', page, pageSize, convertedImageUrl: convertedUrl, originalImageUrl: originalUrl || convertedUrl },
   }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 }
 
