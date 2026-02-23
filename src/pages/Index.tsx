@@ -358,6 +358,24 @@ const Index = () => {
     loadCategoryPage(activeCategoryView.query, page);
   };
 
+  // Extract top keywords from page 1 titles for OTAPI text search on pages 2+
+  const extractSearchKeywords = (items: Product1688[]): string => {
+    // Collect all words from titles, count frequency
+    const wordFreq: Record<string, number> = {};
+    const stopWords = new Set(['the', 'a', 'an', 'and', 'or', 'for', 'with', 'in', 'of', 'to', 'on', 'is', 'at', 'by', 'new', 'hot', 'sale', 'free', 'shipping', '2024', '2025', '2026']);
+    for (const item of items) {
+      const words = item.title.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
+      for (const w of words) wordFreq[w] = (wordFreq[w] || 0) + 1;
+    }
+    // Take top 3-5 most frequent words
+    const sorted = Object.entries(wordFreq).sort((a, b) => b[1] - a[1]);
+    const topWords = sorted.slice(0, 4).map(([w]) => w);
+    return topWords.join(' ');
+  };
+
+  // Ref to store the derived search keyword for image search pages 2+
+  const imageSearchDerivedKeywordRef = useRef<string>('');
+
   const handleImageSearch = async (file: File, keyword = '') => {
     setImageSearchFile(null);
     setImageSearchPreview(null);
@@ -371,6 +389,7 @@ const Index = () => {
     setAltQueryIndex(0);
     setActiveSearch({ mode: "image", query: keyword, altQueries: [] });
     imagePageCacheRef.current = {}; // Clear cache for new search
+    imageSearchDerivedKeywordRef.current = '';
 
     try {
       // Fast compress for image search (400x400, 50% quality)
@@ -382,25 +401,22 @@ const Index = () => {
       const effectiveKeyword = keyword || file.name.replace(/\.[^.]+$/, '').replace(/[_\-]+/g, ' ');
       setImageSearchBase64(imageBase64);
       const result = await alibaba1688Api.searchByImage(imageBase64, 1, 20);
-      
-      // Use originalImageUrl (supabase public URL) for OTAPI — alicdn URLs may not work with OTAPI
-      const originalUrl = (result as any).meta?.originalImageUrl;
-      const convertedUrl = (result as any).meta?.convertedImageUrl;
-      const otapiUrl = originalUrl || convertedUrl; // Prefer original supabase URL for OTAPI
-      if (otapiUrl) {
-        setImageSearchConvertedUrl(otapiUrl);
-      }
 
       let finalItems = result.success && result.data ? result.data.items : [];
       let finalTotal = result.success && result.data ? result.data.total : 0;
 
-      // TMAPI returned 0 results — fall back to OTAPI image search (paid API, more reliable)
-      if (finalItems.length === 0 && otapiUrl) {
-        console.log('TMAPI returned 0 results, falling back to OTAPI image search');
-        const otapiResult = await alibaba1688Api.searchByImageOtapi(otapiUrl, 1, 40);
-        if (otapiResult.success && otapiResult.data && otapiResult.data.items.length > 0) {
-          finalItems = otapiResult.data.items;
-          finalTotal = otapiResult.data.total;
+      // TMAPI returned 0 results — fall back to OTAPI image search for page 1
+      if (finalItems.length === 0) {
+        const originalUrl = (result as any).meta?.originalImageUrl;
+        const convertedUrl = (result as any).meta?.convertedImageUrl;
+        const otapiUrl = originalUrl || convertedUrl;
+        if (otapiUrl) {
+          console.log('TMAPI returned 0 results, falling back to OTAPI image search for page 1');
+          const otapiResult = await alibaba1688Api.searchByImageOtapi(otapiUrl, 1, 40);
+          if (otapiResult.success && otapiResult.data && otapiResult.data.items.length > 0) {
+            finalItems = otapiResult.data.items;
+            finalTotal = otapiResult.data.total;
+          }
         }
       }
 
@@ -408,9 +424,14 @@ const Index = () => {
       setTotalResults(finalTotal);
       imagePageCacheRef.current[1] = finalItems;
 
-      // Prefetch pages 2-6 using OTAPI image search with original URL
-      if (otapiUrl) {
-        prefetchOtapiImagePages(otapiUrl, 2, 6);
+      // Derive keywords from page 1 titles, then prefetch pages 2-6 via OTAPI text search (cached)
+      if (finalItems.length > 0) {
+        const derivedKeyword = extractSearchKeywords(finalItems);
+        imageSearchDerivedKeywordRef.current = derivedKeyword;
+        console.log(`Derived keyword from page 1 titles: "${derivedKeyword}"`);
+        if (derivedKeyword) {
+          prefetchTextPages(derivedKeyword, 2, 6);
+        }
       }
 
       setActiveSearch({
@@ -428,20 +449,18 @@ const Index = () => {
     } finally { setIsLoading(false); }
   };
 
-
-
-  // Prefetch pages 2+ via OTAPI image search using the converted alicdn URL (paid OTAPI = accurate + fast)
-  const prefetchOtapiImagePages = (convertedUrl: string, fromPage: number, toPage: number) => {
+  // Prefetch pages 2+ via OTAPI text search using derived keywords (cached immediately)
+  const prefetchTextPages = (keyword: string, fromPage: number, toPage: number) => {
     const pages = Array.from({ length: toPage - fromPage + 1 }, (_, i) => fromPage + i);
     pages.forEach(async (p) => {
       try {
-        const resp = await alibaba1688Api.searchByImageOtapi(convertedUrl, p, 40);
+        const resp = await alibaba1688Api.search(keyword, p, 40);
         if (resp.success && resp.data && resp.data.items.length > 0) {
           imagePageCacheRef.current[p] = resp.data.items;
-          console.log(`Prefetched OTAPI image page ${p}: ${resp.data.items.length} items`);
+          console.log(`Prefetched text page ${p} for "${keyword}": ${resp.data.items.length} items`);
         }
       } catch {
-        console.warn(`Failed to prefetch image page ${p}`);
+        console.warn(`Failed to prefetch text page ${p}`);
       }
     });
   };
@@ -458,7 +477,7 @@ const Index = () => {
 
     // For image search, check cache first for instant display
     if (activeSearch.mode === 'image') {
-      console.log(`[goToPage] image mode page=${page}, cacheKeys=`, Object.keys(imagePageCacheRef.current), 'query=', activeSearch.query);
+      console.log(`[goToPage] image mode page=${page}, cacheKeys=`, Object.keys(imagePageCacheRef.current));
       const cached = imagePageCacheRef.current[page];
       if (cached && cached.length > 0) {
         console.log(`[goToPage] cache HIT page ${page}: ${cached.length} items`);
@@ -466,23 +485,23 @@ const Index = () => {
         setCurrentPage(page);
         return;
       }
-      // Not cached — fetch via OTAPI image search (accurate results like TMAPI)
-      console.log(`[goToPage] cache MISS page ${page}, fetching via OTAPI image search`);
+      // Not cached — fetch via OTAPI text search using derived keyword from page 1 titles
+      const derivedKw = imageSearchDerivedKeywordRef.current;
+      console.log(`[goToPage] cache MISS page ${page}, fetching via text search: "${derivedKw}"`);
+      if (!derivedKw) {
+        toast.error("No search keyword available for pagination");
+        return;
+      }
       setIsLoading(true);
       try {
-        const convertedUrl = imageSearchConvertedUrl;
-        if (convertedUrl) {
-          const resp = await alibaba1688Api.searchByImageOtapi(convertedUrl, page, 40);
-          if (resp.success && resp.data && resp.data.items.length > 0) {
-            setProducts(resp.data.items);
-            setCurrentPage(page);
-            setTotalResults(resp.data.total);
-            imagePageCacheRef.current[page] = resp.data.items;
-          } else {
-            toast.error("No products found for this page");
-          }
+        const resp = await alibaba1688Api.search(derivedKw, page, 40);
+        if (resp.success && resp.data && resp.data.items.length > 0) {
+          setProducts(resp.data.items);
+          setCurrentPage(page);
+          setTotalResults(resp.data.total);
+          imagePageCacheRef.current[page] = resp.data.items;
         } else {
-          toast.error("No converted image URL available for pagination");
+          toast.error("No products found for this page");
         }
       } catch (err) { console.error('[goToPage] error:', err); toast.error("Failed to load page"); }
       finally { setIsLoading(false); }
