@@ -475,26 +475,35 @@ const Index = () => {
 
     // For image search, check cache first for instant display
     if (activeSearch.mode === 'image') {
+      console.log(`[goToPage] image mode page=${page}, cacheKeys=`, Object.keys(imagePageCacheRef.current), 'query=', activeSearch.query);
       const cached = imagePageCacheRef.current[page];
       if (cached && cached.length > 0) {
+        console.log(`[goToPage] cache HIT page ${page}: ${cached.length} items`);
         setProducts(cached);
         setCurrentPage(page);
         return;
       }
       // Not cached — fetch via OTAPI text search
+      console.log(`[goToPage] cache MISS page ${page}, fetching via OTAPI`);
       setIsLoading(true);
       try {
         const searchKeyword = activeSearch.query || '';
         if (searchKeyword) {
           const resp = await alibaba1688Api.search(searchKeyword, page, 40);
-          if (resp.success && resp.data) {
+          console.log(`[goToPage] OTAPI resp page ${page}: success=${resp.success}, items=${resp.data?.items?.length}`);
+          if (resp.success && resp.data && resp.data.items.length > 0) {
             setProducts(resp.data.items);
             setCurrentPage(page);
             setTotalResults(resp.data.total);
             imagePageCacheRef.current[page] = resp.data.items;
-          } else toast.error(resp.error || "Failed to load page");
+          } else {
+            toast.error(resp.error || "No products found for this page");
+          }
+        } else {
+          console.warn('[goToPage] no search keyword for image mode fallback');
+          toast.error("No search keyword available");
         }
-      } catch { toast.error("Failed to load page"); }
+      } catch (err) { console.error('[goToPage] error:', err); toast.error("Failed to load page"); }
       finally { setIsLoading(false); }
       return;
     }
