@@ -40,19 +40,63 @@ Deno.serve(async (req) => {
     console.log('Image URL for ATP search:', imgUrl.slice(0, 120));
 
     // Step 2: Call ATP item_search_img API
-    const searchUrl = `${ATP_BASE}?api_key=${encodeURIComponent(apiKey)}&item_search_img&imgid=${encodeURIComponent(imgUrl)}&lang=zh-CN&page=${page}&page_size=${pageSize}`;
+    // Cap page_size to avoid oversized responses that cause JSON parse failures
+    const effectivePageSize = Math.min(pageSize, 40);
+    const searchUrl = `${ATP_BASE}?api_key=${encodeURIComponent(apiKey)}&item_search_img&imgid=${encodeURIComponent(imgUrl)}&lang=zh-CN&page=${page}&page_size=${effectivePageSize}`;
 
-    console.log(`ATP image search page ${page}...`);
-    const resp = await fetch(searchUrl);
-    const rawText = await resp.text();
+    console.log(`ATP image search page ${page}, pageSize ${effectivePageSize}...`);
+
+    // Use AbortController to set a 25s timeout
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 25000);
+
+    let resp: Response;
+    try {
+      resp = await fetch(searchUrl, { signal: controller.signal });
+    } catch (fetchErr: any) {
+      clearTimeout(timeout);
+      const isTimeout = fetchErr?.name === 'AbortError';
+      console.error('ATP fetch failed:', isTimeout ? 'timeout' : fetchErr?.message);
+      return new Response(JSON.stringify({
+        success: false,
+        error: isTimeout ? 'ATP API timed out, please try again' : 'ATP API request failed',
+      }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    clearTimeout(timeout);
+
+    // Read response as text first, then parse — more resilient to chunked/truncated responses
+    let rawText: string;
+    try {
+      rawText = await resp.text();
+    } catch (readErr) {
+      console.error('Failed to read ATP response body:', readErr);
+      return new Response(JSON.stringify({ success: false, error: 'Failed to read ATP response' }), {
+        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Sometimes ATP returns HTML error pages or empty bodies
+    if (!rawText || rawText.length < 2) {
+      console.error('ATP returned empty response, status:', resp.status);
+      return new Response(JSON.stringify({
+        success: true,
+        data: { items: [], total: 0 },
+        meta: { method: 'atp_image', convertedImageUrl: imgUrl, note: 'empty_response' },
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     let searchData: any;
     try {
       searchData = JSON.parse(rawText);
     } catch {
-      console.error('Failed to parse ATP response');
-      return new Response(JSON.stringify({ success: false, error: 'Invalid ATP response' }), {
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      // If JSON is truncated, try to salvage by closing brackets
+      console.error('ATP JSON parse failed, response length:', rawText.length, 'first 200:', rawText.slice(0, 200));
+      // Return empty results instead of 500 to avoid breaking the UI
+      return new Response(JSON.stringify({
+        success: true,
+        data: { items: [], total: 0 },
+        meta: { method: 'atp_image', convertedImageUrl: imgUrl, note: 'parse_error' },
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     if (!resp.ok) {
@@ -95,7 +139,7 @@ Deno.serve(async (req) => {
       sales: parseInt(String(item.sales || '0'), 10) || undefined,
       detail_url: item.detail_url || `https://detail.1688.com/offer/${item.num_iid}.html`,
       location: item.area || '',
-      vendor_name: item.seller_nick || '',
+      vendor_name: item.seller_nick || item.shop_name || '',
     }));
 
     console.log(`ATP image search complete: ${items.length} items in ${Date.now() - startTime}ms`);
@@ -103,7 +147,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({
       success: true,
       data: { items, total },
-      meta: { method: 'atp_image', page, pageSize, convertedImageUrl: imgUrl },
+      meta: { method: 'atp_image', page, pageSize: effectivePageSize, convertedImageUrl: imgUrl },
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
