@@ -382,31 +382,43 @@ const Index = () => {
       const effectiveKeyword = keyword || file.name.replace(/\.[^.]+$/, '').replace(/[_\-]+/g, ' ');
       setImageSearchBase64(imageBase64);
       const result = await alibaba1688Api.searchByImage(imageBase64, 1, 20);
-      if (result.success && result.data) {
-        setProducts(result.data.items);
-        setTotalResults(result.data.total);
-        imagePageCacheRef.current[1] = result.data.items;
-
-        // Store the converted alicdn URL for instant pagination on pages 2+
-        const convertedUrl = (result as any).meta?.convertedImageUrl;
-        if (convertedUrl) {
-          setImageSearchConvertedUrl(convertedUrl);
-          // Prefetch pages 2-6 using OTAPI image search (paid API = accurate results + 40 per page)
-          prefetchOtapiImagePages(convertedUrl, 2, 6);
-        }
-
-        setActiveSearch({
-          mode: "image",
-          query: keyword,
-          altQueries: [],
-        });
-        if (result.data.items.length === 0) toast.info("No similar products found");
-        else toast.success(`Found ${result.data.items.length} similar products`);
-      } else {
-        toast.error(result.error || "Image search failed");
-        setProducts([]);
-        setTotalResults(0);
+      
+      // Store converted URL for pagination regardless of TMAPI result
+      const convertedUrl = (result as any).meta?.convertedImageUrl;
+      if (convertedUrl) {
+        setImageSearchConvertedUrl(convertedUrl);
       }
+
+      let finalItems = result.success && result.data ? result.data.items : [];
+      let finalTotal = result.success && result.data ? result.data.total : 0;
+
+      // TMAPI returned 0 results — fall back to OTAPI image search (paid API, more reliable)
+      if (finalItems.length === 0 && convertedUrl) {
+        console.log('TMAPI returned 0 results, falling back to OTAPI image search');
+        const otapiResult = await alibaba1688Api.searchByImageOtapi(convertedUrl, 1, 40);
+        if (otapiResult.success && otapiResult.data && otapiResult.data.items.length > 0) {
+          finalItems = otapiResult.data.items;
+          finalTotal = otapiResult.data.total;
+        }
+      }
+
+      setProducts(finalItems);
+      setTotalResults(finalTotal);
+      imagePageCacheRef.current[1] = finalItems;
+
+      // Prefetch pages 2-6 using OTAPI image search
+      if (convertedUrl) {
+        prefetchOtapiImagePages(convertedUrl, 2, 6);
+      }
+
+      setActiveSearch({
+        mode: "image",
+        query: keyword,
+        altQueries: [],
+      });
+      if (finalItems.length === 0) toast.info("No similar products found");
+      else toast.success(`Found ${finalItems.length} similar products`);
+      
     } catch {
       toast.error("Image search failed");
       setProducts([]);
