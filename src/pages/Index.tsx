@@ -391,10 +391,19 @@ const Index = () => {
         if (convertedUrl) {
           setImageSearchConvertedUrl(convertedUrl);
         }
-        // Use first result's title as keyword for OTAPI text search on page 2+
+        // Use first result's title (shortened) as keyword for OTAPI text search on page 2+
         const firstTitle = result.data.items[0]?.title || '';
+        // Extract first 3-5 meaningful words to get better OTAPI search results
+        const shortenedTitle = firstTitle
+          .replace(/[^\w\s]/g, ' ')
+          .split(/\s+/)
+          .filter(w => w.length > 1)
+          .slice(0, 4)
+          .join(' ')
+          .trim();
         const derivedQuery = (result.meta as any)?.query;
-        const searchKeyword = firstTitle || (typeof derivedQuery === "string" && derivedQuery ? derivedQuery : effectiveKeyword);
+        const searchKeyword = shortenedTitle || (typeof derivedQuery === "string" && derivedQuery ? derivedQuery : effectiveKeyword);
+        console.log('Image search derived keyword for OTAPI:', searchKeyword);
         // Background prefetch pages 2-6 via OTAPI text search using first result's title
         if (searchKeyword) {
           prefetchImagePages(searchKeyword, 2, 6);
