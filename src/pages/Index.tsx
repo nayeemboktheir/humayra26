@@ -392,26 +392,14 @@ const Index = () => {
           setImageSearchConvertedUrl(convertedUrl);
         }
 
-        // Derive keyword from top results for pages 2+
-        const topTitles = result.data.items.slice(0, 5).map(i => i.title).filter(Boolean);
-        const stopWords = new Set(['the','a','an','and','or','for','of','in','on','to','with','is','are','was','new','style','hot','sale','wholesale','factory','direct','cross','border','trading','free','shipping','high','quality','cheap','good','best','big','small','large','2024','2025','2026']);
-        const wordFreq: Record<string, number> = {};
-        topTitles.forEach(t => {
-          const words = t.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
-          const seen = new Set<string>();
-          words.forEach(w => { if (!seen.has(w)) { seen.add(w); wordFreq[w] = (wordFreq[w] || 0) + 1; } });
-        });
-        const derivedKw = Object.entries(wordFreq)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 4)
-          .map(([w]) => w)
-          .join(' ').trim();
-        console.log('Image search derived keyword for TMAPI:', derivedKw);
-        setImageSearchDerivedKeyword(derivedKw);
+        // Use the top result's title as keyword for pages 2+ (OTAPI cached search → similar products)
+        const topTitle = result.data.items[0]?.title || '';
+        console.log('Image search: using top product title for OTAPI pages 2+:', topTitle);
+        setImageSearchDerivedKeyword(topTitle);
 
-        // Background prefetch pages 2-6 via TMAPI keyword search
-        if (derivedKw) {
-          prefetchImagePagesByKeyword(derivedKw, 2, 6);
+        // Background prefetch pages 2-6 via OTAPI cached search using product title
+        if (topTitle) {
+          prefetchImagePagesByKeyword(topTitle, 2, 6);
         }
 
         setActiveSearch({
