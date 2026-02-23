@@ -13,16 +13,18 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { query, page = 1, pageSize = 40 } = await req.json();
+    const { query, page = 1, pageSize = 40, imageUrl } = await req.json();
 
-    if (!query) {
+    // Support either text query or image URL search
+    if (!query && !imageUrl) {
       return new Response(
-        JSON.stringify({ success: false, error: 'Search query is required' }),
+        JSON.stringify({ success: false, error: 'Search query or imageUrl is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const queryKey = query.trim().toLowerCase();
+    const isImageSearch = !!imageUrl && !query;
+    const queryKey = isImageSearch ? `img:${imageUrl.trim().toLowerCase()}` : query.trim().toLowerCase();
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -63,7 +65,14 @@ Deno.serve(async (req) => {
     }
 
     const framePosition = (page - 1) * pageSize;
-    const xmlParams = `<SearchItemsParameters><ItemTitle>${query}</ItemTitle><Provider>Alibaba1688</Provider></SearchItemsParameters>`;
+    let xmlParams: string;
+    if (isImageSearch) {
+      // OTAPI image search: pass image URL directly in xmlParameters
+      xmlParams = imageUrl;
+      console.log(`OTAPI image search page ${page}, imageUrl: ${imageUrl.slice(0, 120)}`);
+    } else {
+      xmlParams = `<SearchItemsParameters><ItemTitle>${query}</ItemTitle><Provider>Alibaba1688</Provider></SearchItemsParameters>`;
+    }
     const url = `https://otapi.net/service-json/SearchItemsFrame?instanceKey=${encodeURIComponent(apiKey)}&language=en&xmlParameters=${encodeURIComponent(xmlParams)}&framePosition=${framePosition}&frameSize=${pageSize}`;
 
     const response = await fetch(url, {
