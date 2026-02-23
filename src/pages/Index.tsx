@@ -388,22 +388,19 @@ const Index = () => {
         imagePageCacheRef.current[1] = result.data.items;
 
         const convertedUrl = (result as any).meta?.convertedImageUrl;
-        const originalImageUrl = (result as any).meta?.originalImageUrl;
         if (convertedUrl) {
           setImageSearchConvertedUrl(convertedUrl);
         }
 
-        // Use the original uploaded image URL (full http URL) for OTAPI image search on pages 2+
-        // This is the actual user-uploaded image, not a product's pic_url, so results stay relevant
-        const otapiImgUrl = originalImageUrl && originalImageUrl.startsWith('http')
-          ? originalImageUrl
-          : (convertedUrl && convertedUrl.startsWith('http') ? convertedUrl : (result.data.items[0]?.pic_url || ''));
-        console.log('Image search: using original image URL for OTAPI pages 2+:', otapiImgUrl);
-        setImageSearchDerivedKeyword(otapiImgUrl);
+        // Derive a keyword from the top result title for keyword-based pagination on pages 2+
+        // Keyword search gives more accurate/relevant continuation than OTAPI image search
+        const derivedKeyword = result.data.items[0]?.title || '';
+        console.log('Image search: derived keyword for pages 2+:', derivedKeyword);
+        setImageSearchDerivedKeyword(derivedKeyword);
 
-        // Background prefetch pages 2-6 via OTAPI image search (cached)
-        if (otapiImgUrl) {
-          prefetchImagePagesByImageUrl(otapiImgUrl, 2, 6);
+        // Background prefetch pages 2-6 via keyword search (OTAPI cached)
+        if (derivedKeyword) {
+          prefetchImagePagesByKeyword(derivedKeyword, 2, 6);
         }
 
         setActiveSearch({
@@ -442,15 +439,15 @@ const Index = () => {
     }
   };
 
-  // Background prefetch image search pages 2+ via OTAPI cached search (with ImageUrl in XML)
-  const prefetchImagePagesByImageUrl = (imageUrl: string, fromPage: number, toPage: number) => {
+  // Background prefetch image search pages 2+ via keyword search (OTAPI cached)
+  const prefetchImagePagesByKeyword = (keyword: string, fromPage: number, toPage: number) => {
     const pages = Array.from({ length: toPage - fromPage + 1 }, (_, i) => fromPage + i);
     pages.forEach(async (p) => {
       try {
-        const resp = await alibaba1688Api.searchByImageOtapi(imageUrl, p, 20);
+        const resp = await alibaba1688Api.search(keyword, p, 20);
         if (resp.success && resp.data && resp.data.items.length > 0) {
           imagePageCacheRef.current[p] = resp.data.items;
-          console.log(`Prefetched OTAPI image page ${p}: ${resp.data.items.length} items`);
+          console.log(`Prefetched keyword page ${p}: ${resp.data.items.length} items`);
         }
       } catch {
         console.warn(`Failed to prefetch image page ${p}`);
@@ -478,14 +475,14 @@ const Index = () => {
         setCurrentPage(page);
         return;
       }
-      // Not cached — fetch via OTAPI image search using cached search endpoint
-      console.log(`[goToPage] cache MISS page ${page}, fetching via OTAPI image search`);
+      // Not cached — fetch via keyword search using derived keyword
+      console.log(`[goToPage] cache MISS page ${page}, fetching via keyword search`);
       setIsLoading(true);
       try {
-        const imgUrl = imageSearchDerivedKeyword; // Stores full image URL for OTAPI
-        if (imgUrl) {
-          const resp = await alibaba1688Api.searchByImageOtapi(imgUrl, page, 20);
-          console.log(`[goToPage] OTAPI image resp page ${page}: success=${resp.success}, items=${resp.data?.items?.length}`);
+        const keyword = imageSearchDerivedKeyword;
+        if (keyword) {
+          const resp = await alibaba1688Api.search(keyword, page, 20);
+          console.log(`[goToPage] keyword resp page ${page}: success=${resp.success}, items=${resp.data?.items?.length}`);
           if (resp.success && resp.data && resp.data.items.length > 0) {
             setProducts(resp.data.items);
             setCurrentPage(page);
@@ -495,8 +492,8 @@ const Index = () => {
             toast.error(resp.error || "No products found for this page");
           }
         } else {
-          console.warn('[goToPage] no image URL for pagination');
-          toast.error("No image URL available for pagination");
+          console.warn('[goToPage] no derived keyword for pagination');
+          toast.error("No keyword available for pagination");
         }
       } catch (err) { console.error('[goToPage] error:', err); toast.error("Failed to load page"); }
       finally { setIsLoading(false); }
