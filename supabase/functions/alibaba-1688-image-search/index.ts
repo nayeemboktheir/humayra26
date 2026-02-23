@@ -85,70 +85,75 @@ async function doImageSearch(
   imgUrl: string, page: number, pageSize: number,
   apiToken: string, startTime: number, convertedUrl: string, originalUrl: string = '',
 ): Promise<Response> {
-  const searchUrl = `${TMAPI_BASE}/global/search/image?apiToken=${encodeURIComponent(apiToken)}&img_url=${encodeURIComponent(imgUrl)}&language=en&page=${page}&page_size=${pageSize}&sort=default`;
+  // Try both endpoints: standard first, then global/multilingual
+  const endpoints = [
+    `${TMAPI_BASE}/search/image?apiToken=${encodeURIComponent(apiToken)}&img_url=${encodeURIComponent(imgUrl)}&page=${page}&page_size=${pageSize}&sort=default`,
+    `${TMAPI_BASE}/global/search/image?apiToken=${encodeURIComponent(apiToken)}&img_url=${encodeURIComponent(imgUrl)}&language=en&page=${page}&page_size=${pageSize}&sort=default`,
+  ];
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30000);
+  for (const searchUrl of endpoints) {
+    const epName = searchUrl.includes('/global/') ? 'global' : 'standard';
+    console.log(`Trying ${epName} endpoint for page ${page}...`);
 
-  let resp: Response;
-  try {
-    resp = await fetch(searchUrl, { signal: controller.signal });
-  } catch (fetchErr: any) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+
+    let resp: Response;
+    try {
+      resp = await fetch(searchUrl, { signal: controller.signal });
+    } catch (fetchErr: any) {
+      clearTimeout(timeout);
+      console.log(`${epName} fetch error:`, fetchErr?.message);
+      continue;
+    }
     clearTimeout(timeout);
-    const isTimeout = fetchErr?.name === 'AbortError';
-    return new Response(JSON.stringify({
-      success: false,
-      error: isTimeout ? 'Search timed out' : `Search failed: ${fetchErr?.message}`,
-    }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-  }
-  clearTimeout(timeout);
 
-  const rawText = await resp.text();
-  if (!rawText || rawText.length < 2) {
+    const rawText = await resp.text();
+    console.log(`${epName} raw (${rawText.length} chars):`, rawText.slice(0, 400));
+
+    if (!rawText || rawText.length < 2) continue;
+
+    let searchData: any;
+    try { searchData = JSON.parse(rawText); } catch { continue; }
+
+    if (searchData?.code && searchData.code !== 200) {
+      console.log(`${epName} api_code: ${searchData.code} msg: ${searchData.msg || ''}`);
+      continue;
+    }
+
+    const resultData = searchData?.data || searchData;
+    const rawItems = resultData?.items || resultData?.result || [];
+    const total = resultData?.total || resultData?.total_count || rawItems.length;
+
+    if (rawItems.length === 0) {
+      console.log(`${epName} returned 0 items, trying next...`);
+      continue;
+    }
+
+    const items = rawItems.map((item: any) => ({
+      num_iid: parseInt(String(item.offer_id || item.item_id || item.num_iid || '0'), 10) || 0,
+      title: item.title || item.subject || '',
+      pic_url: item.pic_url || item.image_url || item.img || '',
+      price: parseFloat(String(item.price || item.original_price || '0')) || 0,
+      promotion_price: item.promotion_price ? parseFloat(String(item.promotion_price)) : undefined,
+      sales: parseInt(String(item.sales || item.monthly_sales || item.sold || '0'), 10) || undefined,
+      detail_url: item.detail_url || item.product_url || `https://detail.1688.com/offer/${item.offer_id || item.item_id || item.num_iid}.html`,
+      location: item.location || item.province || '',
+      vendor_name: item.seller_nick || item.shop_name || item.supplier || '',
+    }));
+
+    console.log(`${epName}: ${items.length} items in ${Date.now() - startTime}ms`);
     return new Response(JSON.stringify({
-      success: true, data: { items: [], total: 0 },
-      meta: { method: 'tmapi_image', convertedImageUrl: convertedUrl, originalImageUrl: originalUrl || convertedUrl },
+      success: true,
+      data: { items, total },
+      meta: { method: 'tmapi_image', page, pageSize, convertedImageUrl: convertedUrl, originalImageUrl: originalUrl || convertedUrl },
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 
-  let searchData: any;
-  try { searchData = JSON.parse(rawText); } catch {
-    return new Response(JSON.stringify({
-      success: true, data: { items: [], total: 0 },
-      meta: { method: 'tmapi_image', convertedImageUrl: convertedUrl, note: 'parse_error' },
-    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-  }
-
-  if (searchData?.code && searchData.code !== 200) {
-    // Don't fail — return empty for fallback to convert path
-    return new Response(JSON.stringify({
-      success: true, data: { items: [], total: 0 },
-      meta: { method: 'tmapi_image', convertedImageUrl: convertedUrl, originalImageUrl: originalUrl || convertedUrl, note: `api_code_${searchData.code}` },
-    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-  }
-
-  const resultData = searchData?.data || searchData;
-  const rawItems = resultData?.items || resultData?.result || [];
-  const total = resultData?.total || resultData?.total_count || rawItems.length;
-
-  const items = rawItems.map((item: any) => ({
-    num_iid: parseInt(String(item.offer_id || item.item_id || item.num_iid || '0'), 10) || 0,
-    title: item.title || item.subject || '',
-    pic_url: item.pic_url || item.image_url || item.img || '',
-    price: parseFloat(String(item.price || item.original_price || '0')) || 0,
-    promotion_price: item.promotion_price ? parseFloat(String(item.promotion_price)) : undefined,
-    sales: parseInt(String(item.sales || item.monthly_sales || item.sold || '0'), 10) || undefined,
-    detail_url: item.detail_url || item.product_url || `https://detail.1688.com/offer/${item.offer_id || item.item_id || item.num_iid}.html`,
-    location: item.location || item.province || '',
-    vendor_name: item.seller_nick || item.shop_name || item.supplier || '',
-  }));
-
-  console.log(`Search: ${items.length} items in ${Date.now() - startTime}ms`);
-
+  // All endpoints returned 0
   return new Response(JSON.stringify({
-    success: true,
-    data: { items, total },
-    meta: { method: 'tmapi_image', page, pageSize, convertedImageUrl: convertedUrl, originalImageUrl: originalUrl || convertedUrl },
+    success: true, data: { items: [], total: 0 },
+    meta: { method: 'tmapi_image', convertedImageUrl: convertedUrl, originalImageUrl: originalUrl || convertedUrl },
   }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 }
 
