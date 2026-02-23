@@ -40,11 +40,20 @@ Deno.serve(async (req) => {
     console.log('Image URL for ATP search:', imgUrl.slice(0, 120));
 
     // Step 2: Call ATP item_search_img API
-    const searchUrl = `${ATP_BASE}?api_key=${encodeURIComponent(apiKey)}&item_search_img&imgid=${encodeURIComponent(imgUrl)}&lang=en&page=${page}&page_size=${pageSize}`;
+    const searchUrl = `${ATP_BASE}?api_key=${encodeURIComponent(apiKey)}&item_search_img&imgid=${encodeURIComponent(imgUrl)}&lang=zh-CN&page=${page}&page_size=${pageSize}`;
 
     console.log(`ATP image search page ${page}...`);
     const resp = await fetch(searchUrl);
-    const searchData = await resp.json();
+    const rawText = await resp.text();
+    let searchData: any;
+    try {
+      searchData = JSON.parse(rawText);
+    } catch {
+      console.error('Failed to parse ATP response');
+      return new Response(JSON.stringify({ success: false, error: 'Invalid ATP response' }), {
+        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     if (!resp.ok) {
       const errMsg = searchData?.error || `ATP error: ${resp.status}`;
@@ -62,8 +71,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const rawItems = searchData?.items?.item || [];
-    const total = searchData?.items?.total_results || searchData?.items?.real_total_results || rawItems.length;
+    const rawItems = searchData?.item?.items?.item || searchData?.items?.item || [];
+    const total = searchData?.item?.items?.total_results || searchData?.items?.total_results || rawItems.length;
     console.log(`ATP page ${page}: ${rawItems.length} items, total: ${total}, took ${Date.now() - startTime}ms`);
 
     if (!rawItems.length) {
