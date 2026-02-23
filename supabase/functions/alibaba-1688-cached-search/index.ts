@@ -67,8 +67,8 @@ Deno.serve(async (req) => {
     const framePosition = (page - 1) * pageSize;
     let xmlParams: string;
     if (isImageSearch) {
-      // OTAPI image search: pass image URL directly in xmlParameters
-      xmlParams = imageUrl;
+      // OTAPI image search: use proper XML with ImageUrl inside SearchItemsParameters
+      xmlParams = `<SearchItemsParameters><ImageUrl>${imageUrl}</ImageUrl><Provider>Alibaba1688</Provider></SearchItemsParameters>`;
       console.log(`OTAPI image search page ${page}, imageUrl: ${imageUrl.slice(0, 120)}`);
     } else {
       xmlParams = `<SearchItemsParameters><ItemTitle>${query}</ItemTitle><Provider>Alibaba1688</Provider></SearchItemsParameters>`;
