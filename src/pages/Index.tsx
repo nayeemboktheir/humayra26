@@ -392,14 +392,14 @@ const Index = () => {
           setImageSearchConvertedUrl(convertedUrl);
         }
 
-        // Use converted image URL for OTAPI image search on pages 2+
-        const imgUrl = convertedUrl || '';
-        console.log('Image search: convertedUrl for OTAPI pages 2+:', imgUrl);
-        setImageSearchDerivedKeyword(imgUrl); // Reuse state to store the converted image URL
+        // Use the first product's image URL for OTAPI image search on pages 2+
+        const firstProductImg = result.data.items[0]?.pic_url || '';
+        console.log('Image search: using first product pic_url for OTAPI pages 2+:', firstProductImg);
+        setImageSearchDerivedKeyword(firstProductImg); // Stores the product image URL
 
         // Background prefetch pages 2-6 via OTAPI image search
-        if (imgUrl) {
-          prefetchImagePagesByImageUrl(imgUrl, 2, 6);
+        if (firstProductImg) {
+          prefetchImagePagesByImageUrl(firstProductImg, 2, 6);
         }
 
         setActiveSearch({
