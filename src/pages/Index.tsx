@@ -124,7 +124,7 @@ const Index = () => {
   const [imageSearchPreview, setImageSearchPreview] = useState<string | null>(null);
   const [imageSearchBase64, setImageSearchBase64] = useState<string | null>(null);
   const [imageSearchConvertedUrl, setImageSearchConvertedUrl] = useState<string | null>(null);
-  const [imageSearchDerivedKeyword, setImageSearchDerivedKeyword] = useState<string>('');
+  
   const imagePageCacheRef = useRef<Record<number, Product1688[]>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounterRef = useRef(0);
@@ -387,20 +387,12 @@ const Index = () => {
         setTotalResults(result.data.total);
         imagePageCacheRef.current[1] = result.data.items;
 
+        // Store the converted alicdn URL for instant pagination on pages 2+
         const convertedUrl = (result as any).meta?.convertedImageUrl;
         if (convertedUrl) {
           setImageSearchConvertedUrl(convertedUrl);
-        }
-
-        // Store both: first product's image (for OTAPI image search) + title (for keyword search)
-        const firstProductImg = result.data.items[0]?.pic_url || '';
-        const derivedKeyword = result.data.items[0]?.title || '';
-        console.log('Image search hybrid: img=', firstProductImg.slice(0, 80), 'keyword=', derivedKeyword.slice(0, 60));
-        setImageSearchDerivedKeyword(JSON.stringify({ img: firstProductImg, keyword: derivedKeyword }));
-
-        // Background prefetch pages 2-6 via hybrid (image + keyword, merged)
-        if (firstProductImg || derivedKeyword) {
-          prefetchHybridPages(firstProductImg, derivedKeyword, 2, 6);
+          // Prefetch pages 2-6 using pure TMAPI with the converted URL (no hybrid needed)
+          prefetchTmapiPages(convertedUrl, 2, 6);
         }
 
         setActiveSearch({
@@ -422,60 +414,20 @@ const Index = () => {
     } finally { setIsLoading(false); }
   };
 
-  // Translate Chinese product titles to English via translate-text edge function
-  const translateProductTitles = async (items: Product1688[]): Promise<Product1688[]> => {
-    try {
-      const titles = items.map(i => i.title);
-      const { data, error } = await supabase.functions.invoke('translate-text', {
-        body: { texts: titles },
-      });
-      if (error || !data?.translations) return items;
-      return items.map((item, idx) => ({
-        ...item,
-        title: data.translations[idx] || item.title,
-      }));
-    } catch {
-      return items;
-    }
-  };
 
-  // Merge + deduplicate items by num_iid, interleaving image results first
-  const mergeAndDedupe = (imageItems: Product1688[], keywordItems: Product1688[]): Product1688[] => {
-    const seen = new Set<number>();
-    const merged: Product1688[] = [];
-    // Interleave: image result, keyword result, image, keyword...
-    const maxLen = Math.max(imageItems.length, keywordItems.length);
-    for (let i = 0; i < maxLen; i++) {
-      if (i < imageItems.length && !seen.has(imageItems[i].num_iid)) {
-        seen.add(imageItems[i].num_iid);
-        merged.push(imageItems[i]);
-      }
-      if (i < keywordItems.length && !seen.has(keywordItems[i].num_iid)) {
-        seen.add(keywordItems[i].num_iid);
-        merged.push(keywordItems[i]);
-      }
-    }
-    return merged;
-  };
 
-  // Background prefetch pages 2+ via hybrid: OTAPI image search + keyword search, merged
-  const prefetchHybridPages = (imageUrl: string, keyword: string, fromPage: number, toPage: number) => {
+  // Prefetch pages 2+ via pure TMAPI image search using the converted alicdn URL
+  const prefetchTmapiPages = (convertedUrl: string, fromPage: number, toPage: number) => {
     const pages = Array.from({ length: toPage - fromPage + 1 }, (_, i) => fromPage + i);
     pages.forEach(async (p) => {
       try {
-        const [imgResp, kwResp] = await Promise.allSettled([
-          imageUrl ? alibaba1688Api.searchByImageOtapi(imageUrl, p, 20) : Promise.resolve({ success: false } as any),
-          keyword ? alibaba1688Api.search(keyword, p, 20) : Promise.resolve({ success: false } as any),
-        ]);
-        const imgItems = imgResp.status === 'fulfilled' && imgResp.value.success ? imgResp.value.data?.items || [] : [];
-        const kwItems = kwResp.status === 'fulfilled' && kwResp.value.success ? kwResp.value.data?.items || [] : [];
-        const merged = mergeAndDedupe(imgItems, kwItems);
-        if (merged.length > 0) {
-          imagePageCacheRef.current[p] = merged;
-          console.log(`Prefetched hybrid page ${p}: ${imgItems.length} img + ${kwItems.length} kw = ${merged.length} merged`);
+        const resp = await alibaba1688Api.searchByImage('', p, 20, convertedUrl);
+        if (resp.success && resp.data && resp.data.items.length > 0) {
+          imagePageCacheRef.current[p] = resp.data.items;
+          console.log(`Prefetched TMAPI page ${p}: ${resp.data.items.length} items`);
         }
       } catch {
-        console.warn(`Failed to prefetch hybrid page ${p}`);
+        console.warn(`Failed to prefetch page ${p}`);
       }
     });
   };
@@ -500,36 +452,23 @@ const Index = () => {
         setCurrentPage(page);
         return;
       }
-      // Not cached — fetch via hybrid (image + keyword) search
-      console.log(`[goToPage] cache MISS page ${page}, fetching via hybrid search`);
+      // Not cached — fetch via pure TMAPI using converted URL
+      console.log(`[goToPage] cache MISS page ${page}, fetching via TMAPI`);
       setIsLoading(true);
       try {
-        const stored = imageSearchDerivedKeyword;
-        let img = '', kw = '';
-        try { const parsed = JSON.parse(stored); img = parsed.img || ''; kw = parsed.keyword || ''; } catch { kw = stored; }
-        if (img || kw) {
-          const [imgResp, kwResp] = await Promise.allSettled([
-            img ? alibaba1688Api.searchByImageOtapi(img, page, 20) : Promise.resolve({ success: false } as any),
-            kw ? alibaba1688Api.search(kw, page, 20) : Promise.resolve({ success: false } as any),
-          ]);
-          const imgItems = imgResp.status === 'fulfilled' && imgResp.value.success ? imgResp.value.data?.items || [] : [];
-          const kwItems = kwResp.status === 'fulfilled' && kwResp.value.success ? kwResp.value.data?.items || [] : [];
-          const merged = mergeAndDedupe(imgItems, kwItems);
-          console.log(`[goToPage] hybrid page ${page}: ${imgItems.length} img + ${kwItems.length} kw = ${merged.length} merged`);
-          if (merged.length > 0) {
-            setProducts(merged);
+        const convertedUrl = imageSearchConvertedUrl;
+        if (convertedUrl) {
+          const resp = await alibaba1688Api.searchByImage('', page, 20, convertedUrl);
+          if (resp.success && resp.data && resp.data.items.length > 0) {
+            setProducts(resp.data.items);
             setCurrentPage(page);
-            const maxTotal = Math.max(
-              imgResp.status === 'fulfilled' && imgResp.value.data?.total || 0,
-              kwResp.status === 'fulfilled' && kwResp.value.data?.total || 0,
-            );
-            setTotalResults(maxTotal);
-            imagePageCacheRef.current[page] = merged;
+            setTotalResults(resp.data.total);
+            imagePageCacheRef.current[page] = resp.data.items;
           } else {
             toast.error("No products found for this page");
           }
         } else {
-          toast.error("No search data available for pagination");
+          toast.error("No converted image URL available for pagination");
         }
       } catch (err) { console.error('[goToPage] error:', err); toast.error("Failed to load page"); }
       finally { setIsLoading(false); }
