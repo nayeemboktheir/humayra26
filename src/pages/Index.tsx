@@ -372,11 +372,10 @@ const Index = () => {
     imagePageCacheRef.current = {}; // Clear cache for new search
 
     try {
-      // Compress image for faster upload & search
-      const { compressImage } = await import('@/lib/compressImage');
-      toast.info("Compressing image...");
-      const imageBase64 = await compressImage(file, 800, 800, 0.7);
-      toast.info("Uploading image and searching...");
+      // Fast compress for image search (400x400, 50% quality)
+      const { compressImageForSearch } = await import('@/lib/compressImage');
+      const imageBase64 = await compressImageForSearch(file);
+      toast.info("Searching...");
 
       // Use filename as hint if no keyword provided
       const effectiveKeyword = keyword || file.name.replace(/\.[^.]+$/, '').replace(/[_\-]+/g, ' ');
