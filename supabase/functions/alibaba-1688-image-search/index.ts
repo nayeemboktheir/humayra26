@@ -31,17 +31,22 @@ Deno.serve(async (req) => {
     const startTime = Date.now();
     const effectivePageSize = Math.min(pageSize, 20);
     let imgUrl = imageUrl || '';
-    let originalUrl = imgUrl; // Keep track of the original uploaded URL for OTAPI
+    let originalUrl = imgUrl;
 
-    // FAST PATH: If we already have an alicdn URL, search directly with TMAPI
-    const isAlreadyAlicdn = imgUrl && (imgUrl.includes('alicdn.com') || imgUrl.includes('aliyuncs.com'));
-    if (isAlreadyAlicdn) {
-      console.log(`TMAPI search: alicdn URL, page ${page}`);
+    // PATH 1: Already an alicdn URL → search directly (fast path for pagination)
+    const isAlicdn = imgUrl && (imgUrl.includes('alicdn.com') || imgUrl.includes('aliyuncs.com'));
+    if (isAlicdn) {
+      console.log(`Direct TMAPI search: alicdn URL, page ${page}`);
       return await doImageSearch(imgUrl, page, effectivePageSize, apiToken, startTime, imgUrl, imgUrl);
     }
 
-    // NON-ALICDN PATH: User-uploaded image — TMAPI can't search these (even after convert_url).
-    // Upload to temp bucket so the client can use the public URL with OTAPI fallback.
+    // PATH 2: Already a converted path (starts with /) → use V2 endpoint directly
+    if (imgUrl && imgUrl.startsWith('/')) {
+      console.log(`V2 search with converted path, page ${page}`);
+      return await doImageSearchV2(imgUrl, page, effectivePageSize, apiToken, startTime, imgUrl, originalUrl);
+    }
+
+    // PATH 3: User-uploaded image (base64 or external URL) → convert first, then search with V2
     if (imageBase64 && !imgUrl) {
       console.log('Uploading base64...');
       imgUrl = await uploadToTempBucket(imageBase64);
@@ -49,16 +54,23 @@ Deno.serve(async (req) => {
       console.log('Upload:', Date.now() - startTime, 'ms');
     }
 
-    // Return empty with the uploaded URL — client will use OTAPI fallback
-    console.log('Non-alicdn image, skipping TMAPI, returning for OTAPI fallback');
+    // Step A: Convert user image URL to TMAPI-recognized path
+    console.log('Converting image URL for TMAPI...');
+    const convertedPath = await convertImageUrl(imgUrl, apiToken);
+    console.log('Convert result:', convertedPath?.slice(0, 100), 'in', Date.now() - startTime, 'ms');
+
+    if (convertedPath && convertedPath !== imgUrl) {
+      // Use V2 endpoint with the converted path
+      return await doImageSearchV2(convertedPath, page, effectivePageSize, apiToken, startTime, convertedPath, originalUrl);
+    }
+
+    // Convert failed — return empty so client can use OTAPI fallback
+    console.log('Convert failed, returning empty for OTAPI fallback');
     return new Response(JSON.stringify({
       success: true,
       data: { items: [], total: 0 },
-      meta: { method: 'tmapi_image', convertedImageUrl: imgUrl, originalImageUrl: originalUrl || imgUrl, note: 'non_alicdn_skip' },
+      meta: { method: 'tmapi_image', convertedImageUrl: imgUrl, originalImageUrl: originalUrl, note: 'convert_failed' },
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-
-    // Return the empty direct result
-    return directResult;
 
   } catch (error) {
     console.error('Error in image search:', error);
@@ -69,12 +81,11 @@ Deno.serve(async (req) => {
   }
 });
 
-// Core search function — single responsibility
+// Search with standard endpoints (for alicdn URLs)
 async function doImageSearch(
   imgUrl: string, page: number, pageSize: number,
   apiToken: string, startTime: number, convertedUrl: string, originalUrl: string = '',
 ): Promise<Response> {
-  // Try both endpoints: standard first, then global/multilingual
   const endpoints = [
     `${TMAPI_BASE}/search/image?apiToken=${encodeURIComponent(apiToken)}&img_url=${encodeURIComponent(imgUrl)}&page=${page}&page_size=${pageSize}&sort=default`,
     `${TMAPI_BASE}/global/search/image?apiToken=${encodeURIComponent(apiToken)}&img_url=${encodeURIComponent(imgUrl)}&language=en&page=${page}&page_size=${pageSize}&sort=default`,
@@ -82,71 +93,102 @@ async function doImageSearch(
 
   for (const searchUrl of endpoints) {
     const epName = searchUrl.includes('/global/') ? 'global' : 'standard';
-    console.log(`Trying ${epName} endpoint for page ${page}...`);
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
-
-    let resp: Response;
-    try {
-      resp = await fetch(searchUrl, { signal: controller.signal });
-    } catch (fetchErr: any) {
-      clearTimeout(timeout);
-      console.log(`${epName} fetch error:`, fetchErr?.message);
-      continue;
-    }
-    clearTimeout(timeout);
-
-    const rawText = await resp.text();
-    console.log(`${epName} raw (${rawText.length} chars):`, rawText.slice(0, 400));
-
-    if (!rawText || rawText.length < 2) continue;
-
-    let searchData: any;
-    try { searchData = JSON.parse(rawText); } catch { continue; }
-
-    if (searchData?.code && searchData.code !== 200) {
-      console.log(`${epName} api_code: ${searchData.code} msg: ${searchData.msg || ''}`);
-      continue;
-    }
-
-    const resultData = searchData?.data || searchData;
-    const rawItems = resultData?.items || resultData?.result || [];
-    const total = resultData?.total || resultData?.total_count || rawItems.length;
-
-    if (rawItems.length === 0) {
-      console.log(`${epName} returned 0 items, trying next...`);
-      continue;
-    }
-
-    const items = rawItems.map((item: any) => ({
-      num_iid: parseInt(String(item.offer_id || item.item_id || item.num_iid || '0'), 10) || 0,
-      title: item.title || item.subject || '',
-      pic_url: item.pic_url || item.image_url || item.img || '',
-      price: parseFloat(String(item.price || item.original_price || '0')) || 0,
-      promotion_price: item.promotion_price ? parseFloat(String(item.promotion_price)) : undefined,
-      sales: parseInt(String(item.sales || item.monthly_sales || item.sold || '0'), 10) || undefined,
-      detail_url: item.detail_url || item.product_url || `https://detail.1688.com/offer/${item.offer_id || item.item_id || item.num_iid}.html`,
-      location: item.location || item.province || '',
-      vendor_name: item.seller_nick || item.shop_name || item.supplier || '',
-    }));
-
-    console.log(`${epName}: ${items.length} items in ${Date.now() - startTime}ms`);
-    return new Response(JSON.stringify({
-      success: true,
-      data: { items, total },
-      meta: { method: 'tmapi_image', page, pageSize, convertedImageUrl: convertedUrl, originalImageUrl: originalUrl || convertedUrl },
-    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    const result = await fetchAndParse(searchUrl, epName, pageSize, apiToken, startTime, convertedUrl, originalUrl, page);
+    if (result) return result;
   }
 
-  // All endpoints returned 0
+  return emptyResponse(convertedUrl, originalUrl);
+}
+
+// Search with V2 endpoint (for converted image paths from convert_url)
+async function doImageSearchV2(
+  imgPath: string, page: number, pageSize: number,
+  apiToken: string, startTime: number, convertedUrl: string, originalUrl: string = '',
+): Promise<Response> {
+  const searchUrl = `${TMAPI_BASE}/global/search/image/v2?apiToken=${encodeURIComponent(apiToken)}&img_url=${encodeURIComponent(imgPath)}&language=en&page=${page}&page_size=${pageSize}&sort=default`;
+
+  const result = await fetchAndParse(searchUrl, 'v2', pageSize, apiToken, startTime, convertedUrl, originalUrl, page);
+  if (result) return result;
+
+  // V2 failed, try standard endpoints with full URL if it looks like a path
+  if (imgPath.startsWith('/')) {
+    const fullUrl = `https://cbu01.alicdn.com${imgPath}`;
+    console.log('V2 failed, trying standard with full URL...');
+    return await doImageSearch(fullUrl, page, pageSize, apiToken, startTime, convertedUrl, originalUrl);
+  }
+
+  return emptyResponse(convertedUrl, originalUrl);
+}
+
+// Shared fetch + parse logic
+async function fetchAndParse(
+  searchUrl: string, epName: string, pageSize: number,
+  apiToken: string, startTime: number, convertedUrl: string, originalUrl: string, page: number,
+): Promise<Response | null> {
+  console.log(`Trying ${epName} endpoint, page ${page}...`);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20000);
+
+  let resp: Response;
+  try {
+    resp = await fetch(searchUrl, { signal: controller.signal });
+  } catch (fetchErr: any) {
+    clearTimeout(timeout);
+    console.log(`${epName} fetch error:`, fetchErr?.message);
+    return null;
+  }
+  clearTimeout(timeout);
+
+  const rawText = await resp.text();
+  console.log(`${epName} raw (${rawText.length} chars):`, rawText.slice(0, 300));
+
+  if (!rawText || rawText.length < 2) return null;
+
+  let searchData: any;
+  try { searchData = JSON.parse(rawText); } catch { return null; }
+
+  if (searchData?.code && searchData.code !== 200) {
+    console.log(`${epName} api_code: ${searchData.code} msg: ${searchData.msg || ''}`);
+    return null;
+  }
+
+  const resultData = searchData?.data || searchData;
+  const rawItems = resultData?.items || resultData?.result || [];
+  const total = resultData?.total || resultData?.total_count || rawItems.length;
+
+  if (rawItems.length === 0) {
+    console.log(`${epName} returned 0 items`);
+    return null;
+  }
+
+  const items = rawItems.map((item: any) => ({
+    num_iid: parseInt(String(item.offer_id || item.item_id || item.num_iid || '0'), 10) || 0,
+    title: item.title || item.subject || '',
+    pic_url: item.pic_url || item.image_url || item.img || '',
+    price: parseFloat(String(item.price || item.original_price || '0')) || 0,
+    promotion_price: item.promotion_price ? parseFloat(String(item.promotion_price)) : undefined,
+    sales: parseInt(String(item.sales || item.monthly_sales || item.sold || '0'), 10) || undefined,
+    detail_url: item.detail_url || item.product_url || `https://detail.1688.com/offer/${item.offer_id || item.item_id || item.num_iid}.html`,
+    location: item.location || item.province || '',
+    vendor_name: item.seller_nick || item.shop_name || item.supplier || '',
+  }));
+
+  console.log(`${epName}: ${items.length} items in ${Date.now() - startTime}ms`);
+  return new Response(JSON.stringify({
+    success: true,
+    data: { items, total },
+    meta: { method: 'tmapi_image', page, pageSize, convertedImageUrl: convertedUrl, originalImageUrl: originalUrl || convertedUrl },
+  }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+}
+
+function emptyResponse(convertedUrl: string, originalUrl: string): Response {
   return new Response(JSON.stringify({
     success: true, data: { items: [], total: 0 },
     meta: { method: 'tmapi_image', convertedImageUrl: convertedUrl, originalImageUrl: originalUrl || convertedUrl },
   }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 }
 
-// Convert URL via TMAPI (only called if direct search fails)
+// Convert URL via TMAPI — returns image path for V2 endpoint
 async function convertImageUrl(imgUrl: string, apiToken: string): Promise<string> {
   try {
     const convertResp = await fetch(
@@ -154,28 +196,24 @@ async function convertImageUrl(imgUrl: string, apiToken: string): Promise<string
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: imgUrl, search_api_endpoint: '/global/search/image' }),
+        body: JSON.stringify({ url: imgUrl, search_api_endpoint: '/global/search/image/v2' }),
       }
     );
-    const convertData = await convertResp.json();
+    const rawText = await convertResp.text();
+    console.log('Convert raw:', rawText.slice(0, 300));
+    if (!rawText || rawText.length < 2) return imgUrl;
+    let convertData: any;
+    try { convertData = JSON.parse(rawText); } catch { return imgUrl; }
     if (convertData?.code === 200 && convertData?.data) {
       const d = convertData.data;
-      let result = d.image_url || d.img_url || d.url || (typeof d === 'string' ? d : '') || imgUrl;
-      // Ensure full URL — TMAPI sometimes returns relative paths like /search/imgextra5/...
-      if (result && result.startsWith('/')) {
-        result = `https://cbu01.alicdn.com${result}`;
-      }
-      return result;
+      // The result is typically an image path like /search/imgextra5/...
+      const result = d.image_url || d.img_url || d.url || (typeof d === 'string' ? d : '') || '';
+      if (result) return result;
     }
-  } catch {}
+  } catch (e) {
+    console.log('Convert error:', e);
+  }
   return imgUrl;
-}
-
-// Non-blocking background convert (fire and forget for pagination optimization)
-function convertUrlInBackground(imgUrl: string, apiToken: string) {
-  convertImageUrl(imgUrl, apiToken).then(url => {
-    if (url !== imgUrl) console.log('Background convert done:', url.slice(0, 80));
-  }).catch(() => {});
 }
 
 // Upload base64 image to temp bucket
@@ -199,7 +237,6 @@ async function uploadToTempBucket(imageBase64: string): Promise<string> {
   if (error) throw new Error(`Image upload failed: ${error.message}`);
   const { data: pub } = supabase.storage.from('temp-images').getPublicUrl(fileName);
 
-  // Clean up after 15 minutes
   setTimeout(async () => {
     try { await supabase.storage.from('temp-images').remove([fileName]); } catch {}
   }, 900000);
