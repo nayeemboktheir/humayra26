@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
 
     // Step 3: Call ATP item_search_img API
     const effectivePageSize = Math.min(pageSize, 40);
-    const searchUrl = `${ATP_BASE}?api_key=${encodeURIComponent(apiKey)}&item_search_img&imgid=${encodeURIComponent(imgUrl)}&lang=zh-CN&page=${page}&page_size=${effectivePageSize}`;
+    const searchUrl = `${ATP_BASE}?api_key=${encodeURIComponent(apiKey)}&item_search_img&imgid=${encodeURIComponent(imgUrl)}&lang=en&page=${page}&page_size=${effectivePageSize}`;
 
     console.log(`ATP image search page ${page}, pageSize ${effectivePageSize}...`);
 
