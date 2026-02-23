@@ -450,15 +450,15 @@ const Index = () => {
     }
   };
 
-  // Background prefetch image search pages 2+ via TMAPI keyword search
+  // Background prefetch image search pages 2+ via OTAPI keyword search
   const prefetchImagePagesByKeyword = (keyword: string, fromPage: number, toPage: number) => {
     const pages = Array.from({ length: toPage - fromPage + 1 }, (_, i) => fromPage + i);
     pages.forEach(async (p) => {
       try {
-        const resp = await alibaba1688Api.searchByKeywordTmapi(keyword, p, 20);
+        const resp = await alibaba1688Api.search(keyword, p, 20);
         if (resp.success && resp.data && resp.data.items.length > 0) {
           imagePageCacheRef.current[p] = resp.data.items;
-          console.log(`Prefetched TMAPI keyword page ${p}: ${resp.data.items.length} items`);
+          console.log(`Prefetched OTAPI keyword page ${p}: ${resp.data.items.length} items`);
         }
       } catch {
         console.warn(`Failed to prefetch keyword page ${p}`);
@@ -486,14 +486,14 @@ const Index = () => {
         setCurrentPage(page);
         return;
       }
-      // Not cached — fetch via TMAPI keyword search using derived keyword
-      console.log(`[goToPage] cache MISS page ${page}, fetching via TMAPI keyword search`);
+      // Not cached — fetch via OTAPI keyword search using derived keyword
+      console.log(`[goToPage] cache MISS page ${page}, fetching via OTAPI keyword search`);
       setIsLoading(true);
       try {
         const kw = imageSearchDerivedKeyword;
         if (kw) {
-          const resp = await alibaba1688Api.searchByKeywordTmapi(kw, page, 20);
-          console.log(`[goToPage] TMAPI keyword resp page ${page}: success=${resp.success}, items=${resp.data?.items?.length}`);
+          const resp = await alibaba1688Api.search(kw, page, 20);
+          console.log(`[goToPage] OTAPI keyword resp page ${page}: success=${resp.success}, items=${resp.data?.items?.length}`);
           if (resp.success && resp.data && resp.data.items.length > 0) {
             setProducts(resp.data.items);
             setCurrentPage(page);
