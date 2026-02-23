@@ -58,5 +58,5 @@ export function compressImage(
  * for minimal upload time.
  */
 export function compressImageForSearch(file: File): Promise<string> {
-  return compressImage(file, 400, 400, 0.5);
+  return compressImage(file, 256, 256, 0.35);
 }
