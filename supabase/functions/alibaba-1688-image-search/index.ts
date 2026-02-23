@@ -33,40 +33,29 @@ Deno.serve(async (req) => {
     let imgUrl = imageUrl || '';
     let originalUrl = imgUrl; // Keep track of the original uploaded URL for OTAPI
 
-    // FAST PATH: If we already have an alicdn URL (pages 2+), search directly — zero overhead
-    const isAlreadyConverted = imgUrl && (imgUrl.includes('alicdn.com') || imgUrl.includes('aliyuncs.com'));
-    if (isAlreadyConverted) {
-      console.log(`Fast path: alicdn URL, page ${page}`);
+    // FAST PATH: If we already have an alicdn URL, search directly with TMAPI
+    const isAlreadyAlicdn = imgUrl && (imgUrl.includes('alicdn.com') || imgUrl.includes('aliyuncs.com'));
+    if (isAlreadyAlicdn) {
+      console.log(`TMAPI search: alicdn URL, page ${page}`);
       return await doImageSearch(imgUrl, page, effectivePageSize, apiToken, startTime, imgUrl, imgUrl);
     }
 
-    // Step 1: If base64, upload to temp bucket (we need an HTTP URL)
+    // NON-ALICDN PATH: User-uploaded image — TMAPI can't search these (even after convert_url).
+    // Upload to temp bucket so the client can use the public URL with OTAPI fallback.
     if (imageBase64 && !imgUrl) {
       console.log('Uploading base64...');
       imgUrl = await uploadToTempBucket(imageBase64);
-      originalUrl = imgUrl; // This is the supabase public URL — OTAPI can use it
+      originalUrl = imgUrl;
       console.log('Upload:', Date.now() - startTime, 'ms');
     }
 
-    // Step 2: Try DIRECT search first (skip convert — saves ~800ms)
-    console.log('Trying direct search (no convert)...');
-    const directResult = await doImageSearch(imgUrl, page, effectivePageSize, apiToken, startTime, imgUrl, originalUrl);
-    const directBody = await directResult.clone().json();
-
-    if (directBody.success && directBody.data?.items?.length > 0) {
-      console.log(`Direct search OK: ${directBody.data.items.length} items in ${Date.now() - startTime}ms — convert skipped!`);
-      // Background: convert URL for future pagination (non-blocking)
-      convertUrlInBackground(imgUrl, apiToken);
-      return directResult;
-    }
-
-    // Step 3: Direct search returned 0 results — try with converted URL
-    console.log('Direct search empty, converting image...');
-    const convertedUrl = await convertImageUrl(imgUrl, apiToken);
-    if (convertedUrl && convertedUrl !== imgUrl) {
-      console.log('Convert done:', Date.now() - startTime, 'ms');
-      return await doImageSearch(convertedUrl, page, effectivePageSize, apiToken, startTime, convertedUrl, originalUrl);
-    }
+    // Return empty with the uploaded URL — client will use OTAPI fallback
+    console.log('Non-alicdn image, skipping TMAPI, returning for OTAPI fallback');
+    return new Response(JSON.stringify({
+      success: true,
+      data: { items: [], total: 0 },
+      meta: { method: 'tmapi_image', convertedImageUrl: imgUrl, originalImageUrl: originalUrl || imgUrl, note: 'non_alicdn_skip' },
+    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
     // Return the empty direct result
     return directResult;
