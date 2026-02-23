@@ -383,19 +383,19 @@ const Index = () => {
       setImageSearchBase64(imageBase64);
       const result = await alibaba1688Api.searchByImage(imageBase64, 1, 20);
       if (result.success && result.data) {
-        // ATP returns English titles with lang=en, show immediately
         setProducts(result.data.items);
         setTotalResults(result.data.total);
         imagePageCacheRef.current[1] = result.data.items;
 
-        // Store image URL for potential re-use
         const convertedUrl = (result as any).meta?.convertedImageUrl;
         if (convertedUrl) {
           setImageSearchConvertedUrl(convertedUrl);
         }
+        // Use first result's title as keyword for OTAPI text search on page 2+
+        const firstTitle = result.data.items[0]?.title || '';
         const derivedQuery = (result.meta as any)?.query;
-        const searchKeyword = typeof derivedQuery === "string" && derivedQuery ? derivedQuery : effectiveKeyword;
-        // Background prefetch pages 2-6 via OTAPI text search using derived keyword
+        const searchKeyword = firstTitle || (typeof derivedQuery === "string" && derivedQuery ? derivedQuery : effectiveKeyword);
+        // Background prefetch pages 2-6 via OTAPI text search using first result's title
         if (searchKeyword) {
           prefetchImagePages(searchKeyword, 2, 6);
         }
