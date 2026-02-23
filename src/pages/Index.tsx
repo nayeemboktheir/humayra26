@@ -392,14 +392,14 @@ const Index = () => {
           setImageSearchConvertedUrl(convertedUrl);
         }
 
-        // Use the first product's image URL for OTAPI image search on pages 2+
-        const firstProductImg = result.data.items[0]?.pic_url || '';
-        console.log('Image search: using first product pic_url for OTAPI pages 2+:', firstProductImg);
-        setImageSearchDerivedKeyword(firstProductImg); // Stores the product image URL
+        // Use the TMAPI converted image URL for native image search pagination on pages 2+
+        const tmapiImgUrl = convertedUrl || '';
+        console.log('Image search: using TMAPI convertedUrl for pages 2+:', tmapiImgUrl);
+        setImageSearchDerivedKeyword(tmapiImgUrl); // Stores the TMAPI converted image URL
 
-        // Background prefetch pages 2-6 via OTAPI image search
-        if (firstProductImg) {
-          prefetchImagePagesByImageUrl(firstProductImg, 2, 6);
+        // Background prefetch pages 2-6 via TMAPI image search
+        if (tmapiImgUrl) {
+          prefetchImagePagesByImageUrl(tmapiImgUrl, 2, 6);
         }
 
         setActiveSearch({
@@ -438,15 +438,15 @@ const Index = () => {
     }
   };
 
-  // Background prefetch image search pages 2+ via OTAPI image search
+  // Background prefetch image search pages 2+ via TMAPI native image search
   const prefetchImagePagesByImageUrl = (imageUrl: string, fromPage: number, toPage: number) => {
     const pages = Array.from({ length: toPage - fromPage + 1 }, (_, i) => fromPage + i);
     pages.forEach(async (p) => {
       try {
-        const resp = await alibaba1688Api.searchByImageOtapi(imageUrl, p, 20);
+        const resp = await alibaba1688Api.searchByImage('', p, 20, imageUrl);
         if (resp.success && resp.data && resp.data.items.length > 0) {
           imagePageCacheRef.current[p] = resp.data.items;
-          console.log(`Prefetched OTAPI image page ${p}: ${resp.data.items.length} items`);
+          console.log(`Prefetched TMAPI image page ${p}: ${resp.data.items.length} items`);
         }
       } catch {
         console.warn(`Failed to prefetch image page ${p}`);
@@ -474,14 +474,14 @@ const Index = () => {
         setCurrentPage(page);
         return;
       }
-      // Not cached — fetch via OTAPI image search using converted image URL
-      console.log(`[goToPage] cache MISS page ${page}, fetching via OTAPI image search`);
+      // Not cached — fetch via TMAPI image search using converted image URL
+      console.log(`[goToPage] cache MISS page ${page}, fetching via TMAPI image search`);
       setIsLoading(true);
       try {
-        const imgUrl = imageSearchDerivedKeyword; // Stores converted image URL
+        const imgUrl = imageSearchDerivedKeyword; // Stores TMAPI converted image URL
         if (imgUrl) {
-          const resp = await alibaba1688Api.searchByImageOtapi(imgUrl, page, 20);
-          console.log(`[goToPage] OTAPI image resp page ${page}: success=${resp.success}, items=${resp.data?.items?.length}`);
+          const resp = await alibaba1688Api.searchByImage('', page, 20, imgUrl);
+          console.log(`[goToPage] TMAPI image resp page ${page}: success=${resp.success}, items=${resp.data?.items?.length}`);
           if (resp.success && resp.data && resp.data.items.length > 0) {
             setProducts(resp.data.items);
             setCurrentPage(page);
