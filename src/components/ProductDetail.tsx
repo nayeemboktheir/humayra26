@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Loader2, ArrowLeft, Play, ShoppingCart, MessageCircle, ExternalLink,
+  Loader2, ArrowLeft, Play, ShoppingCart, MessageCircle,
   Star, MapPin, Truck, Package, Box, Weight, Minus, Plus, ChevronDown,
   ChevronUp, ShieldCheck, Clock, Search, ArrowDownUp, Lock, Plane
 } from "lucide-react";
@@ -301,11 +301,6 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                           : convertToBDT(product.price).toLocaleString()}
                       </span>
                     </div>
-                    <div className="text-sm text-muted-foreground mt-1.5">
-                      {showRange
-                        ? `¥${variantPrices[0]} - ¥${variantPrices[variantPrices.length - 1]} CNY`
-                        : `¥${product.price} CNY`}
-                    </div>
                   </>
                 );
               })()}
@@ -377,10 +372,10 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b bg-muted/60">
-                          <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Variant</th>
-                          <th className="text-right py-3 px-4 font-semibold text-muted-foreground w-[100px]">Price</th>
-                          <th className="text-right py-3 px-4 font-semibold text-muted-foreground w-[70px]">Stock</th>
-                          <th className="text-center py-3 px-4 font-semibold text-muted-foreground w-[130px]">Quantity</th>
+                          <th className="text-left py-3 px-4 font-semibold text-muted-foreground text-sm">Variant</th>
+                          <th className="text-right py-3 px-4 font-semibold text-muted-foreground text-sm w-[100px]">Price</th>
+                          <th className="text-right py-3 px-4 font-semibold text-muted-foreground text-sm w-[70px]">Stock</th>
+                          <th className="text-center py-3 px-4 font-semibold text-muted-foreground text-sm w-[130px]">Quantity</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y">
@@ -394,13 +389,13 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                                       onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
                                   </div>
                                 )}
-                                <span className="text-sm leading-snug">{sku.title || '—'}</span>
+                                <span className="text-base leading-snug font-medium">{sku.title || '—'}</span>
                               </div>
                             </td>
-                            <td className="py-3 px-4 text-right font-semibold whitespace-nowrap">
+                            <td className="py-3 px-4 text-right font-bold text-base whitespace-nowrap">
                               ৳{convertToBDT(sku.price).toLocaleString()}
                             </td>
-                            <td className="py-3 px-4 text-right text-muted-foreground">
+                            <td className="py-3 px-4 text-right text-muted-foreground text-base">
                               {sku.stock.toLocaleString()}
                             </td>
                             <td className="py-3 px-4">
@@ -409,7 +404,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                                   onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: Math.max(0, (prev[sku.id] || 0) - 1) }))}>
                                   <Minus className="h-3 w-3" />
                                 </Button>
-                                <span className="w-8 text-center text-sm font-medium tabular-nums">{skuQuantities[sku.id] || 0}</span>
+                                <span className="w-8 text-center text-base font-semibold tabular-nums">{skuQuantities[sku.id] || 0}</span>
                                 <Button variant="outline" size="icon" className="h-7 w-7 rounded-lg"
                                   onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: (prev[sku.id] || 0) + 1 }))}>
                                   <Plus className="h-3 w-3" />
@@ -547,16 +542,6 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
               </CardContent>
             </Card>
 
-            {/* View on 1688 */}
-            <a
-              href={`https://detail.1688.com/offer/${product.num_iid}.html`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors py-2"
-            >
-              <ExternalLink className="h-3.5 w-3.5" />
-              View original on 1688
-            </a>
           </div>
         </div>
 
