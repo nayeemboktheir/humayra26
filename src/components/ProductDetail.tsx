@@ -9,8 +9,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Loader2, ArrowLeft, Play, ShoppingCart, MessageCircle, ExternalLink,
   Star, MapPin, Truck, Package, Box, Weight, Minus, Plus, ChevronDown,
-  ChevronUp, ShieldCheck, Clock, Search, ArrowDownUp, Lock
+  ChevronUp, ShieldCheck, Clock, Search, ArrowDownUp, Lock, Plane
 } from "lucide-react";
+import ShippingRatesModal from "@/components/ShippingRatesModal";
 import { ProductDetail1688 } from "@/lib/api/alibaba1688";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -449,13 +450,15 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                   </div>
                 </div>
 
-                <button className="w-full flex items-center justify-between p-3 bg-muted/50 border rounded-xl text-sm hover:bg-muted transition-colors">
-                  <div className="flex items-center gap-2">
-                    <Truck className="h-4 w-4 text-primary" />
-                    <span className="font-medium">Select Shipping Method</span>
-                  </div>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                </button>
+                <ShippingRatesModal>
+                  <button className="w-full flex items-center justify-between p-3 bg-muted/50 border rounded-xl text-sm hover:bg-muted transition-colors">
+                    <div className="flex items-center gap-2">
+                      <Plane className="h-4 w-4 text-primary" />
+                      <span className="font-medium">View Shipping Charges</span>
+                    </div>
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  </button>
+                </ShippingRatesModal>
 
                 <Separator />
 
