@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
-import { Settings, DollarSign, RefreshCw, Loader2, Save, CheckCircle, Globe, Image, MessageSquare, Phone, Mail, MapPin, Search, Type } from "lucide-react";
+import { Settings, DollarSign, RefreshCw, Loader2, Save, CheckCircle, Globe, Image, MessageSquare, Phone, Mail, MapPin, Search, Type, Send } from "lucide-react";
 
 type SettingsMap = Record<string, string>;
 
@@ -28,6 +28,8 @@ const settingsKeys = [
   "hero_badge_1",
   "hero_badge_2",
   "hero_badge_3",
+  "email_sender_name",
+  "email_sender_address",
 ];
 
 export default function AdminSettings() {
@@ -230,6 +232,32 @@ export default function AdminSettings() {
           <div>
             <Label className="flex items-center gap-1"><MapPin className="h-3 w-3" /> Head Office Address</Label>
             <Input value={settings.head_office_address || ""} onChange={(e) => update("head_office_address", e.target.value)} placeholder="House 16, Road 07..." />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Email Marketing */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Send className="h-5 w-5 text-rose-500" /> Email Marketing (Resend)
+          </CardTitle>
+          <CardDescription>Configure email sender details for transactional and marketing emails via Resend. The API key is stored securely as a backend secret.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label>Sender Name</Label>
+            <Input value={settings.email_sender_name || ""} onChange={(e) => update("email_sender_name", e.target.value)} placeholder="TradeOn Global" />
+            <p className="text-xs text-muted-foreground mt-1">Name that appears in the "From" field of emails.</p>
+          </div>
+          <div>
+            <Label>Sender Email Address</Label>
+            <Input value={settings.email_sender_address || ""} onChange={(e) => update("email_sender_address", e.target.value)} placeholder="noreply@tradeon.global" />
+            <p className="text-xs text-muted-foreground mt-1">Must be a verified domain in your Resend account.</p>
+          </div>
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 text-sm">
+            <CheckCircle className="h-4 w-4 text-emerald-500 shrink-0" />
+            <span>RESEND_API_KEY is securely stored as a backend secret.</span>
           </div>
         </CardContent>
       </Card>
