@@ -295,7 +295,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                   <>
                     <div className="flex items-baseline gap-1">
                       <span className="text-sm font-medium text-primary">৳</span>
-                      <span className="text-2xl md:text-4xl font-extrabold text-primary tracking-tight">
+                      <span className="text-3xl md:text-5xl font-extrabold text-primary tracking-tight">
                         {showRange
                           ? `${convertToBDT(variantPrices[0]).toLocaleString()} - ${convertToBDT(variantPrices[variantPrices.length - 1]).toLocaleString()}`
                           : convertToBDT(product.price).toLocaleString()}
