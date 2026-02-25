@@ -1075,19 +1075,6 @@ const Index = () => {
             <div className="absolute -right-4 top-2 w-16 h-16 rounded-full bg-primary-foreground/5" />
           </div>
 
-          {/* Shipping Service CTA */}
-          <div className="shipping-cta rounded-xl px-4 py-2.5 md:px-5 md:py-3.5 mt-3 md:mt-0 mb-4 md:mb-6 flex items-center justify-between border border-primary/15">
-            <div className="flex items-center gap-2 md:gap-3">
-              <Truck className="h-4 w-4 md:h-5 md:w-5 text-primary shrink-0" />
-              <span className="text-xs md:text-sm font-semibold text-foreground">Looking for Shipping Service</span>
-            </div>
-            <button
-              onClick={() => navigate("/dashboard/shipments")}
-              className="px-3 md:px-4 py-1 md:py-1.5 rounded-full bg-primary text-primary-foreground text-[10px] md:text-xs font-semibold hover:opacity-90 transition-opacity shrink-0"
-            >
-              Click Here
-            </button>
-          </div>
 
           {/* Mobile horizontal categories */}
           <section id="top-categories" className="lg:hidden mb-4 sticky top-[44px] md:top-[64px] z-40 bg-background pt-2 pb-3 -mx-3 px-3 sm:-mx-6 sm:px-6 border-b border-border/50">
