@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Loader2, ArrowLeft, Play, ShoppingCart, MessageCircle,
   Star, MapPin, Truck, Package, Box, Weight, Minus, Plus, ChevronDown,
-  ChevronUp, ShieldCheck, Clock, Search, ArrowDownUp, Lock, Plane, Download
+  ChevronUp, ShieldCheck, Clock, Search, ArrowDownUp, Lock, Plane, Download, AlertTriangle
 } from "lucide-react";
 import ShippingRatesModal from "@/components/ShippingRatesModal";
 import {
@@ -755,6 +755,22 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
             </Card>
           </div>
         )}
+      </div>
+
+      {/* Prohibited Items Notice */}
+      <div className="container mx-auto px-4 max-w-7xl mt-8">
+        <div className="bg-destructive/5 border border-destructive/20 rounded-xl p-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+            <div className="text-sm">
+              <p className="font-bold text-destructive mb-1">যে পণ্যগুলো TradeOn-এ অর্ডার করা যাবে না</p>
+              <p className="text-muted-foreground text-xs leading-relaxed">
+                সিগারেট, অ্যালকোহল, তামাক, ক্যানাবিস, জুয়া সামগ্রী, মাদকদ্রব্য, ড্রোন, ওষুধপত্র, মোবাইল, অস্ত্র, বিস্ফোরক, ঝুঁকিপূর্ণ রাসায়নিক পদার্থ, মানবদেহের অঙ্গ বা শরীরের তরল, প্রাপ্তবয়স্ক পণ্য, অশ্লীল পণ্য, প্রাণী নির্যাতনের সাথে সম্পর্কিত পণ্য, বিপন্ন প্রজাতি, ডিজিটাল মুদ্রা, বিনিয়োগ-সংক্রান্ত পণ্য, ঘৃণা ছড়ানো সামগ্রী, সহিংস পণ্য, আপত্তিকর পণ্য, খাদ্য আইটেম।{' '}
+                <Link to="/prohibited-items" className="text-primary hover:underline font-medium">বিস্তারিত দেখুন →</Link>
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
