@@ -15,7 +15,7 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Company Info */}
           <div className="space-y-4">
-            <h2 className="text-2xl font-bold text-primary">{(settings.site_name || "TradeOn Global").split(".")[0]}<span className="text-foreground">.global</span></h2>
+            <h2 className="text-2xl font-bold text-foreground">TradeOn<span className="text-primary">.Global</span></h2>
 
             <div className="space-y-3 text-sm">
               <div>
