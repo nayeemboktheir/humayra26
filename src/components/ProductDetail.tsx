@@ -445,6 +445,13 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
               )}
             </div>
 
+            {/* Weight Disclaimer Note */}
+            {product.item_weight && (
+              <p className="text-[11px] text-muted-foreground leading-relaxed -mt-1">
+                <span className="font-semibold">Note:</span> The weight given is not 100% accurate. The weight will be measured and reported after the product is received at the Bangladesh warehouse.
+              </p>
+            )}
+
             {/* ===== SKU Variant Table ===== */}
             {hasSkus && (
               <div className="space-y-3">
