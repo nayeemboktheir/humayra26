@@ -9,9 +9,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Loader2, ArrowLeft, Play, ShoppingCart, MessageCircle,
   Star, MapPin, Truck, Package, Box, Weight, Minus, Plus, ChevronDown,
-  ChevronUp, ShieldCheck, Clock, Search, ArrowDownUp, Lock, Plane
+  ChevronUp, ShieldCheck, Clock, Search, ArrowDownUp, Lock, Plane, Download
 } from "lucide-react";
 import ShippingRatesModal from "@/components/ShippingRatesModal";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
+} from "@/components/ui/dialog";
 import { ProductDetail1688 } from "@/lib/api/alibaba1688";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -199,17 +202,82 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
       {/* Breadcrumb */}
       <div className="border-b bg-card">
         <div className="container mx-auto px-4 max-w-7xl">
-          <div className="flex items-center gap-2 py-3 text-sm text-muted-foreground">
-            {onBack ? (
-              <button onClick={onBack} className="hover:text-foreground transition-colors flex items-center gap-1">
-                <ArrowLeft className="h-3.5 w-3.5" />
-                Home
-              </button>
-            ) : (
-              <span>Home</span>
-            )}
-            <span className="text-muted-foreground/50">›</span>
-            <span className="text-foreground font-medium">Product Details</span>
+          <div className="flex items-center justify-between py-3">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              {onBack ? (
+                <button onClick={onBack} className="hover:text-foreground transition-colors flex items-center gap-1">
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                  Home
+                </button>
+              ) : (
+                <span>Home</span>
+              )}
+              <span className="text-muted-foreground/50">›</span>
+              <span className="text-foreground font-medium">Product Details</span>
+            </div>
+
+            {/* Image Download Button */}
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="outline" className="gap-1.5 text-xs font-semibold rounded-full border-primary text-primary hover:bg-primary hover:text-primary-foreground">
+                  <Download className="h-3.5 w-3.5" />
+                  Image Download
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Download Images & Videos</DialogTitle>
+                </DialogHeader>
+                <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 mt-2">
+                  {images.map((img, idx) => (
+                    <a
+                      key={`img-${idx}`}
+                      href={img}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      download
+                      className="aspect-square rounded-lg overflow-hidden border bg-muted hover:ring-2 hover:ring-primary transition-all cursor-pointer group relative"
+                    >
+                      <img src={img} alt={`Product ${idx + 1}`} referrerPolicy="no-referrer" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
+                      <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/20 transition-colors flex items-center justify-center">
+                        <Download className="h-5 w-5 text-background opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
+                      </div>
+                    </a>
+                  ))}
+                  {/* Configured item images */}
+                  {product.configuredItems?.filter(ci => ci.imageUrl).map((ci, idx) => (
+                    <a
+                      key={`sku-${idx}`}
+                      href={ci.imageUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      download
+                      className="aspect-square rounded-lg overflow-hidden border bg-muted hover:ring-2 hover:ring-primary transition-all cursor-pointer group relative"
+                    >
+                      <img src={ci.imageUrl} alt={ci.title} referrerPolicy="no-referrer" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
+                      <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/20 transition-colors flex items-center justify-center">
+                        <Download className="h-5 w-5 text-background opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
+                      </div>
+                    </a>
+                  ))}
+                  {/* Video thumbnail */}
+                  {product.video && (
+                    <a
+                      href={product.video}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      download
+                      className="aspect-square rounded-lg overflow-hidden border bg-muted hover:ring-2 hover:ring-primary transition-all cursor-pointer group relative"
+                    >
+                      <video src={product.video} className="w-full h-full object-cover" muted />
+                      <div className="absolute inset-0 flex items-center justify-center bg-foreground/30 group-hover:bg-foreground/40 transition-colors">
+                        <Play className="h-8 w-8 text-background drop-shadow-lg" />
+                      </div>
+                    </a>
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
       </div>
