@@ -44,6 +44,24 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  const downloadFile = async (url: string, filename: string) => {
+    try {
+      const res = await fetch(url, { referrerPolicy: 'no-referrer' });
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    } catch {
+      // Fallback: open in new tab if CORS blocks fetch
+      window.open(url, '_blank');
+    }
+  };
+
   const handleBuyNow = async () => {
     if (!product) return;
     if (!user) {
@@ -230,50 +248,39 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                 </DialogHeader>
                 <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 mt-2">
                   {images.map((img, idx) => (
-                    <a
+                    <button
                       key={`img-${idx}`}
-                      href={img}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      download
+                      onClick={() => downloadFile(img, `product-image-${idx + 1}.jpg`)}
                       className="aspect-square rounded-lg overflow-hidden border bg-muted hover:ring-2 hover:ring-primary transition-all cursor-pointer group relative"
                     >
                       <img src={img} alt={`Product ${idx + 1}`} referrerPolicy="no-referrer" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
                       <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/20 transition-colors flex items-center justify-center">
                         <Download className="h-5 w-5 text-background opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
                       </div>
-                    </a>
+                    </button>
                   ))}
-                  {/* Configured item images */}
                   {product.configuredItems?.filter(ci => ci.imageUrl).map((ci, idx) => (
-                    <a
+                    <button
                       key={`sku-${idx}`}
-                      href={ci.imageUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      download
+                      onClick={() => downloadFile(ci.imageUrl!, `variant-${idx + 1}.jpg`)}
                       className="aspect-square rounded-lg overflow-hidden border bg-muted hover:ring-2 hover:ring-primary transition-all cursor-pointer group relative"
                     >
                       <img src={ci.imageUrl} alt={ci.title} referrerPolicy="no-referrer" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
                       <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/20 transition-colors flex items-center justify-center">
                         <Download className="h-5 w-5 text-background opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
                       </div>
-                    </a>
+                    </button>
                   ))}
-                  {/* Video thumbnail */}
                   {product.video && (
-                    <a
-                      href={product.video}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      download
+                    <button
+                      onClick={() => downloadFile(product.video!, `product-video.mp4`)}
                       className="aspect-square rounded-lg overflow-hidden border bg-muted hover:ring-2 hover:ring-primary transition-all cursor-pointer group relative"
                     >
                       <video src={product.video} className="w-full h-full object-cover" muted />
                       <div className="absolute inset-0 flex items-center justify-center bg-foreground/30 group-hover:bg-foreground/40 transition-colors">
                         <Play className="h-8 w-8 text-background drop-shadow-lg" />
                       </div>
-                    </a>
+                    </button>
                   )}
                 </div>
               </DialogContent>
