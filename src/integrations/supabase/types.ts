@@ -159,6 +159,7 @@ export type Database = {
           id: string
           notes: string | null
           order_number: string
+          product_1688_id: string | null
           product_image: string | null
           product_name: string
           product_url: string | null
@@ -171,6 +172,8 @@ export type Database = {
           unit_price: number
           updated_at: string
           user_id: string
+          variant_id: string | null
+          variant_name: string | null
         }
         Insert: {
           commission?: number | null
@@ -178,6 +181,7 @@ export type Database = {
           id?: string
           notes?: string | null
           order_number: string
+          product_1688_id?: string | null
           product_image?: string | null
           product_name: string
           product_url?: string | null
@@ -190,6 +194,8 @@ export type Database = {
           unit_price?: number
           updated_at?: string
           user_id: string
+          variant_id?: string | null
+          variant_name?: string | null
         }
         Update: {
           commission?: number | null
@@ -197,6 +203,7 @@ export type Database = {
           id?: string
           notes?: string | null
           order_number?: string
+          product_1688_id?: string | null
           product_image?: string | null
           product_name?: string
           product_url?: string | null
@@ -209,6 +216,8 @@ export type Database = {
           unit_price?: number
           updated_at?: string
           user_id?: string
+          variant_id?: string | null
+          variant_name?: string | null
         }
         Relationships: []
       }

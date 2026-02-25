@@ -10,7 +10,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   ExternalLink, UserCircle, Search, Trash2, Pencil, Package,
   Truck, DollarSign, Calendar, Hash, StickyNote, ImageIcon, Copy,
-  CheckSquare, Square, Download
+  CheckSquare, Square, Download, ShoppingBag
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import ShipmentTimeline from "@/components/admin/ShipmentTimeline";
@@ -30,6 +30,9 @@ interface OrderWithProfile {
   notes: string | null;
   shipping_charges: number | null;
   commission: number | null;
+  variant_name: string | null;
+  variant_id: string | null;
+  product_1688_id: string | null;
   created_at: string;
   user_id: string;
   profile?: {
@@ -376,6 +379,14 @@ export default function AdminOrders() {
                       </button>
                     </div>
                   )}
+                  {/* Variant Info */}
+                  {order.variant_name && (
+                    <div className="flex items-start gap-1.5 text-xs">
+                      <Package className="h-3 w-3 mt-0.5 flex-shrink-0 text-primary" />
+                      <span className="font-medium text-foreground line-clamp-2">Variant: {order.variant_name}</span>
+                    </div>
+                  )}
+
                   {order.notes && (
                     <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
                       <StickyNote className="h-3 w-3 mt-0.5 flex-shrink-0" />
@@ -391,16 +402,24 @@ export default function AdminOrders() {
                     onUpdate={fetchOrders}
                   />
 
+                  {/* Send to 1688 Button */}
+                  {order.source_url && (
+                    <a
+                      href={order.source_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-semibold text-sm transition-colors shadow-sm"
+                    >
+                      <ShoppingBag className="h-4 w-4" />
+                      Send to 1688
+                    </a>
+                  )}
+
                   {/* Links */}
                   <div className="flex gap-2">
                     {order.product_url && (
                       <a href={order.product_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline">
                         <ExternalLink className="h-3 w-3" /> Site Link
-                      </a>
-                    )}
-                    {order.source_url && (
-                      <a href={order.source_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline">
-                        <ExternalLink className="h-3 w-3" /> 1688
                       </a>
                     )}
                   </div>

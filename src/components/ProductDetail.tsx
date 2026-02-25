@@ -67,9 +67,13 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
     const orderNumber = `HT-${Date.now().toString(36).toUpperCase()}`;
 
     let notes = '';
+    let variantName = '';
+    let variantId = '';
     if (hasSkus) {
       const selectedSkus = product.configuredItems!.filter(sku => (skuQuantities[sku.id] || 0) > 0);
       notes = selectedSkus.map(sku => `${sku.title}: ${skuQuantities[sku.id]} pcs × ৳${convertToBDT(sku.price)}`).join('\n');
+      variantName = selectedSkus.map(sku => sku.title).join(', ');
+      variantId = selectedSkus.map(sku => sku.id).join(', ');
     }
 
     const productUrl = `${window.location.origin}/?product=${product.num_iid}`;
@@ -88,6 +92,9 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
         notes: notes || null,
         product_url: productUrl,
         source_url: sourceUrl,
+        variant_name: variantName || null,
+        variant_id: variantId || null,
+        product_1688_id: String(product.num_iid),
       } as any);
 
       if (error) throw error;
