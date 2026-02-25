@@ -1,5 +1,5 @@
-import { useNavigate } from "react-router-dom";
-import { MapPin, Mail, Phone } from "lucide-react";
+import { useNavigate, Link } from "react-router-dom";
+import { MapPin, Mail, Phone, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import PaymentLogos from "@/components/PaymentLogos";
 import { useAppSettings } from "@/hooks/useAppSettings";
@@ -10,8 +10,25 @@ const Footer = () => {
   const { settings } = useAppSettings();
 
   return (
-    <footer className="border-t-4 border-primary bg-card mt-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10">
+    <footer className="mt-8">
+      {/* Prohibited Items Notice */}
+      <div className="bg-destructive/5 border-t border-b border-destructive/20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+            <div className="text-sm">
+              <p className="font-bold text-destructive mb-1">যে পণ্যগুলো TradeOn-এ অর্ডার করা যাবে না</p>
+              <p className="text-muted-foreground text-xs leading-relaxed">
+                সিগারেট, অ্যালকোহল, তামাক, ক্যানাবিস, জুয়া সামগ্রী, মাদকদ্রব্য, ড্রোন, ওষুধপত্র, মোবাইল, অস্ত্র, বিস্ফোরক, ঝুঁকিপূর্ণ রাসায়নিক পদার্থ, মানবদেহের অঙ্গ বা শরীরের তরল, প্রাপ্তবয়স্ক পণ্য, অশ্লীল পণ্য, প্রাণী নির্যাতনের সাথে সম্পর্কিত পণ্য, বিপন্ন প্রজাতি, ডিজিটাল মুদ্রা, বিনিয়োগ-সংক্রান্ত পণ্য, ঘৃণা ছড়ানো সামগ্রী, সহিংস পণ্য, আপত্তিকর পণ্য, খাদ্য আইটেম।{' '}
+                <Link to="/prohibited-items" className="text-primary hover:underline font-medium">বিস্তারিত দেখুন →</Link>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="border-t-4 border-primary bg-card">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Company Info */}
           <div className="space-y-4">
@@ -100,6 +117,7 @@ const Footer = () => {
         {/* Copyright */}
         <div className="border-t mt-6 pt-6 text-center text-sm text-muted-foreground">
           <p>© {new Date().getFullYear()} tradeon.global - Wholesale from China to Bangladesh</p>
+        </div>
         </div>
       </div>
     </footer>
