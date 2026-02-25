@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Search, Camera, ImageIcon, Loader2, ChevronLeft, ChevronRight, Star, BadgeCheck, Flame, Truck, Heart, ShoppingCart, User, Zap, SlidersHorizontal, Download, X, ArrowRight } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -17,6 +17,7 @@ import SearchFilters, { SearchFilterValues, getDefaultFilters, applyFilters } fr
 import CategorySection from "@/components/CategorySection";
 import { useAppSettings } from "@/hooks/useAppSettings";
 import BottomNav from "@/components/BottomNav";
+import ImageCropper from "@/components/ImageCropper";
 
 const ProductCardSkeleton = () => (
   <Card className="overflow-hidden">
@@ -124,6 +125,14 @@ const Index = () => {
   const [imageSearchPreview, setImageSearchPreview] = useState<string | null>(null);
   const [imageSearchBase64, setImageSearchBase64] = useState<string | null>(null);
   const [imageSearchConvertedUrl, setImageSearchConvertedUrl] = useState<string | null>(null);
+  
+  // Crop state
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<import('react-easy-crop').Area | null>(null);
+  const [isCropping, setIsCropping] = useState(false);
+  const [bgSearchReady, setBgSearchReady] = useState(false);
+  const bgSearchPromiseRef = useRef<Promise<void> | null>(null);
   
   const imagePageCacheRef = useRef<Record<number, Product1688[]>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -587,11 +596,28 @@ const Index = () => {
   const validateAndSearchImage = (file: File) => {
     if (!file.type.startsWith('image/')) { toast.error("Please select an image file"); return; }
     if (file.size > 5 * 1024 * 1024) { toast.error("Image must be less than 5MB"); return; }
-    // Show preview dialog for optional keyword hint
+    // Show crop dialog and start background search immediately
     setImageSearchFile(file);
     setImageSearchKeyword("");
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setCroppedAreaPixels(null);
+    setIsCropping(false);
+    setBgSearchReady(false);
     const url = URL.createObjectURL(file);
     setImageSearchPreview(url);
+
+    // Start background search with original image immediately
+    const bgPromise = (async () => {
+      try {
+        const { compressImageForSearch } = await import('@/lib/compressImage');
+        await compressImageForSearch(file);
+        setBgSearchReady(true);
+      } catch {
+        console.error('Background image prep failed');
+      }
+    })();
+    bgSearchPromiseRef.current = bgPromise;
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -711,21 +737,71 @@ const Index = () => {
     topCatScrollRef.current.scrollBy({ left: dir === 'left' ? -300 : 300, behavior: 'smooth' });
   };
 
-  // Image search hint dialog
+  const onCropComplete = useCallback((_: import('react-easy-crop').Area, croppedPixels: import('react-easy-crop').Area) => {
+    setCroppedAreaPixels(croppedPixels);
+  }, []);
+
+  const handleCropSearch = async (useCrop: boolean) => {
+    if (!imageSearchFile) return;
+    let fileToSearch = imageSearchFile;
+    
+    if (useCrop && croppedAreaPixels && imageSearchPreview) {
+      setIsCropping(true);
+      try {
+        const { getCroppedImg } = await import('@/lib/cropImage');
+        fileToSearch = await getCroppedImg(imageSearchPreview, croppedAreaPixels);
+      } catch {
+        console.error('Crop failed, using original');
+      }
+      setIsCropping(false);
+    }
+    
+    handleImageSearch(fileToSearch, imageSearchKeyword.trim());
+  };
+
+
+  // Image search hint dialog with crop
   const imageSearchDialog = imageSearchFile && imageSearchPreview && (
     <div className="fixed inset-0 z-[200] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => { setImageSearchFile(null); setImageSearchPreview(null); }}>
       <div className="bg-card rounded-xl shadow-2xl max-w-md w-full p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-bold">Image Search</h3>
-          <button onClick={() => { setImageSearchFile(null); setImageSearchPreview(null); }} className="text-muted-foreground hover:text-foreground">
-            <X className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {bgSearchReady && (
+              <span className="text-xs text-emerald-500 font-medium flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Ready
+              </span>
+            )}
+            <button onClick={() => { setImageSearchFile(null); setImageSearchPreview(null); }} className="text-muted-foreground hover:text-foreground">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
         </div>
-        <div className="aspect-square max-h-48 mx-auto rounded-lg overflow-hidden bg-muted">
-          <img src={imageSearchPreview} alt="Search image" className="w-full h-full object-contain" />
+        
+        {/* Crop area */}
+        <div className="relative w-full aspect-square rounded-lg overflow-hidden bg-muted">
+          <ImageCropper image={imageSearchPreview} crop={crop} zoom={zoom} onCropChange={setCrop} onZoomChange={setZoom} onCropComplete={onCropComplete} />
         </div>
+        
+        {/* Zoom slider */}
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-muted-foreground">Zoom</span>
+          <input
+            type="range"
+            min={1}
+            max={3}
+            step={0.1}
+            value={zoom}
+            onChange={(e) => setZoom(Number(e.target.value))}
+            className="flex-1 h-1.5 accent-primary"
+          />
+        </div>
+
+        <p className="text-xs text-muted-foreground text-center">Drag to crop the area you want to search • Search starts in background</p>
+
         <div>
-          <label className="text-sm font-medium text-foreground mb-1.5 block">Add keyword for better accuracy (optional)</label>
+          <label className="text-sm font-medium text-foreground mb-1.5 block">Keyword (optional)</label>
           <Input
             type="text"
             placeholder="e.g. fog machine, LED light, bag..."
@@ -734,19 +810,18 @@ const Index = () => {
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
-                handleImageSearch(imageSearchFile!, imageSearchKeyword.trim());
+                handleCropSearch(true);
               }
             }}
-            autoFocus
           />
-          <p className="text-xs text-muted-foreground mt-1">Adding a keyword helps find more relevant products</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="flex-1" onClick={() => handleImageSearch(imageSearchFile!)}>
-            Search without keyword
+          <Button variant="outline" className="flex-1" onClick={() => handleCropSearch(false)} disabled={isCropping}>
+            Search Full Image
           </Button>
-          <Button className="flex-1" onClick={() => handleImageSearch(imageSearchFile!, imageSearchKeyword.trim())} disabled={!imageSearchKeyword.trim()}>
-            <Search className="h-4 w-4 mr-1" /> Search
+          <Button className="flex-1" onClick={() => handleCropSearch(true)} disabled={isCropping}>
+            {isCropping ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Search className="h-4 w-4 mr-1" />}
+            Search Cropped
           </Button>
         </div>
       </div>
