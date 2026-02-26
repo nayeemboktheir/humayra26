@@ -42,6 +42,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
   const [skuQuantities, setSkuQuantities] = useState<Record<string, number>>({});
   const [ordering, setOrdering] = useState(false);
   const [selectedSkuId, setSelectedSkuId] = useState<string | null>(null);
+  const [shippingMethod, setShippingMethod] = useState<'air' | 'sea'>('air');
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -496,17 +497,31 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
             <Card className="shadow-sm overflow-hidden">
               <CardContent className="p-0">
                 {/* By Air / By Sea toggle */}
-                <div className="grid grid-cols-2 border-b">
-                  <div className="flex flex-col items-center py-3 border-r bg-primary/5">
-                    <Plane className="h-5 w-5 text-primary mb-1" />
-                    <span className="text-xs font-bold text-primary">By Air</span>
+                <div className="grid grid-cols-2">
+                  <button
+                    onClick={() => setShippingMethod('air')}
+                    className={`flex flex-col items-center py-3 border-2 rounded-tl-lg transition-all ${
+                      shippingMethod === 'air'
+                        ? 'border-primary bg-primary/5'
+                        : 'border-transparent border-b-border hover:bg-muted/30'
+                    }`}
+                  >
+                    <Plane className={`h-5 w-5 mb-1 ${shippingMethod === 'air' ? 'text-primary' : 'text-muted-foreground'}`} />
+                    <span className={`text-xs font-bold ${shippingMethod === 'air' ? 'text-primary' : 'text-muted-foreground'}`}>By Air</span>
                     <span className="text-[10px] text-muted-foreground">৳750/ ৳1150 Per Kg</span>
-                  </div>
-                  <div className="flex flex-col items-center py-3">
-                    <Anchor className="h-5 w-5 text-muted-foreground mb-1" />
-                    <span className="text-xs font-bold text-muted-foreground">By Sea</span>
+                  </button>
+                  <button
+                    onClick={() => setShippingMethod('sea')}
+                    className={`flex flex-col items-center py-3 border-2 rounded-tr-lg transition-all ${
+                      shippingMethod === 'sea'
+                        ? 'border-primary bg-primary/5'
+                        : 'border-transparent border-b-border hover:bg-muted/30'
+                    }`}
+                  >
+                    <Anchor className={`h-5 w-5 mb-1 ${shippingMethod === 'sea' ? 'text-primary' : 'text-muted-foreground'}`} />
+                    <span className={`text-xs font-bold ${shippingMethod === 'sea' ? 'text-primary' : 'text-muted-foreground'}`}>By Sea</span>
                     <span className="text-[10px] text-muted-foreground">৳170/ ৳400 Per Kg</span>
-                  </div>
+                  </button>
                 </div>
 
                 <div className="p-4 space-y-3">
@@ -571,7 +586,9 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                         <button className="text-xs text-primary font-semibold hover:underline">বিস্তারিত</button>
                       </ShippingRatesModal>
                     </div>
-                    <p className="text-xs text-muted-foreground">৳750/ ৳1150 Per Kg</p>
+                    <p className="text-xs text-muted-foreground">
+                      {shippingMethod === 'air' ? '৳750/ ৳1150 Per Kg' : '৳170/ ৳400 Per Kg'}
+                    </p>
                   </div>
 
                   {product.item_weight && (
