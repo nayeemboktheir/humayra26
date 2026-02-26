@@ -678,16 +678,16 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                   )}
 
                   {/* Action Buttons */}
-                  <div className="flex items-center gap-2 pt-1">
-                    <Button variant="outline" size="icon" className="h-11 w-11 rounded-xl shrink-0">
-                      <Heart className="h-5 w-5" />
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    <Button variant="outline" size="icon" className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl shrink-0">
+                      <Heart className="h-4 w-4 sm:h-5 sm:w-5" />
                     </Button>
-                    <Button variant="outline" className="flex-1 h-11 rounded-xl font-semibold" onClick={handleBuyNow} disabled={ordering}>
-                      <ShoppingCart className="w-4 h-4 mr-2" />
+                    <Button variant="outline" className="min-w-0 flex-1 basis-[calc(50%-2rem)] h-10 sm:h-11 rounded-xl font-semibold text-xs sm:text-sm px-2 sm:px-4" onClick={handleBuyNow} disabled={ordering}>
+                      <ShoppingCart className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2 shrink-0" />
                       Add to Cart
                     </Button>
-                    <Button className="flex-1 h-11 rounded-xl font-bold shadow-md" onClick={handleBuyNow} disabled={ordering}>
-                      {ordering ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ShoppingCart className="w-4 h-4 mr-2" />}
+                    <Button className="min-w-0 flex-1 basis-[calc(50%-2rem)] h-10 sm:h-11 rounded-xl font-bold shadow-md text-xs sm:text-sm px-2 sm:px-4" onClick={handleBuyNow} disabled={ordering}>
+                      {ordering ? <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2 animate-spin shrink-0" /> : <ShoppingCart className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2 shrink-0" />}
                       {ordering ? "Placing..." : "Buy Now"}
                     </Button>
                   </div>
