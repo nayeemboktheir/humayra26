@@ -730,6 +730,17 @@ const Index = () => {
     }
   }, []);
 
+  // Keep local category-view state in sync with URL params (important for mobile bottom-nav)
+  useEffect(() => {
+    const catParam = searchParams.get('category');
+    if (!catParam && activeCategoryView) {
+      setActiveCategoryView(null);
+      setCategoryProducts([]);
+      setCategoryPage(1);
+      setCategoryTotal(null);
+    }
+  }, [searchParams, activeCategoryView]);
+
   const getDisplayTitle = (product: Product1688) => product.title;
 
   const scrollTopCat = (dir: 'left' | 'right') => {
