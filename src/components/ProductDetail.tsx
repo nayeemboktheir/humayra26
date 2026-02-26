@@ -330,15 +330,15 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
             </div>
 
             {/* Main Image */}
-            <div className="relative aspect-square rounded-xl overflow-hidden bg-muted border shadow-sm w-full md:w-[460px] lg:w-[500px]">
+            <div className="relative rounded-xl overflow-hidden bg-muted border shadow-sm w-full md:w-[460px] lg:w-[500px]">
               {showVideo && product.video ? (
-                <video src={product.video} controls autoPlay className="w-full h-full object-contain" />
+                <video src={product.video} controls autoPlay className="w-full object-contain" />
               ) : (
                 <img
                   src={images[selectedImage]}
                   alt={product.title}
                   referrerPolicy="no-referrer"
-                  className="w-full h-full object-contain transition-transform duration-300"
+                  className="w-full object-cover transition-transform duration-300"
                   onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
                 />
               )}
