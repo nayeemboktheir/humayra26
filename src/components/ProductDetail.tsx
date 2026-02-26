@@ -419,49 +419,6 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                   })}
                 </div>
 
-                {/* SKU Table for selected variants — SkyBuyBD style */}
-                {product.configuredItems!.filter(sku => (skuQuantities[sku.id] || 0) > 0 || selectedSkuId === sku.id).length > 0 && (
-                  <div className="border rounded-lg overflow-hidden mt-3">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b bg-muted/40">
-                          <th className="text-left py-2.5 px-3 font-semibold text-muted-foreground">Size</th>
-                          <th className="text-center py-2.5 px-3 font-semibold text-muted-foreground w-[100px]">Price</th>
-                          <th className="text-center py-2.5 px-3 font-semibold text-muted-foreground w-[140px]">Quantity</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y">
-                        {product.configuredItems!
-                          .filter(sku => (skuQuantities[sku.id] || 0) > 0 || selectedSkuId === sku.id)
-                          .map((sku) => (
-                          <tr key={sku.id} className="hover:bg-muted/20">
-                            <td className="py-2.5 px-3 text-sm">{sku.title || '—'}</td>
-                            <td className="py-2.5 px-3 text-center">
-                              <div className="font-bold text-sm">৳{convertToBDT(sku.price).toLocaleString()}</div>
-                              <div className="text-[10px] text-muted-foreground line-through">৳{Math.round(convertToBDT(sku.price) * 1.05).toLocaleString()}</div>
-                            </td>
-                            <td className="py-2.5 px-3">
-                              <div className="flex items-center justify-center gap-0">
-                                <Button variant="outline" size="icon" className="h-7 w-7 rounded-l-md rounded-r-none border-r-0"
-                                  onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: Math.max(0, (prev[sku.id] || 0) - 1) }))}>
-                                  <Minus className="h-3 w-3" />
-                                </Button>
-                                <div className="h-7 w-8 border border-input flex items-center justify-center text-xs font-semibold tabular-nums bg-background">
-                                  {skuQuantities[sku.id] || 0}
-                                </div>
-                                <Button variant="outline" size="icon" className="h-7 w-7 rounded-r-md rounded-l-none border-l-0"
-                                  onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: (prev[sku.id] || 0) + 1 }))}>
-                                  <Plus className="h-3 w-3" />
-                                </Button>
-                              </div>
-                              <div className="text-[10px] text-muted-foreground text-center mt-0.5">{sku.stock.toLocaleString()}</div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
               </>
             ) : (
               /* If no variant images, show price ranges or product info in center */
@@ -525,6 +482,50 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                 </div>
 
                 <div className="p-4 space-y-3">
+                  {/* SKU Table in sidebar — SkyBuyBD style */}
+                  {hasSkus && product.configuredItems!.filter(sku => (skuQuantities[sku.id] || 0) > 0 || selectedSkuId === sku.id).length > 0 && (
+                    <div className="border rounded-lg overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b bg-muted/40">
+                            <th className="text-left py-2 px-2.5 font-semibold text-muted-foreground text-xs">Size</th>
+                            <th className="text-center py-2 px-2 font-semibold text-muted-foreground text-xs w-[70px]">Price</th>
+                            <th className="text-center py-2 px-2 font-semibold text-muted-foreground text-xs w-[110px]">Quantity</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {product.configuredItems!
+                            .filter(sku => (skuQuantities[sku.id] || 0) > 0 || selectedSkuId === sku.id)
+                            .map((sku) => (
+                            <tr key={sku.id} className="hover:bg-muted/20">
+                              <td className="py-2 px-2.5 text-xs leading-snug">{sku.title || '—'}</td>
+                              <td className="py-2 px-2 text-center">
+                                <div className="font-bold text-xs">৳{convertToBDT(sku.price).toLocaleString()}</div>
+                                <div className="text-[9px] text-muted-foreground line-through">৳{Math.round(convertToBDT(sku.price) * 1.05).toLocaleString()}</div>
+                              </td>
+                              <td className="py-2 px-2">
+                                <div className="flex items-center justify-center gap-0">
+                                  <Button variant="outline" size="icon" className="h-6 w-6 rounded-l-md rounded-r-none border-r-0"
+                                    onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: Math.max(0, (prev[sku.id] || 0) - 1) }))}>
+                                    <Minus className="h-2.5 w-2.5" />
+                                  </Button>
+                                  <div className="h-6 w-7 border border-input flex items-center justify-center text-xs font-semibold tabular-nums bg-background">
+                                    {skuQuantities[sku.id] || 0}
+                                  </div>
+                                  <Button variant="outline" size="icon" className="h-6 w-6 rounded-r-md rounded-l-none border-l-0"
+                                    onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: (prev[sku.id] || 0) + 1 }))}>
+                                    <Plus className="h-2.5 w-2.5" />
+                                  </Button>
+                                </div>
+                                <div className="text-[9px] text-muted-foreground text-center mt-0.5">{sku.stock.toLocaleString()}</div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
                   {/* Quantity */}
                   {!hasSkus && (
                     <div className="flex items-center justify-between">
