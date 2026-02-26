@@ -5,7 +5,7 @@ export type AppSettings = Record<string, string>;
 
 const defaultSettings: AppSettings = {
   site_name: "TradeOn Global",
-  search_placeholder: "Search by product name...",
+  search_placeholder: "Search For Money",
   hero_title: "Buy Chinese Products",
   hero_subtitle: "Wholesale market from 1688.com with shipping to Bangladesh",
   shipping_card_title: "Shipping Service",
