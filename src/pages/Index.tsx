@@ -1286,7 +1286,7 @@ const SiteHeader = ({ query, setQuery, handleSearch, isLoading, handleImageButto
           <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
           <div className="relative flex-1">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input type="text" placeholder={settings?.search_placeholder || "SEARCH FOR"} value={query} onChange={(e: any) => setQuery(e.target.value)} className="pl-9 h-9 bg-primary-foreground/95 border-0 rounded-lg text-xs shadow-sm" />
+            <Input type="text" placeholder={settings?.search_placeholder || "Search For Money"} value={query} onChange={(e: any) => setQuery(e.target.value)} className="pl-9 h-9 bg-primary-foreground/95 border-0 rounded-lg text-xs shadow-sm" />
           </div>
           <Button type="button" variant="secondary" size="icon" title="Search by image" onClick={handleImageButtonClick} disabled={isLoading} className="shrink-0 h-9 w-9 rounded-lg bg-primary-foreground/20 border-0 text-primary-foreground hover:bg-primary-foreground/30">
             <Camera className="h-4 w-4" />
@@ -1309,7 +1309,7 @@ const SiteHeader = ({ query, setQuery, handleSearch, isLoading, handleImageButto
             <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input type="text" placeholder={settings?.search_placeholder || "Search by product name..."} value={query} onChange={(e: any) => setQuery(e.target.value)} className="pl-10 h-10" />
+              <Input type="text" placeholder={settings?.search_placeholder || "Search For Money"} value={query} onChange={(e: any) => setQuery(e.target.value)} className="pl-10 h-10" />
             </div>
             <Button type="button" variant="outline" size="icon" title="Search by image" onClick={handleImageButtonClick} disabled={isLoading} className="shrink-0">
               <Camera className="h-4 w-4" />
