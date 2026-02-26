@@ -415,17 +415,60 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
               </div>
             </div>
 
-            {/* Specifications / Variant Table */}
-            {hasSkus ? (
+            {/* Price Range */}
+            {product.priceRange && product.priceRange.length > 1 && (
+              <div className="grid grid-cols-3 border rounded-lg overflow-hidden">
+                {product.priceRange.map((range, idx) => (
+                  <div key={idx} className={`text-center py-3 px-2 ${idx === 0 ? 'bg-primary/10 border-b-2 border-primary' : 'border-l'}`}>
+                    <div className="text-lg font-bold">৳{convertToBDT(range[1]).toLocaleString()}</div>
+                    <div className="text-xs text-muted-foreground line-through">৳{Math.round(convertToBDT(range[1]) * 1.05).toLocaleString()}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">{range[0]} or more</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Color / Variant Image Grid */}
+            {hasSkus && (
               <div>
-                <h3 className="text-base font-bold mb-3">Specifications</h3>
+                <div className="flex items-baseline gap-2 mb-3">
+                  <span className="text-base font-bold">Color :</span>
+                  {selectedSkuItem && (
+                    <span className="text-primary text-sm font-medium">{selectedSkuItem.title}</span>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2.5">
+                  {product.configuredItems!.filter(sku => sku.imageUrl).map((sku) => (
+                    <button
+                      key={sku.id}
+                      onClick={() => {
+                        setSelectedSkuId(sku.id);
+                        const imgIdx = images.findIndex(img => img === sku.imageUrl);
+                        if (imgIdx >= 0) { setSelectedImage(imgIdx); setShowVideo(false); }
+                      }}
+                      className={`flex-shrink-0 w-[72px] h-[72px] rounded-lg overflow-hidden border-2 transition-all ${
+                        selectedSkuId === sku.id
+                          ? 'border-primary ring-2 ring-primary/20'
+                          : 'border-border hover:border-primary/40'
+                      }`}
+                    >
+                      <img src={sku.imageUrl} alt={sku.title} referrerPolicy="no-referrer" className="w-full h-full object-cover"
+                        onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Size / Quantity Table */}
+            {hasSkus && (
+              <div>
                 <div className="border rounded-lg overflow-hidden">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b bg-muted/50">
-                        <th className="text-left py-3 px-3 font-semibold text-foreground">Variant</th>
+                        <th className="text-left py-3 px-3 font-semibold text-foreground">Size</th>
                         <th className="text-center py-3 px-2 font-semibold text-foreground w-[90px]">Price</th>
-                        <th className="text-center py-3 px-2 font-semibold text-foreground w-[60px]">Stock</th>
                         <th className="text-center py-3 px-2 font-semibold text-foreground w-[120px]">Quantity</th>
                       </tr>
                     </thead>
@@ -434,28 +477,8 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                         const qty = skuQuantities[sku.id] || 0;
                         return (
                           <tr key={sku.id} className={`transition-colors ${selectedSkuId === sku.id ? 'bg-primary/5' : 'hover:bg-muted/30'}`}>
-                            <td className="py-3 px-3">
-                              <div className="flex items-center gap-2.5">
-                                {sku.imageUrl && (
-                                  <button
-                                    onClick={() => {
-                                      setSelectedSkuId(sku.id);
-                                      const imgIdx = images.findIndex(img => img === sku.imageUrl);
-                                      if (imgIdx >= 0) { setSelectedImage(imgIdx); setShowVideo(false); }
-                                    }}
-                                    className={`flex-shrink-0 w-12 h-12 rounded-md overflow-hidden border-2 transition-all ${
-                                      selectedSkuId === sku.id ? 'border-primary' : 'border-border hover:border-primary/40'
-                                    }`}
-                                  >
-                                    <img src={sku.imageUrl} alt={sku.title} referrerPolicy="no-referrer" className="w-full h-full object-cover"
-                                      onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
-                                  </button>
-                                )}
-                                <span className="text-sm leading-snug">{sku.title || '—'}</span>
-                              </div>
-                            </td>
+                            <td className="py-3 px-3 text-sm">{sku.title || '—'}</td>
                             <td className="py-3 px-2 text-center font-bold text-sm">৳{convertToBDT(sku.price).toLocaleString()}</td>
-                            <td className="py-3 px-2 text-center text-sm text-primary font-medium">{sku.stock.toLocaleString()}</td>
                             <td className="py-3 px-2">
                               <div className="flex items-center justify-center gap-0">
                                 <Button variant="outline" size="icon" className="h-8 w-8 rounded-l-md rounded-r-none border-r-0"
@@ -478,8 +501,10 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                   </table>
                 </div>
               </div>
-            ) : (
-              /* If no variants, show price */
+            )}
+
+            {/* If no variants, show price */}
+            {!hasSkus && (
               <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 rounded-xl p-4">
                 <div className="flex items-baseline gap-1">
                   <span className="text-sm font-medium text-primary">৳</span>
