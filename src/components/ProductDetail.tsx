@@ -381,33 +381,87 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
               </p>
             )}
 
-            {/* Variant Image Grid — large like SkyBuyBD */}
+            {/* Variant Image Grid — SkyBuyBD style with quantity badges */}
             {hasSkus && product.configuredItems!.some(ci => ci.imageUrl) ? (
-              <div className="grid grid-cols-5 sm:grid-cols-6 lg:grid-cols-7 gap-1.5">
-                {product.configuredItems!.filter(ci => ci.imageUrl).map((sku) => (
-                  <button
-                    key={sku.id}
-                    onClick={() => {
-                      setSelectedSkuId(sku.id);
-                      // Update main image if variant image matches one of the product images
-                      const imgIdx = images.findIndex(img => img === sku.imageUrl);
-                      if (imgIdx >= 0) { setSelectedImage(imgIdx); setShowVideo(false); }
-                      // Auto-set quantity to 1 if not yet selected
-                      if (!skuQuantities[sku.id]) {
-                        setSkuQuantities(prev => ({ ...prev, [sku.id]: 1 }));
-                      }
-                    }}
-                    className={`aspect-square rounded-lg overflow-hidden border-2 transition-all ${
-                      selectedSkuId === sku.id
-                        ? "border-primary ring-2 ring-primary/20 shadow-md"
-                        : "border-border hover:border-primary/40"
-                    }`}
-                  >
-                    <img src={sku.imageUrl!} alt={sku.title} referrerPolicy="no-referrer" className="w-full h-full object-cover"
-                      onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
-                  </button>
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-5 sm:grid-cols-6 lg:grid-cols-7 gap-1.5">
+                  {product.configuredItems!.filter(ci => ci.imageUrl).map((sku) => {
+                    const qty = skuQuantities[sku.id] || 0;
+                    return (
+                      <button
+                        key={sku.id}
+                        onClick={() => {
+                          setSelectedSkuId(sku.id);
+                          const imgIdx = images.findIndex(img => img === sku.imageUrl);
+                          if (imgIdx >= 0) { setSelectedImage(imgIdx); setShowVideo(false); }
+                          if (!skuQuantities[sku.id]) {
+                            setSkuQuantities(prev => ({ ...prev, [sku.id]: 1 }));
+                          }
+                        }}
+                        className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all ${
+                          selectedSkuId === sku.id
+                            ? "border-primary ring-2 ring-primary/20 shadow-md"
+                            : qty > 0
+                              ? "border-primary/60"
+                              : "border-border hover:border-primary/40"
+                        }`}
+                      >
+                        <img src={sku.imageUrl!} alt={sku.title} referrerPolicy="no-referrer" className="w-full h-full object-cover"
+                          onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
+                        {qty > 0 && (
+                          <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-md z-10">
+                            {qty}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* SKU Table for selected variants — SkyBuyBD style */}
+                {product.configuredItems!.filter(sku => (skuQuantities[sku.id] || 0) > 0 || selectedSkuId === sku.id).length > 0 && (
+                  <div className="border rounded-lg overflow-hidden mt-3">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b bg-muted/40">
+                          <th className="text-left py-2.5 px-3 font-semibold text-muted-foreground">Size</th>
+                          <th className="text-center py-2.5 px-3 font-semibold text-muted-foreground w-[100px]">Price</th>
+                          <th className="text-center py-2.5 px-3 font-semibold text-muted-foreground w-[140px]">Quantity</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {product.configuredItems!
+                          .filter(sku => (skuQuantities[sku.id] || 0) > 0 || selectedSkuId === sku.id)
+                          .map((sku) => (
+                          <tr key={sku.id} className="hover:bg-muted/20">
+                            <td className="py-2.5 px-3 text-sm">{sku.title || '—'}</td>
+                            <td className="py-2.5 px-3 text-center">
+                              <div className="font-bold text-sm">৳{convertToBDT(sku.price).toLocaleString()}</div>
+                              <div className="text-[10px] text-muted-foreground line-through">৳{Math.round(convertToBDT(sku.price) * 1.05).toLocaleString()}</div>
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <div className="flex items-center justify-center gap-0">
+                                <Button variant="outline" size="icon" className="h-7 w-7 rounded-l-md rounded-r-none border-r-0"
+                                  onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: Math.max(0, (prev[sku.id] || 0) - 1) }))}>
+                                  <Minus className="h-3 w-3" />
+                                </Button>
+                                <div className="h-7 w-8 border border-input flex items-center justify-center text-xs font-semibold tabular-nums bg-background">
+                                  {skuQuantities[sku.id] || 0}
+                                </div>
+                                <Button variant="outline" size="icon" className="h-7 w-7 rounded-r-md rounded-l-none border-l-0"
+                                  onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: (prev[sku.id] || 0) + 1 }))}>
+                                  <Plus className="h-3 w-3" />
+                                </Button>
+                              </div>
+                              <div className="text-[10px] text-muted-foreground text-center mt-0.5">{sku.stock.toLocaleString()}</div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
             ) : (
               /* If no variant images, show price ranges or product info in center */
               <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 rounded-xl p-4">
