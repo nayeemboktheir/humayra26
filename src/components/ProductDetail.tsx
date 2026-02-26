@@ -40,7 +40,6 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
   const [showVideo, setShowVideo] = useState(false);
   const [quantity, setQuantity] = useState(0);
   const [skuQuantities, setSkuQuantities] = useState<Record<string, number>>({});
-  const [showAllSkus, setShowAllSkus] = useState(false);
   const [ordering, setOrdering] = useState(false);
   const [selectedSkuId, setSelectedSkuId] = useState<string | null>(null);
   const { user } = useAuth();
@@ -181,15 +180,6 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
     ? product.configuredItems!.reduce((sum, sku) => sum + convertToBDT(sku.price) * (skuQuantities[sku.id] || 0), 0)
     : convertToBDT(product.price) * quantity;
 
-  const getPriceRanges = () => {
-    if (!product.priceRange || product.priceRange.length === 0) {
-      return [{ minQty: 1, priceCNY: product.price, priceBDT: convertToBDT(product.price) }];
-    }
-    return product.priceRange.map(([minQty, price]) => ({
-      minQty, priceCNY: price, priceBDT: convertToBDT(price),
-    }));
-  };
-
   // Get selected SKU's title for display
   const selectedSkuItem = hasSkus && selectedSkuId
     ? product.configuredItems!.find(s => s.id === selectedSkuId)
@@ -204,7 +194,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
         </div>
       )}
 
-      {/* ===== TOP: Title + Badges + Actions ===== */}
+      {/* ===== TOP: Breadcrumb + Actions ===== */}
       <div className="border-b bg-card">
         <div className="container mx-auto px-3 sm:px-4 max-w-7xl">
           <div className="flex items-center justify-between py-2.5 sm:py-3">
@@ -295,9 +285,9 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
         </div>
       </div>
 
-      {/* ===== Main Content ===== */}
+      {/* ===== Main 3-Column Content ===== */}
       <div className="container mx-auto px-3 sm:px-4 max-w-7xl py-3">
-        <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr_340px] gap-4 lg:gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr_300px] gap-4 lg:gap-5">
 
           {/* ===== COL 1: Vertical Thumbnails + Main Image ===== */}
           <div className="flex gap-3 lg:col-span-1">
@@ -330,15 +320,15 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
             </div>
 
             {/* Main Image */}
-            <div className="relative rounded-xl overflow-hidden bg-muted border shadow-sm w-full md:w-[460px] lg:w-[500px]">
+            <div className="relative rounded-xl overflow-hidden bg-muted border shadow-sm w-full md:w-[420px] lg:w-[440px]">
               {showVideo && product.video ? (
-                <video src={product.video} controls autoPlay className="w-full object-contain" />
+                <video src={product.video} controls autoPlay className="w-full aspect-square object-contain" />
               ) : (
                 <img
                   src={images[selectedImage]}
                   alt={product.title}
                   referrerPolicy="no-referrer"
-                  className="w-full object-cover transition-transform duration-300"
+                  className="w-full aspect-square object-contain transition-transform duration-300"
                   onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
                 />
               )}
@@ -348,7 +338,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                   className="absolute bottom-3 right-3 bg-foreground/80 backdrop-blur-sm text-background px-3 py-1.5 rounded-full flex items-center gap-1.5 text-sm hover:bg-foreground transition-colors shadow-md"
                 >
                   <Play className="w-3.5 h-3.5" />
-                  {showVideo ? "Photos" : "Video"}
+                  {showVideo ? "Photos" : "Preview"}
                 </button>
               )}
             </div>
@@ -382,128 +372,52 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
             )}
           </div>
 
-          {/* ===== COL 2: Price + Variant Grid + Variant Table ===== */}
-          <div className="space-y-4 lg:col-span-1">
-
-            {/* Price Block */}
-            <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 rounded-xl p-3 sm:p-4">
-              {(() => {
-                const variantPrices = hasSkus
-                  ? [...new Set(product.configuredItems!.map(ci => ci.price))].sort((a, b) => a - b)
-                  : [];
-                const showRange = variantPrices.length > 1;
-                return (
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-sm font-medium text-primary">৳</span>
-                    <span className="text-3xl md:text-5xl font-extrabold text-primary tracking-tight">
-                      {showRange
-                        ? `${convertToBDT(variantPrices[0]).toLocaleString()} - ${convertToBDT(variantPrices[variantPrices.length - 1]).toLocaleString()}`
-                        : convertToBDT(product.price).toLocaleString()}
-                    </span>
-                  </div>
-                );
-              })()}
-
-              {getPriceRanges().length > 1 && (
-                <div className="flex gap-4 mt-3 pt-3 border-t border-primary/10">
-                  {getPriceRanges().map((range, idx) => (
-                    <div key={idx} className="text-center px-3 py-1.5 bg-background/50 rounded-lg">
-                      <div className="text-xs text-muted-foreground font-medium">≥{range.minQty} pcs</div>
-                      <div className="font-bold text-primary text-sm">৳{range.priceBDT}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* ===== Variant Image Grid (SkyBuyBD style) ===== */}
+          {/* ===== COL 2: Variant Image Grid (SkyBuyBD style — the main center content) ===== */}
+          <div className="space-y-3 lg:col-span-1">
+            {/* Color/Variant label */}
             {hasSkus && product.configuredItems!.some(ci => ci.imageUrl) && (
-              <div className="space-y-2">
-                <p className="text-sm font-semibold">
-                  Color : <span className="text-primary">{selectedSkuItem?.title || product.configuredItems![0]?.title || '—'}</span>
-                </p>
-                <div className="grid grid-cols-5 sm:grid-cols-7 lg:grid-cols-8 gap-1.5">
-                  {product.configuredItems!.filter(ci => ci.imageUrl).map((sku) => (
-                    <button
-                      key={sku.id}
-                      onClick={() => {
-                        setSelectedSkuId(sku.id);
-                        const imgIdx = images.findIndex(img => img === sku.imageUrl);
-                        if (imgIdx >= 0) { setSelectedImage(imgIdx); setShowVideo(false); }
-                      }}
-                      className={`aspect-square rounded-lg overflow-hidden border-2 transition-all ${
-                        selectedSkuId === sku.id
-                          ? "border-primary ring-2 ring-primary/20 shadow-md"
-                          : "border-border hover:border-primary/40"
-                      }`}
-                    >
-                      <img src={sku.imageUrl!} alt={sku.title} referrerPolicy="no-referrer" className="w-full h-full object-cover"
-                        onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <p className="text-sm font-semibold">
+                Color : <span className="text-primary">{selectedSkuItem?.title || product.configuredItems![0]?.title || '—'}</span>
+              </p>
             )}
 
-            {/* ===== SKU Variant Table ===== */}
-            {hasSkus && (
-              <Card className="overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b bg-muted/60">
-                        <th className="text-left py-2.5 px-3 font-semibold text-muted-foreground">Variant</th>
-                        <th className="text-right py-2.5 px-3 font-semibold text-muted-foreground w-[90px]">Price</th>
-                        <th className="text-center py-2.5 px-3 font-semibold text-muted-foreground w-[120px]">Quantity</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                      {(showAllSkus ? product.configuredItems! : product.configuredItems!.slice(0, 5)).map((sku) => (
-                        <tr key={sku.id} className={`hover:bg-muted/30 transition-colors ${selectedSkuId === sku.id ? 'bg-primary/5' : ''}`}>
-                          <td className="py-2.5 px-3">
-                            <div className="flex items-center gap-2">
-                              {sku.imageUrl && (
-                                <div className="w-8 h-8 rounded-md overflow-hidden bg-muted flex-shrink-0 border">
-                                  <img src={sku.imageUrl} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover"
-                                    onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
-                                </div>
-                              )}
-                              <div className="min-w-0">
-                                <span className="text-xs leading-snug font-medium line-clamp-1">{sku.title || '—'}</span>
-                                <div className="text-[10px] text-muted-foreground">{sku.stock.toLocaleString()} stock</div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-2.5 px-3 text-right font-bold text-xs whitespace-nowrap">
-                            ৳{convertToBDT(sku.price).toLocaleString()}
-                          </td>
-                          <td className="py-2.5 px-3">
-                            <div className="flex items-center justify-center gap-1">
-                              <Button variant="outline" size="icon" className="h-6 w-6 rounded-md"
-                                onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: Math.max(0, (prev[sku.id] || 0) - 1) }))}>
-                                <Minus className="h-2.5 w-2.5" />
-                              </Button>
-                              <span className="w-6 text-center text-xs font-semibold tabular-nums">{skuQuantities[sku.id] || 0}</span>
-                              <Button variant="outline" size="icon" className="h-6 w-6 rounded-md"
-                                onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: (prev[sku.id] || 0) + 1 }))}>
-                                <Plus className="h-2.5 w-2.5" />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                {product.configuredItems!.length > 5 && (
+            {/* Variant Image Grid — large like SkyBuyBD */}
+            {hasSkus && product.configuredItems!.some(ci => ci.imageUrl) ? (
+              <div className="grid grid-cols-5 sm:grid-cols-6 lg:grid-cols-7 gap-1.5">
+                {product.configuredItems!.filter(ci => ci.imageUrl).map((sku) => (
                   <button
-                    onClick={() => setShowAllSkus(!showAllSkus)}
-                    className="w-full py-2 text-xs font-medium text-primary hover:bg-primary/5 flex items-center justify-center gap-1 border-t transition-colors"
+                    key={sku.id}
+                    onClick={() => {
+                      setSelectedSkuId(sku.id);
+                      // Update main image if variant image matches one of the product images
+                      const imgIdx = images.findIndex(img => img === sku.imageUrl);
+                      if (imgIdx >= 0) { setSelectedImage(imgIdx); setShowVideo(false); }
+                      // Auto-set quantity to 1 if not yet selected
+                      if (!skuQuantities[sku.id]) {
+                        setSkuQuantities(prev => ({ ...prev, [sku.id]: 1 }));
+                      }
+                    }}
+                    className={`aspect-square rounded-lg overflow-hidden border-2 transition-all ${
+                      selectedSkuId === sku.id
+                        ? "border-primary ring-2 ring-primary/20 shadow-md"
+                        : "border-border hover:border-primary/40"
+                    }`}
                   >
-                    {showAllSkus ? <>Show Less <ChevronUp className="h-3.5 w-3.5" /></> : <>Show More ({product.configuredItems!.length - 5} more) <ChevronDown className="h-3.5 w-3.5" /></>}
+                    <img src={sku.imageUrl!} alt={sku.title} referrerPolicy="no-referrer" className="w-full h-full object-cover"
+                      onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
                   </button>
-                )}
-              </Card>
+                ))}
+              </div>
+            ) : (
+              /* If no variant images, show price ranges or product info in center */
+              <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 rounded-xl p-4">
+                <div className="flex items-baseline gap-1">
+                  <span className="text-sm font-medium text-primary">৳</span>
+                  <span className="text-3xl md:text-5xl font-extrabold text-primary tracking-tight">
+                    {convertToBDT(product.price).toLocaleString()}
+                  </span>
+                </div>
+              </div>
             )}
 
             {/* Prohibited Items Notice */}
@@ -521,7 +435,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
             </div>
           </div>
 
-          {/* ===== RIGHT: Sidebar ===== */}
+          {/* ===== COL 3: Right Sidebar (SkyBuyBD style) ===== */}
           <div className="space-y-4 lg:sticky lg:top-4 lg:self-start">
 
             {/* Shipping Methods Card */}
@@ -612,24 +526,6 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                     </p>
                   )}
 
-                  {/* Quick Info */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="flex items-center gap-2 p-2 bg-card border rounded-lg">
-                      <Package className="h-3.5 w-3.5 text-primary flex-shrink-0" />
-                      <div className="min-w-0">
-                        <div className="text-[10px] text-muted-foreground">Stock</div>
-                        <div className="font-semibold text-xs truncate">{product.num || 'Available'}</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 p-2 bg-card border rounded-lg">
-                      <Box className="h-3.5 w-3.5 text-primary flex-shrink-0" />
-                      <div className="min-w-0">
-                        <div className="text-[10px] text-muted-foreground">Min Order</div>
-                        <div className="font-semibold text-xs">{product.min_num} pcs</div>
-                      </div>
-                    </div>
-                  </div>
-
                   {/* Action Buttons */}
                   <div className="flex items-center gap-2 pt-1">
                     <Button variant="outline" size="icon" className="h-11 w-11 rounded-xl shrink-0">
@@ -645,25 +541,6 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                     </Button>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* Assurance */}
-            <Card className="shadow-sm">
-              <CardContent className="p-4 space-y-2.5">
-                <h3 className="font-bold text-sm">TradeOn Assurance</h3>
-                {[
-                  { icon: ShieldCheck, text: "100% money back guarantee" },
-                  { icon: Clock, text: "On time guarantee" },
-                  { icon: Search, text: "Detailed inspection" },
-                  { icon: ArrowDownUp, text: "Lower exchange loss" },
-                  { icon: Lock, text: "Security & Privacy" },
-                ].map(({ icon: Icon, text }) => (
-                  <div key={text} className="flex items-center gap-2.5 text-sm text-muted-foreground">
-                    <Icon className="h-4 w-4 text-primary flex-shrink-0" />
-                    {text}
-                  </div>
-                ))}
               </CardContent>
             </Card>
           </div>
