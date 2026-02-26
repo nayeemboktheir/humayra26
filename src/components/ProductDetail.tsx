@@ -443,40 +443,40 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                 <div className="grid grid-cols-2">
                   <button
                     onClick={() => setShippingMethod('air')}
-                    className={`flex flex-col items-center py-3 border-2 rounded-tl-lg transition-all ${
+                    className={`flex flex-col items-center py-4 border-2 rounded-tl-lg transition-all ${
                       shippingMethod === 'air'
                         ? 'border-primary bg-primary/5'
                         : 'border-transparent border-b-border hover:bg-muted/30'
                     }`}
                   >
-                    <Plane className={`h-5 w-5 mb-1 ${shippingMethod === 'air' ? 'text-primary' : 'text-muted-foreground'}`} />
-                    <span className={`text-xs font-bold ${shippingMethod === 'air' ? 'text-primary' : 'text-muted-foreground'}`}>By Air</span>
-                    <span className="text-[10px] text-muted-foreground">৳750/ ৳1150 Per Kg</span>
+                    <Plane className={`h-6 w-6 mb-1.5 ${shippingMethod === 'air' ? 'text-primary' : 'text-muted-foreground'}`} />
+                    <span className={`text-sm font-bold ${shippingMethod === 'air' ? 'text-primary' : 'text-muted-foreground'}`}>By Air</span>
+                    <span className="text-xs text-muted-foreground mt-0.5">৳750/ ৳1150 Per Kg</span>
                   </button>
                   <button
                     onClick={() => setShippingMethod('sea')}
-                    className={`flex flex-col items-center py-3 border-2 rounded-tr-lg transition-all ${
+                    className={`flex flex-col items-center py-4 border-2 rounded-tr-lg transition-all ${
                       shippingMethod === 'sea'
                         ? 'border-primary bg-primary/5'
                         : 'border-transparent border-b-border hover:bg-muted/30'
                     }`}
                   >
-                    <Anchor className={`h-5 w-5 mb-1 ${shippingMethod === 'sea' ? 'text-primary' : 'text-muted-foreground'}`} />
-                    <span className={`text-xs font-bold ${shippingMethod === 'sea' ? 'text-primary' : 'text-muted-foreground'}`}>By Sea</span>
-                    <span className="text-[10px] text-muted-foreground">৳170/ ৳400 Per Kg</span>
+                    <Anchor className={`h-6 w-6 mb-1.5 ${shippingMethod === 'sea' ? 'text-primary' : 'text-muted-foreground'}`} />
+                    <span className={`text-sm font-bold ${shippingMethod === 'sea' ? 'text-primary' : 'text-muted-foreground'}`}>By Sea</span>
+                    <span className="text-xs text-muted-foreground mt-0.5">৳170/ ৳400 Per Kg</span>
                   </button>
                 </div>
 
-                <div className="p-4 space-y-3">
+                <div className="p-5 space-y-4">
                   {/* SKU Table in sidebar — SkyBuyBD style */}
                   {hasSkus && product.configuredItems!.filter(sku => (skuQuantities[sku.id] || 0) > 0 || selectedSkuId === sku.id).length > 0 && (
                     <div className="border rounded-lg overflow-hidden">
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="border-b bg-muted/40">
-                            <th className="text-left py-2 px-2.5 font-semibold text-muted-foreground text-xs">Size</th>
-                            <th className="text-center py-2 px-2 font-semibold text-muted-foreground text-xs w-[70px]">Price</th>
-                            <th className="text-center py-2 px-2 font-semibold text-muted-foreground text-xs w-[110px]">Quantity</th>
+                            <th className="text-left py-2.5 px-3 font-semibold text-muted-foreground text-xs">Size</th>
+                            <th className="text-center py-2.5 px-2 font-semibold text-muted-foreground text-xs w-[80px]">Price</th>
+                            <th className="text-center py-2.5 px-2 font-semibold text-muted-foreground text-xs w-[110px]">Quantity</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y">
@@ -484,26 +484,26 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                             .filter(sku => (skuQuantities[sku.id] || 0) > 0 || selectedSkuId === sku.id)
                             .map((sku) => (
                             <tr key={sku.id} className="hover:bg-muted/20">
-                              <td className="py-2 px-2.5 text-xs leading-snug">{sku.title || '—'}</td>
-                              <td className="py-2 px-2 text-center">
-                                <div className="font-bold text-xs">৳{convertToBDT(sku.price).toLocaleString()}</div>
-                                <div className="text-[9px] text-muted-foreground line-through">৳{Math.round(convertToBDT(sku.price) * 1.05).toLocaleString()}</div>
+                              <td className="py-2.5 px-3 text-sm leading-snug">{sku.title || '—'}</td>
+                              <td className="py-2.5 px-2 text-center">
+                                <div className="font-bold text-sm">৳{convertToBDT(sku.price).toLocaleString()}</div>
+                                <div className="text-[10px] text-muted-foreground line-through">৳{Math.round(convertToBDT(sku.price) * 1.05).toLocaleString()}</div>
                               </td>
-                              <td className="py-2 px-2">
+                              <td className="py-2.5 px-2">
                                 <div className="flex items-center justify-center gap-0">
-                                  <Button variant="outline" size="icon" className="h-6 w-6 rounded-l-md rounded-r-none border-r-0"
+                                  <Button variant="outline" size="icon" className="h-7 w-7 rounded-l-md rounded-r-none border-r-0"
                                     onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: Math.max(0, (prev[sku.id] || 0) - 1) }))}>
-                                    <Minus className="h-2.5 w-2.5" />
+                                    <Minus className="h-3 w-3" />
                                   </Button>
-                                  <div className="h-6 w-7 border border-input flex items-center justify-center text-xs font-semibold tabular-nums bg-background">
+                                  <div className="h-7 w-8 border border-input flex items-center justify-center text-sm font-semibold tabular-nums bg-background">
                                     {skuQuantities[sku.id] || 0}
                                   </div>
-                                  <Button variant="outline" size="icon" className="h-6 w-6 rounded-r-md rounded-l-none border-l-0"
+                                  <Button variant="outline" size="icon" className="h-7 w-7 rounded-r-md rounded-l-none border-l-0"
                                     onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: (prev[sku.id] || 0) + 1 }))}>
-                                    <Plus className="h-2.5 w-2.5" />
+                                    <Plus className="h-3 w-3" />
                                   </Button>
                                 </div>
-                                <div className="text-[9px] text-muted-foreground text-center mt-0.5">{sku.stock.toLocaleString()}</div>
+                                <div className="text-[10px] text-muted-foreground text-center mt-0.5">{sku.stock.toLocaleString()}</div>
                               </td>
                             </tr>
                           ))}
@@ -515,12 +515,12 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                   {/* Quantity */}
                   {!hasSkus && (
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold">Quantity</span>
+                      <span className="text-base font-semibold">Quantity</span>
                       <div className="flex items-center gap-1.5">
                         <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => setQuantity(Math.max(0, quantity - 1))}>
                           <Minus className="h-3 w-3" />
                         </Button>
-                        <span className="w-8 text-center text-sm font-semibold tabular-nums">{quantity}</span>
+                        <span className="w-8 text-center text-base font-semibold tabular-nums">{quantity}</span>
                         <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => setQuantity(quantity + 1)}>
                           <Plus className="h-3 w-3" />
                         </Button>
@@ -529,9 +529,9 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                   )}
 
                   {hasSkus && (
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="font-semibold">Quantity</span>
-                      <span className="font-bold">{totalSelectedQty}</span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-base font-semibold">Quantity</span>
+                      <span className="text-base font-bold">{totalSelectedQty}</span>
                     </div>
                   )}
 
@@ -539,47 +539,47 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
 
                   {/* Product Price */}
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold">Product price</span>
-                    <span className="text-sm font-bold">৳{totalSelectedPrice.toLocaleString()}</span>
+                    <span className="text-base font-semibold">Product price</span>
+                    <span className="text-base font-bold">৳{totalSelectedPrice.toLocaleString()}</span>
                   </div>
 
                   {/* Pay now / delivery breakdown */}
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Pay now <Badge variant="secondary" className="text-[10px] ml-1">70%</Badge></span>
-                    <span className="font-semibold">৳{Math.round(totalSelectedPrice * 0.7).toLocaleString()}</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-foreground">Pay now <Badge variant="secondary" className="text-xs ml-1.5 py-0.5 px-1.5">70%</Badge></span>
+                    <span className="text-sm font-bold">৳{Math.round(totalSelectedPrice * 0.7).toLocaleString()}</span>
                   </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Pay on delivery <Badge variant="secondary" className="text-[10px] ml-1">30%</Badge></span>
-                    <span className="font-semibold">৳{Math.round(totalSelectedPrice * 0.3).toLocaleString()} +</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-foreground">Pay on delivery <Badge variant="secondary" className="text-xs ml-1.5 py-0.5 px-1.5">30%</Badge></span>
+                    <span className="text-sm font-bold">৳{Math.round(totalSelectedPrice * 0.3).toLocaleString()} +</span>
                   </div>
-                  <p className="text-[11px] text-muted-foreground">Shipping + China Courier Charge</p>
+                  <p className="text-xs text-primary font-medium cursor-pointer hover:underline">Shipping + China Courier Charge</p>
 
                   <Separator />
 
                   {/* Weight & Shipping Info */}
                   {product.item_weight && (
-                    <div className="bg-destructive/5 border border-destructive/20 rounded-lg p-3">
-                      <p className="text-xs font-bold text-destructive flex items-center gap-1.5">
-                        <AlertTriangle className="h-3.5 w-3.5" />
+                    <div className="bg-destructive/5 border border-destructive/20 rounded-lg p-3.5">
+                      <p className="text-sm font-bold text-destructive flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4" />
                         Approximate weight: {product.item_weight} kg
                       </p>
                     </div>
                   )}
 
-                  <div className="bg-muted/50 border rounded-lg p-3 space-y-1">
+                  <div className="bg-muted/50 border rounded-lg p-3.5 space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-bold">শিপিং চার্জ</span>
+                      <span className="text-base font-bold">শিপিং চার্জ</span>
                       <ShippingRatesModal>
-                        <button className="text-xs text-primary font-semibold hover:underline">বিস্তারিত</button>
+                        <button className="text-sm text-primary font-semibold hover:underline">বিস্তারিত</button>
                       </ShippingRatesModal>
                     </div>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-sm text-foreground">
                       {shippingMethod === 'air' ? '৳750/ ৳1150 Per Kg' : '৳170/ ৳400 Per Kg'}
                     </p>
                   </div>
 
                   {product.item_weight && (
-                    <p className="text-[11px] text-destructive leading-relaxed">
+                    <p className="text-xs text-destructive leading-relaxed">
                       *** উল্লেখিত পণ্যের ওজন সম্পূর্ণ সঠিক নয়, আনুমানিক মাত্র। বাংলাদেশে আসার পর পণ্যটির প্রকৃত ওজন মেপে শিপিং চার্জ হিসাব করা হবে।
                     </p>
                   )}
