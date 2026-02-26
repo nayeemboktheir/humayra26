@@ -297,73 +297,17 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
 
       {/* ===== Main Content ===== */}
       <div className="container mx-auto px-3 sm:px-4 max-w-7xl py-3">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-4 lg:gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr_340px] gap-4 lg:gap-5">
 
-          {/* ===== LEFT: Image + Variants ===== */}
-          <div className="space-y-4">
-
-            {/* Image Gallery: vertical thumbs (desktop) + main image */}
-            <div className="flex gap-3">
-              {/* Vertical Thumbnails (desktop only) */}
-              <div className="hidden md:flex flex-col gap-2 overflow-y-auto max-h-[500px] scrollbar-hide">
-                {images.map((img, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => { setSelectedImage(idx); setShowVideo(false); }}
-                    className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
-                      selectedImage === idx && !showVideo
-                        ? "border-primary ring-2 ring-primary/20"
-                        : "border-border hover:border-primary/40"
-                    }`}
-                  >
-                    <img src={img} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover"
-                      onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
-                  </button>
-                ))}
-                {product.video && (
-                  <button
-                    onClick={() => setShowVideo(true)}
-                    className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 bg-muted flex items-center justify-center transition-all ${
-                      showVideo ? "border-primary ring-2 ring-primary/20" : "border-border hover:border-primary/40"
-                    }`}
-                  >
-                    <Play className="h-5 w-5 text-primary" />
-                  </button>
-                )}
-              </div>
-
-              {/* Main Image */}
-              <div className="flex-1 relative aspect-square rounded-xl overflow-hidden bg-muted border shadow-sm max-w-[560px]">
-                {showVideo && product.video ? (
-                  <video src={product.video} controls autoPlay className="w-full h-full object-contain" />
-                ) : (
-                  <img
-                    src={images[selectedImage]}
-                    alt={product.title}
-                    referrerPolicy="no-referrer"
-                    className="w-full h-full object-contain transition-transform duration-300"
-                    onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
-                  />
-                )}
-                {product.video && (
-                  <button
-                    onClick={() => setShowVideo(!showVideo)}
-                    className="absolute bottom-3 right-3 bg-foreground/80 backdrop-blur-sm text-background px-3 py-1.5 rounded-full flex items-center gap-1.5 text-sm hover:bg-foreground transition-colors shadow-md"
-                  >
-                    <Play className="w-3.5 h-3.5" />
-                    {showVideo ? "Photos" : "Video"}
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Horizontal Thumbnails (mobile only) */}
-            <div className="flex md:hidden gap-2 overflow-x-auto pb-1 scrollbar-hide">
+          {/* ===== COL 1: Vertical Thumbnails + Main Image ===== */}
+          <div className="flex gap-3 lg:col-span-1">
+            {/* Vertical Thumbnails (desktop only) */}
+            <div className="hidden md:flex flex-col gap-2 overflow-y-auto max-h-[560px] scrollbar-hide">
               {images.map((img, idx) => (
                 <button
                   key={idx}
                   onClick={() => { setSelectedImage(idx); setShowVideo(false); }}
-                  className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
+                  className={`flex-shrink-0 w-[72px] h-[72px] rounded-lg overflow-hidden border-2 transition-all ${
                     selectedImage === idx && !showVideo
                       ? "border-primary ring-2 ring-primary/20"
                       : "border-border hover:border-primary/40"
@@ -376,7 +320,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
               {product.video && (
                 <button
                   onClick={() => setShowVideo(true)}
-                  className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 bg-muted flex items-center justify-center transition-all ${
+                  className={`flex-shrink-0 w-[72px] h-[72px] rounded-lg overflow-hidden border-2 bg-muted flex items-center justify-center transition-all ${
                     showVideo ? "border-primary ring-2 ring-primary/20" : "border-border hover:border-primary/40"
                   }`}
                 >
@@ -385,7 +329,63 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
               )}
             </div>
 
-            {/* ===== Price Block ===== */}
+            {/* Main Image */}
+            <div className="relative aspect-square rounded-xl overflow-hidden bg-muted border shadow-sm w-full md:w-[460px] lg:w-[500px]">
+              {showVideo && product.video ? (
+                <video src={product.video} controls autoPlay className="w-full h-full object-contain" />
+              ) : (
+                <img
+                  src={images[selectedImage]}
+                  alt={product.title}
+                  referrerPolicy="no-referrer"
+                  className="w-full h-full object-contain transition-transform duration-300"
+                  onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
+                />
+              )}
+              {product.video && (
+                <button
+                  onClick={() => setShowVideo(!showVideo)}
+                  className="absolute bottom-3 right-3 bg-foreground/80 backdrop-blur-sm text-background px-3 py-1.5 rounded-full flex items-center gap-1.5 text-sm hover:bg-foreground transition-colors shadow-md"
+                >
+                  <Play className="w-3.5 h-3.5" />
+                  {showVideo ? "Photos" : "Video"}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Horizontal Thumbnails (mobile only) */}
+          <div className="flex md:hidden gap-2 overflow-x-auto pb-1 scrollbar-hide lg:col-span-3">
+            {images.map((img, idx) => (
+              <button
+                key={idx}
+                onClick={() => { setSelectedImage(idx); setShowVideo(false); }}
+                className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
+                  selectedImage === idx && !showVideo
+                    ? "border-primary ring-2 ring-primary/20"
+                    : "border-border hover:border-primary/40"
+                }`}
+              >
+                <img src={img} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover"
+                  onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
+              </button>
+            ))}
+            {product.video && (
+              <button
+                onClick={() => setShowVideo(true)}
+                className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 bg-muted flex items-center justify-center transition-all ${
+                  showVideo ? "border-primary ring-2 ring-primary/20" : "border-border hover:border-primary/40"
+                }`}
+              >
+                <Play className="h-5 w-5 text-primary" />
+              </button>
+            )}
+          </div>
+
+          {/* ===== COL 2: Price + Variant Grid + Variant Table ===== */}
+          <div className="space-y-4 lg:col-span-1">
+
+            {/* Price Block */}
             <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 rounded-xl p-3 sm:p-4">
               {(() => {
                 const variantPrices = hasSkus
@@ -404,7 +404,6 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                 );
               })()}
 
-              {/* Tiered pricing */}
               {getPriceRanges().length > 1 && (
                 <div className="flex gap-4 mt-3 pt-3 border-t border-primary/10">
                   {getPriceRanges().map((range, idx) => (
@@ -417,25 +416,24 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
               )}
             </div>
 
-            {/* ===== Variant Image Grid ===== */}
+            {/* ===== Variant Image Grid (SkyBuyBD style) ===== */}
             {hasSkus && product.configuredItems!.some(ci => ci.imageUrl) && (
               <div className="space-y-2">
                 <p className="text-sm font-semibold">
                   Color : <span className="text-primary">{selectedSkuItem?.title || product.configuredItems![0]?.title || '—'}</span>
                 </p>
-                <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-2">
+                <div className="grid grid-cols-5 sm:grid-cols-7 lg:grid-cols-8 gap-1.5">
                   {product.configuredItems!.filter(ci => ci.imageUrl).map((sku) => (
                     <button
                       key={sku.id}
                       onClick={() => {
                         setSelectedSkuId(sku.id);
-                        // Find the matching image index
                         const imgIdx = images.findIndex(img => img === sku.imageUrl);
                         if (imgIdx >= 0) { setSelectedImage(imgIdx); setShowVideo(false); }
                       }}
                       className={`aspect-square rounded-lg overflow-hidden border-2 transition-all ${
                         selectedSkuId === sku.id
-                          ? "border-primary ring-2 ring-primary/20"
+                          ? "border-primary ring-2 ring-primary/20 shadow-md"
                           : "border-border hover:border-primary/40"
                       }`}
                     >
@@ -454,41 +452,41 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b bg-muted/60">
-                        <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Variant</th>
-                        <th className="text-right py-3 px-4 font-semibold text-muted-foreground w-[100px]">Price</th>
-                        <th className="text-center py-3 px-4 font-semibold text-muted-foreground w-[130px]">Quantity</th>
+                        <th className="text-left py-2.5 px-3 font-semibold text-muted-foreground">Variant</th>
+                        <th className="text-right py-2.5 px-3 font-semibold text-muted-foreground w-[90px]">Price</th>
+                        <th className="text-center py-2.5 px-3 font-semibold text-muted-foreground w-[120px]">Quantity</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y">
                       {(showAllSkus ? product.configuredItems! : product.configuredItems!.slice(0, 5)).map((sku) => (
-                        <tr key={sku.id} className="hover:bg-muted/30 transition-colors">
-                          <td className="py-3 px-4">
-                            <div className="flex items-center gap-3">
+                        <tr key={sku.id} className={`hover:bg-muted/30 transition-colors ${selectedSkuId === sku.id ? 'bg-primary/5' : ''}`}>
+                          <td className="py-2.5 px-3">
+                            <div className="flex items-center gap-2">
                               {sku.imageUrl && (
-                                <div className="w-9 h-9 rounded-md overflow-hidden bg-muted flex-shrink-0 border">
+                                <div className="w-8 h-8 rounded-md overflow-hidden bg-muted flex-shrink-0 border">
                                   <img src={sku.imageUrl} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover"
                                     onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
                                 </div>
                               )}
-                              <div>
-                                <span className="text-sm leading-snug font-medium">{sku.title || '—'}</span>
-                                <div className="text-xs text-muted-foreground">{sku.stock.toLocaleString()} in stock</div>
+                              <div className="min-w-0">
+                                <span className="text-xs leading-snug font-medium line-clamp-1">{sku.title || '—'}</span>
+                                <div className="text-[10px] text-muted-foreground">{sku.stock.toLocaleString()} stock</div>
                               </div>
                             </div>
                           </td>
-                          <td className="py-3 px-4 text-right font-bold text-sm whitespace-nowrap">
+                          <td className="py-2.5 px-3 text-right font-bold text-xs whitespace-nowrap">
                             ৳{convertToBDT(sku.price).toLocaleString()}
                           </td>
-                          <td className="py-3 px-4">
-                            <div className="flex items-center justify-center gap-1.5">
-                              <Button variant="outline" size="icon" className="h-7 w-7 rounded-lg"
+                          <td className="py-2.5 px-3">
+                            <div className="flex items-center justify-center gap-1">
+                              <Button variant="outline" size="icon" className="h-6 w-6 rounded-md"
                                 onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: Math.max(0, (prev[sku.id] || 0) - 1) }))}>
-                                <Minus className="h-3 w-3" />
+                                <Minus className="h-2.5 w-2.5" />
                               </Button>
-                              <span className="w-8 text-center text-sm font-semibold tabular-nums">{skuQuantities[sku.id] || 0}</span>
-                              <Button variant="outline" size="icon" className="h-7 w-7 rounded-lg"
+                              <span className="w-6 text-center text-xs font-semibold tabular-nums">{skuQuantities[sku.id] || 0}</span>
+                              <Button variant="outline" size="icon" className="h-6 w-6 rounded-md"
                                 onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: (prev[sku.id] || 0) + 1 }))}>
-                                <Plus className="h-3 w-3" />
+                                <Plus className="h-2.5 w-2.5" />
                               </Button>
                             </div>
                           </td>
@@ -500,21 +498,21 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                 {product.configuredItems!.length > 5 && (
                   <button
                     onClick={() => setShowAllSkus(!showAllSkus)}
-                    className="w-full py-2.5 text-sm font-medium text-primary hover:bg-primary/5 flex items-center justify-center gap-1 border-t transition-colors"
+                    className="w-full py-2 text-xs font-medium text-primary hover:bg-primary/5 flex items-center justify-center gap-1 border-t transition-colors"
                   >
-                    {showAllSkus ? <>Show Less <ChevronUp className="h-4 w-4" /></> : <>Show More ({product.configuredItems!.length - 5} more) <ChevronDown className="h-4 w-4" /></>}
+                    {showAllSkus ? <>Show Less <ChevronUp className="h-3.5 w-3.5" /></> : <>Show More ({product.configuredItems!.length - 5} more) <ChevronDown className="h-3.5 w-3.5" /></>}
                   </button>
                 )}
               </Card>
             )}
 
             {/* Prohibited Items Notice */}
-            <div className="bg-destructive/5 border border-destructive/20 rounded-xl p-4 sm:p-5">
+            <div className="bg-destructive/5 border border-destructive/20 rounded-xl p-4">
               <div className="flex items-start gap-3">
-                <AlertTriangle className="h-5 w-5 sm:h-6 sm:w-6 text-destructive shrink-0 mt-0.5" />
+                <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-bold text-destructive text-sm sm:text-base mb-1 sm:mb-1.5">যে পণ্যগুলো TradeOn-এ অর্ডার করা যাবে না</p>
-                  <p className="text-muted-foreground text-xs sm:text-sm leading-relaxed">
+                  <p className="font-bold text-destructive text-sm mb-1">যে পণ্যগুলো TradeOn-এ অর্ডার করা যাবে না</p>
+                  <p className="text-muted-foreground text-xs leading-relaxed">
                     সিগারেট, অ্যালকোহল, তামাক, ক্যানাবিস, জুয়া সামগ্রী, মাদকদ্রব্য, ড্রোন, ওষুধপত্র, মোবাইল, অস্ত্র, বিস্ফোরক, ঝুঁকিপূর্ণ রাসায়নিক পদার্থ, মানবদেহের অঙ্গ বা শরীরের তরল, প্রাপ্তবয়স্ক পণ্য, অশ্লীল পণ্য, প্রাণী নির্যাতনের সাথে সম্পর্কিত পণ্য, বিপন্ন প্রজাতি, ডিজিটাল মুদ্রা, বিনিয়োগ-সংক্রান্ত পণ্য, ঘৃণা ছড়ানো সামগ্রী, সহিংস পণ্য, আপত্তিকর পণ্য, খাদ্য আইটেম।{' '}
                     <Link to="/prohibited-items" className="text-primary hover:underline font-semibold whitespace-nowrap">বিস্তারিত দেখুন →</Link>
                   </p>
