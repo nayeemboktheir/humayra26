@@ -9,7 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Loader2, ArrowLeft, Play, ShoppingCart, MessageCircle,
   Star, MapPin, Truck, Package, Box, Weight, Minus, Plus, ChevronDown,
-  ChevronUp, ShieldCheck, Clock, Search, ArrowDownUp, Lock, Plane, Download, AlertTriangle
+  ChevronUp, ShieldCheck, Clock, Search, ArrowDownUp, Lock, Plane, Download, AlertTriangle,
+  Heart, Anchor
 } from "lucide-react";
 import ShippingRatesModal from "@/components/ShippingRatesModal";
 import {
@@ -41,6 +42,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
   const [skuQuantities, setSkuQuantities] = useState<Record<string, number>>({});
   const [showAllSkus, setShowAllSkus] = useState(false);
   const [ordering, setOrdering] = useState(false);
+  const [selectedSkuId, setSelectedSkuId] = useState<string | null>(null);
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -57,7 +59,6 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
       document.body.removeChild(a);
       URL.revokeObjectURL(blobUrl);
     } catch {
-      // Fallback: open in new tab if CORS blocks fetch
       window.open(url, '_blank');
     }
   };
@@ -142,38 +143,19 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
           </div>
         </div>
         <div className="container mx-auto px-4 py-6 max-w-7xl">
-          <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr] lg:grid-cols-[420px_1fr_320px] gap-4 md:gap-6 lg:gap-8">
-            {/* Image skeleton */}
-            <div className="space-y-3">
-              <Skeleton className="aspect-square w-full rounded-xl" />
-              <div className="flex gap-2">
+          <Skeleton className="h-7 w-full mb-4" />
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
+            <div className="flex gap-3">
+              <div className="hidden md:flex flex-col gap-2">
                 {Array.from({ length: 5 }).map((_, i) => (
-                  <Skeleton key={i} className="w-[72px] h-[72px] rounded-lg flex-shrink-0" />
+                  <Skeleton key={i} className="w-16 h-16 rounded-lg flex-shrink-0" />
                 ))}
               </div>
+              <Skeleton className="aspect-square w-full max-w-[500px] rounded-xl" />
             </div>
-            {/* Info skeleton */}
             <div className="space-y-4">
-              <Skeleton className="h-7 w-full" />
-              <Skeleton className="h-5 w-3/4" />
-              <div className="flex gap-4">
-                <Skeleton className="h-4 w-20" />
-                <Skeleton className="h-4 w-24" />
-              </div>
-              <Skeleton className="h-24 w-full rounded-xl" />
-              <div className="grid grid-cols-2 gap-2">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <Skeleton key={i} className="h-16 rounded-xl" />
-                ))}
-              </div>
-              <Skeleton className="h-6 w-32" />
-              <Skeleton className="h-48 w-full rounded-lg" />
-            </div>
-            {/* Sidebar skeleton */}
-            <div className="space-y-4 md:col-span-2 lg:col-span-1">
-              <Skeleton className="h-72 w-full rounded-lg" />
-              <Skeleton className="h-32 w-full rounded-lg" />
-              <Skeleton className="h-40 w-full rounded-lg" />
+              <Skeleton className="h-48 w-full rounded-xl" />
+              <Skeleton className="h-32 w-full rounded-xl" />
             </div>
           </div>
         </div>
@@ -208,6 +190,11 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
     }));
   };
 
+  // Get selected SKU's title for display
+  const selectedSkuItem = hasSkus && selectedSkuId
+    ? product.configuredItems!.find(s => s.id === selectedSkuId)
+    : null;
+
   return (
     <div className="min-h-screen bg-background">
       {isLoading && (
@@ -217,10 +204,10 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
         </div>
       )}
 
-      {/* Breadcrumb */}
+      {/* ===== TOP: Title + Badges + Actions ===== */}
       <div className="border-b bg-card">
-        <div className="container mx-auto px-4 max-w-7xl">
-          <div className="flex items-center justify-between py-3">
+        <div className="container mx-auto px-3 sm:px-4 max-w-7xl">
+          <div className="flex items-center justify-between py-2.5 sm:py-3">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               {onBack ? (
                 <button onClick={onBack} className="hover:text-foreground transition-colors flex items-center gap-1">
@@ -231,100 +218,152 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                 <span>Home</span>
               )}
               <span className="text-muted-foreground/50">›</span>
-              <span className="text-foreground font-medium">Product Details</span>
+              <span className="text-foreground font-medium">Product</span>
             </div>
-
-            {/* Image Download Button */}
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button size="sm" variant="outline" className="gap-1.5 text-xs font-semibold rounded-full border-primary text-primary hover:bg-primary hover:text-primary-foreground">
-                  <Download className="h-3.5 w-3.5" />
-                  Image Download
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Download Images & Videos</DialogTitle>
-                </DialogHeader>
-                <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 mt-2">
-                  {images.map((img, idx) => (
-                    <button
-                      key={`img-${idx}`}
-                      onClick={() => downloadFile(img, `product-image-${idx + 1}.jpg`)}
-                      className="aspect-square rounded-lg overflow-hidden border bg-muted hover:ring-2 hover:ring-primary transition-all cursor-pointer group relative"
-                    >
-                      <img src={img} alt={`Product ${idx + 1}`} referrerPolicy="no-referrer" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
-                      <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/20 transition-colors flex items-center justify-center">
-                        <Download className="h-5 w-5 text-background opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
-                      </div>
-                    </button>
-                  ))}
-                  {product.configuredItems?.filter(ci => ci.imageUrl).map((ci, idx) => (
-                    <button
-                      key={`sku-${idx}`}
-                      onClick={() => downloadFile(ci.imageUrl!, `variant-${idx + 1}.jpg`)}
-                      className="aspect-square rounded-lg overflow-hidden border bg-muted hover:ring-2 hover:ring-primary transition-all cursor-pointer group relative"
-                    >
-                      <img src={ci.imageUrl} alt={ci.title} referrerPolicy="no-referrer" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
-                      <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/20 transition-colors flex items-center justify-center">
-                        <Download className="h-5 w-5 text-background opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
-                      </div>
-                    </button>
-                  ))}
-                  {product.video && (
-                    <button
-                      onClick={() => downloadFile(product.video!, `product-video.mp4`)}
-                      className="aspect-square rounded-lg overflow-hidden border bg-muted hover:ring-2 hover:ring-primary transition-all cursor-pointer group relative"
-                    >
-                      <video src={product.video} className="w-full h-full object-cover" muted />
-                      <div className="absolute inset-0 flex items-center justify-center bg-foreground/30 group-hover:bg-foreground/40 transition-colors">
-                        <Play className="h-8 w-8 text-background drop-shadow-lg" />
-                      </div>
-                    </button>
-                  )}
-                </div>
-              </DialogContent>
-            </Dialog>
+            <div className="flex items-center gap-2">
+              {/* Image Download Button */}
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button size="sm" variant="outline" className="gap-1.5 text-xs font-semibold rounded-full border-primary text-primary hover:bg-primary hover:text-primary-foreground">
+                    <Download className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Image Download</span>
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Download Images & Videos</DialogTitle>
+                  </DialogHeader>
+                  <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 mt-2">
+                    {images.map((img, idx) => (
+                      <button
+                        key={`img-${idx}`}
+                        onClick={() => downloadFile(img, `product-image-${idx + 1}.jpg`)}
+                        className="aspect-square rounded-lg overflow-hidden border bg-muted hover:ring-2 hover:ring-primary transition-all cursor-pointer group relative"
+                      >
+                        <img src={img} alt={`Product ${idx + 1}`} referrerPolicy="no-referrer" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
+                        <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/20 transition-colors flex items-center justify-center">
+                          <Download className="h-5 w-5 text-background opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
+                        </div>
+                      </button>
+                    ))}
+                    {product.configuredItems?.filter(ci => ci.imageUrl).map((ci, idx) => (
+                      <button
+                        key={`sku-${idx}`}
+                        onClick={() => downloadFile(ci.imageUrl!, `variant-${idx + 1}.jpg`)}
+                        className="aspect-square rounded-lg overflow-hidden border bg-muted hover:ring-2 hover:ring-primary transition-all cursor-pointer group relative"
+                      >
+                        <img src={ci.imageUrl} alt={ci.title} referrerPolicy="no-referrer" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
+                        <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/20 transition-colors flex items-center justify-center">
+                          <Download className="h-5 w-5 text-background opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
+                        </div>
+                      </button>
+                    ))}
+                    {product.video && (
+                      <button
+                        onClick={() => downloadFile(product.video!, `product-video.mp4`)}
+                        className="aspect-square rounded-lg overflow-hidden border bg-muted hover:ring-2 hover:ring-primary transition-all cursor-pointer group relative"
+                      >
+                        <video src={product.video} className="w-full h-full object-cover" muted />
+                        <div className="absolute inset-0 flex items-center justify-center bg-foreground/30 group-hover:bg-foreground/40 transition-colors">
+                          <Play className="h-8 w-8 text-background drop-shadow-lg" />
+                        </div>
+                      </button>
+                    )}
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-6 max-w-7xl">
-        {/* Main 3-column Layout */}
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr] lg:grid-cols-[420px_1fr_320px] gap-4 md:gap-6 lg:gap-8">
+      {/* ===== Title Section (Full Width) ===== */}
+      <div className="container mx-auto px-3 sm:px-4 max-w-7xl pt-4 pb-2">
+        <h1 className="text-base sm:text-xl md:text-2xl font-bold leading-tight">{product.title}</h1>
+        <div className="flex items-center gap-3 mt-2 flex-wrap">
+          {product.total_sold && (
+            <Badge variant="secondary" className="text-xs font-semibold gap-1">
+              👍 {product.total_sold.toLocaleString()} Sold
+            </Badge>
+          )}
+          {product.seller_info?.item_score && (
+            <Badge variant="secondary" className="text-xs font-semibold gap-1">
+              <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+              {product.seller_info.item_score}
+            </Badge>
+          )}
+        </div>
+      </div>
 
-          {/* ===== LEFT: Image Gallery ===== */}
-          <div className="space-y-3 md:col-span-1">
-            <div className="relative aspect-square rounded-xl overflow-hidden bg-muted border shadow-sm">
-              {showVideo && product.video ? (
-                <video src={product.video} controls autoPlay className="w-full h-full object-contain" />
-              ) : (
-                <img
-                  src={images[selectedImage]}
-                  alt={product.title}
-                  referrerPolicy="no-referrer"
-                  className="w-full h-full object-contain transition-transform duration-300"
-                  onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
-                />
-              )}
-              {product.video && (
-                <button
-                  onClick={() => setShowVideo(!showVideo)}
-                  className="absolute bottom-3 right-3 bg-foreground/80 backdrop-blur-sm text-background px-3 py-1.5 rounded-full flex items-center gap-1.5 text-sm hover:bg-foreground transition-colors shadow-md"
-                >
-                  <Play className="w-3.5 h-3.5" />
-                  {showVideo ? "Photos" : "Video"}
-                </button>
-              )}
+      {/* ===== Main Content ===== */}
+      <div className="container mx-auto px-3 sm:px-4 max-w-7xl py-3">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-4 lg:gap-6">
+
+          {/* ===== LEFT: Image + Variants ===== */}
+          <div className="space-y-4">
+
+            {/* Image Gallery: vertical thumbs (desktop) + main image */}
+            <div className="flex gap-3">
+              {/* Vertical Thumbnails (desktop only) */}
+              <div className="hidden md:flex flex-col gap-2 overflow-y-auto max-h-[500px] scrollbar-hide">
+                {images.map((img, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => { setSelectedImage(idx); setShowVideo(false); }}
+                    className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
+                      selectedImage === idx && !showVideo
+                        ? "border-primary ring-2 ring-primary/20"
+                        : "border-border hover:border-primary/40"
+                    }`}
+                  >
+                    <img src={img} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover"
+                      onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
+                  </button>
+                ))}
+                {product.video && (
+                  <button
+                    onClick={() => setShowVideo(true)}
+                    className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 bg-muted flex items-center justify-center transition-all ${
+                      showVideo ? "border-primary ring-2 ring-primary/20" : "border-border hover:border-primary/40"
+                    }`}
+                  >
+                    <Play className="h-5 w-5 text-primary" />
+                  </button>
+                )}
+              </div>
+
+              {/* Main Image */}
+              <div className="flex-1 relative aspect-square rounded-xl overflow-hidden bg-muted border shadow-sm max-w-[560px]">
+                {showVideo && product.video ? (
+                  <video src={product.video} controls autoPlay className="w-full h-full object-contain" />
+                ) : (
+                  <img
+                    src={images[selectedImage]}
+                    alt={product.title}
+                    referrerPolicy="no-referrer"
+                    className="w-full h-full object-contain transition-transform duration-300"
+                    onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
+                  />
+                )}
+                {product.video && (
+                  <button
+                    onClick={() => setShowVideo(!showVideo)}
+                    className="absolute bottom-3 right-3 bg-foreground/80 backdrop-blur-sm text-background px-3 py-1.5 rounded-full flex items-center gap-1.5 text-sm hover:bg-foreground transition-colors shadow-md"
+                  >
+                    <Play className="w-3.5 h-3.5" />
+                    {showVideo ? "Photos" : "Video"}
+                  </button>
+                )}
+              </div>
             </div>
 
-            {/* Thumbnail Strip */}
-            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+            {/* Horizontal Thumbnails (mobile only) */}
+            <div className="flex md:hidden gap-2 overflow-x-auto pb-1 scrollbar-hide">
               {images.map((img, idx) => (
                 <button
                   key={idx}
                   onClick={() => { setSelectedImage(idx); setShowVideo(false); }}
-                  className={`flex-shrink-0 w-[72px] h-[72px] rounded-lg overflow-hidden border-2 transition-all ${
+                  className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
                     selectedImage === idx && !showVideo
                       ? "border-primary ring-2 ring-primary/20"
                       : "border-border hover:border-primary/40"
@@ -337,57 +376,35 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
               {product.video && (
                 <button
                   onClick={() => setShowVideo(true)}
-                  className={`flex-shrink-0 w-[72px] h-[72px] rounded-lg overflow-hidden border-2 bg-muted flex items-center justify-center transition-all ${
+                  className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 bg-muted flex items-center justify-center transition-all ${
                     showVideo ? "border-primary ring-2 ring-primary/20" : "border-border hover:border-primary/40"
                   }`}
                 >
-                  <Play className="h-6 w-6 text-primary" />
+                  <Play className="h-5 w-5 text-primary" />
                 </button>
               )}
             </div>
-          </div>
 
-          {/* ===== CENTER: Product Info ===== */}
-          <div className="space-y-4 md:space-y-5 md:col-span-1">
-            {/* Title */}
-            <h1 className="text-lg md:text-2xl font-bold leading-tight tracking-tight">{product.title}</h1>
-
-            {/* Sold + Store row */}
-            <div className="flex items-center gap-4 flex-wrap">
-              {product.total_sold && (
-                <span className="text-sm text-muted-foreground">
-                  <span className="font-semibold text-foreground">{product.total_sold.toLocaleString()}</span> Sold
-                </span>
-              )}
-              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <span className="inline-flex items-center justify-center w-5 h-5 rounded-full overflow-hidden bg-red-500 text-[9px] text-white font-bold flex-shrink-0">CN</span>
-                <span>China Store</span>
-              </div>
-            </div>
-
-            {/* Price Block */}
-            <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 rounded-xl p-3 md:p-5">
+            {/* ===== Price Block ===== */}
+            <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 rounded-xl p-3 sm:p-4">
               {(() => {
-                // Show price range if variants have different prices
                 const variantPrices = hasSkus
                   ? [...new Set(product.configuredItems!.map(ci => ci.price))].sort((a, b) => a - b)
                   : [];
                 const showRange = variantPrices.length > 1;
                 return (
-                  <>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-sm font-medium text-primary">৳</span>
-                      <span className="text-3xl md:text-5xl font-extrabold text-primary tracking-tight">
-                        {showRange
-                          ? `${convertToBDT(variantPrices[0]).toLocaleString()} - ${convertToBDT(variantPrices[variantPrices.length - 1]).toLocaleString()}`
-                          : convertToBDT(product.price).toLocaleString()}
-                      </span>
-                    </div>
-                  </>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-sm font-medium text-primary">৳</span>
+                    <span className="text-3xl md:text-5xl font-extrabold text-primary tracking-tight">
+                      {showRange
+                        ? `${convertToBDT(variantPrices[0]).toLocaleString()} - ${convertToBDT(variantPrices[variantPrices.length - 1]).toLocaleString()}`
+                        : convertToBDT(product.price).toLocaleString()}
+                    </span>
+                  </div>
                 );
               })()}
 
-              {/* Quantity-based tiered pricing */}
+              {/* Tiered pricing */}
               {getPriceRanges().length > 1 && (
                 <div className="flex gap-4 mt-3 pt-3 border-t border-primary/10">
                   {getPriceRanges().map((range, idx) => (
@@ -400,121 +417,95 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
               )}
             </div>
 
-            {/* Service */}
-            <div className="flex items-center gap-3 text-sm">
-              <span className="font-semibold">Service:</span>
-              <div className="flex items-center gap-1.5 text-muted-foreground">
-                <Clock className="h-3.5 w-3.5" />
-                Ships within 48 hours
-              </div>
-            </div>
-
-            {/* Quick Info Cards */}
-            <div className="grid grid-cols-2 gap-2 md:gap-3">
-              <div className="flex items-center gap-2 p-2.5 md:p-3 bg-card border rounded-xl">
-                <Package className="h-4 w-4 text-primary flex-shrink-0" />
-                <div className="min-w-0">
-                  <div className="text-[10px] md:text-[11px] text-muted-foreground uppercase tracking-wide">Stock</div>
-                  <div className="font-semibold text-xs md:text-sm truncate">{product.num || 'Available'}</div>
+            {/* ===== Variant Image Grid ===== */}
+            {hasSkus && product.configuredItems!.some(ci => ci.imageUrl) && (
+              <div className="space-y-2">
+                <p className="text-sm font-semibold">
+                  Color : <span className="text-primary">{selectedSkuItem?.title || product.configuredItems![0]?.title || '—'}</span>
+                </p>
+                <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-2">
+                  {product.configuredItems!.filter(ci => ci.imageUrl).map((sku) => (
+                    <button
+                      key={sku.id}
+                      onClick={() => {
+                        setSelectedSkuId(sku.id);
+                        // Find the matching image index
+                        const imgIdx = images.findIndex(img => img === sku.imageUrl);
+                        if (imgIdx >= 0) { setSelectedImage(imgIdx); setShowVideo(false); }
+                      }}
+                      className={`aspect-square rounded-lg overflow-hidden border-2 transition-all ${
+                        selectedSkuId === sku.id
+                          ? "border-primary ring-2 ring-primary/20"
+                          : "border-border hover:border-primary/40"
+                      }`}
+                    >
+                      <img src={sku.imageUrl!} alt={sku.title} referrerPolicy="no-referrer" className="w-full h-full object-cover"
+                        onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
+                    </button>
+                  ))}
                 </div>
               </div>
-              <div className="flex items-center gap-2 p-2.5 md:p-3 bg-card border rounded-xl">
-                <Box className="h-4 w-4 text-primary flex-shrink-0" />
-                <div className="min-w-0">
-                  <div className="text-[10px] md:text-[11px] text-muted-foreground uppercase tracking-wide">Min Order</div>
-                  <div className="font-semibold text-xs md:text-sm">{product.min_num} pcs</div>
-                </div>
-              </div>
-              {product.item_weight && (
-                <div className="flex items-center gap-2 p-2.5 md:p-3 bg-card border rounded-xl">
-                  <Weight className="h-4 w-4 text-primary flex-shrink-0" />
-                  <div className="min-w-0">
-                    <div className="text-[10px] md:text-[11px] text-muted-foreground uppercase tracking-wide">Weight</div>
-                    <div className="font-semibold text-xs md:text-sm">{product.item_weight} kg</div>
-                  </div>
-                </div>
-              )}
-              {product.location && (
-                <div className="flex items-center gap-2 p-2.5 md:p-3 bg-card border rounded-xl">
-                  <MapPin className="h-4 w-4 text-primary flex-shrink-0" />
-                  <div className="min-w-0">
-                    <div className="text-[10px] md:text-[11px] text-muted-foreground uppercase tracking-wide">Origin</div>
-                    <div className="font-semibold text-xs md:text-sm truncate">{translateLocation(product.location)}</div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Weight Disclaimer Note */}
-            {product.item_weight && (
-              <p className="text-[11px] text-muted-foreground leading-relaxed -mt-1">
-                <span className="font-semibold">Note:</span> The weight given is not 100% accurate. The weight will be measured and reported after the product is received at the Bangladesh warehouse.
-              </p>
             )}
 
             {/* ===== SKU Variant Table ===== */}
             {hasSkus && (
-              <div className="space-y-3">
-                <h3 className="font-semibold text-base">Specifications</h3>
-                <Card className="overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b bg-muted/60">
-                          <th className="text-left py-3 px-4 font-semibold text-muted-foreground text-sm">Variant</th>
-                          <th className="text-right py-3 px-4 font-semibold text-muted-foreground text-sm w-[100px]">Price</th>
-                          <th className="text-right py-3 px-4 font-semibold text-muted-foreground text-sm w-[70px]">Stock</th>
-                          <th className="text-center py-3 px-4 font-semibold text-muted-foreground text-sm w-[130px]">Quantity</th>
+              <Card className="overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b bg-muted/60">
+                        <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Variant</th>
+                        <th className="text-right py-3 px-4 font-semibold text-muted-foreground w-[100px]">Price</th>
+                        <th className="text-center py-3 px-4 font-semibold text-muted-foreground w-[130px]">Quantity</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {(showAllSkus ? product.configuredItems! : product.configuredItems!.slice(0, 5)).map((sku) => (
+                        <tr key={sku.id} className="hover:bg-muted/30 transition-colors">
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-3">
+                              {sku.imageUrl && (
+                                <div className="w-9 h-9 rounded-md overflow-hidden bg-muted flex-shrink-0 border">
+                                  <img src={sku.imageUrl} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover"
+                                    onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
+                                </div>
+                              )}
+                              <div>
+                                <span className="text-sm leading-snug font-medium">{sku.title || '—'}</span>
+                                <div className="text-xs text-muted-foreground">{sku.stock.toLocaleString()} in stock</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 text-right font-bold text-sm whitespace-nowrap">
+                            ৳{convertToBDT(sku.price).toLocaleString()}
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <Button variant="outline" size="icon" className="h-7 w-7 rounded-lg"
+                                onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: Math.max(0, (prev[sku.id] || 0) - 1) }))}>
+                                <Minus className="h-3 w-3" />
+                              </Button>
+                              <span className="w-8 text-center text-sm font-semibold tabular-nums">{skuQuantities[sku.id] || 0}</span>
+                              <Button variant="outline" size="icon" className="h-7 w-7 rounded-lg"
+                                onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: (prev[sku.id] || 0) + 1 }))}>
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </td>
                         </tr>
-                      </thead>
-                      <tbody className="divide-y">
-                        {(showAllSkus ? product.configuredItems! : product.configuredItems!.slice(0, 5)).map((sku) => (
-                          <tr key={sku.id} className="hover:bg-muted/30 transition-colors">
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-3">
-                                {sku.imageUrl && (
-                                  <div className="w-10 h-10 rounded-lg overflow-hidden bg-muted flex-shrink-0 border">
-                                    <img src={sku.imageUrl} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover"
-                                      onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
-                                  </div>
-                                )}
-                                <span className="text-base leading-snug font-medium">{sku.title || '—'}</span>
-                              </div>
-                            </td>
-                            <td className="py-3 px-4 text-right font-bold text-base whitespace-nowrap">
-                              ৳{convertToBDT(sku.price).toLocaleString()}
-                            </td>
-                            <td className="py-3 px-4 text-right text-muted-foreground text-base">
-                              {sku.stock.toLocaleString()}
-                            </td>
-                            <td className="py-3 px-4">
-                              <div className="flex items-center justify-center gap-1.5">
-                                <Button variant="outline" size="icon" className="h-7 w-7 rounded-lg"
-                                  onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: Math.max(0, (prev[sku.id] || 0) - 1) }))}>
-                                  <Minus className="h-3 w-3" />
-                                </Button>
-                                <span className="w-8 text-center text-base font-semibold tabular-nums">{skuQuantities[sku.id] || 0}</span>
-                                <Button variant="outline" size="icon" className="h-7 w-7 rounded-lg"
-                                  onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: (prev[sku.id] || 0) + 1 }))}>
-                                  <Plus className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  {product.configuredItems!.length > 5 && (
-                    <button
-                      onClick={() => setShowAllSkus(!showAllSkus)}
-                      className="w-full py-2.5 text-sm font-medium text-primary hover:bg-primary/5 flex items-center justify-center gap-1 border-t transition-colors"
-                    >
-                      {showAllSkus ? <>Show Less <ChevronUp className="h-4 w-4" /></> : <>Show More ({product.configuredItems!.length - 5} more) <ChevronDown className="h-4 w-4" /></>}
-                    </button>
-                  )}
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {product.configuredItems!.length > 5 && (
+                  <button
+                    onClick={() => setShowAllSkus(!showAllSkus)}
+                    className="w-full py-2.5 text-sm font-medium text-primary hover:bg-primary/5 flex items-center justify-center gap-1 border-t transition-colors"
+                  >
+                    {showAllSkus ? <>Show Less <ChevronUp className="h-4 w-4" /></> : <>Show More ({product.configuredItems!.length - 5} more) <ChevronDown className="h-4 w-4" /></>}
+                  </button>
+                )}
               </Card>
-              </div>
             )}
 
             {/* Prohibited Items Notice */}
@@ -533,93 +524,126 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
           </div>
 
           {/* ===== RIGHT: Sidebar ===== */}
-          <div className="space-y-4 md:col-span-2 lg:col-span-1 lg:sticky lg:top-4 lg:self-start">
-            {/* Shipping Card */}
-            <Card className="shadow-sm">
-              <CardContent className="p-5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-base">Shipping</span>
-                    <span className="text-primary text-xs">*</span>
+          <div className="space-y-4 lg:sticky lg:top-4 lg:self-start">
+
+            {/* Shipping Methods Card */}
+            <Card className="shadow-sm overflow-hidden">
+              <CardContent className="p-0">
+                {/* By Air / By Sea toggle */}
+                <div className="grid grid-cols-2 border-b">
+                  <div className="flex flex-col items-center py-3 border-r bg-primary/5">
+                    <Plane className="h-5 w-5 text-primary mb-1" />
+                    <span className="text-xs font-bold text-primary">By Air</span>
+                    <span className="text-[10px] text-muted-foreground">৳750/ ৳1150 Per Kg</span>
                   </div>
-                  <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                    <MapPin className="h-3.5 w-3.5" />
-                    To Bangladesh
+                  <div className="flex flex-col items-center py-3">
+                    <Anchor className="h-5 w-5 text-muted-foreground mb-1" />
+                    <span className="text-xs font-bold text-muted-foreground">By Sea</span>
+                    <span className="text-[10px] text-muted-foreground">৳170/ ৳400 Per Kg</span>
                   </div>
                 </div>
 
-                <ShippingRatesModal>
-                  <button className="w-full flex items-center justify-between p-3 bg-muted/50 border rounded-xl text-sm hover:bg-muted transition-colors">
-                    <div className="flex items-center gap-2">
-                      <Plane className="h-4 w-4 text-primary" />
-                      <span className="font-medium">View Shipping Charges</span>
+                <div className="p-4 space-y-3">
+                  {/* Quantity */}
+                  {!hasSkus && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold">Quantity</span>
+                      <div className="flex items-center gap-1.5">
+                        <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => setQuantity(Math.max(0, quantity - 1))}>
+                          <Minus className="h-3 w-3" />
+                        </Button>
+                        <span className="w-8 text-center text-sm font-semibold tabular-nums">{quantity}</span>
+                        <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => setQuantity(quantity + 1)}>
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </div>
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                  </button>
-                </ShippingRatesModal>
+                  )}
 
-                <Separator />
+                  {hasSkus && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-semibold">Quantity</span>
+                      <span className="font-bold">{totalSelectedQty}</span>
+                    </div>
+                  )}
 
-                {/* Quantity selector for non-SKU products */}
-                {!hasSkus && (
+                  <Separator />
+
+                  {/* Product Price */}
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">{quantity} Pieces</span>
-                    <div className="flex items-center gap-1.5">
-                      <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => setQuantity(Math.max(0, quantity - 1))}>
-                        <Minus className="h-3 w-3" />
-                      </Button>
-                      <span className="w-8 text-center text-sm font-semibold tabular-nums">{quantity}</span>
-                      <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => setQuantity(quantity + 1)}>
-                        <Plus className="h-3 w-3" />
-                      </Button>
+                    <span className="text-sm font-semibold">Product price</span>
+                    <span className="text-sm font-bold">৳{totalSelectedPrice.toLocaleString()}</span>
+                  </div>
+
+                  {/* Pay now / delivery breakdown */}
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Pay now <Badge variant="secondary" className="text-[10px] ml-1">70%</Badge></span>
+                    <span className="font-semibold">৳{Math.round(totalSelectedPrice * 0.7).toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Pay on delivery <Badge variant="secondary" className="text-[10px] ml-1">30%</Badge></span>
+                    <span className="font-semibold">৳{Math.round(totalSelectedPrice * 0.3).toLocaleString()} +</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">Shipping + China Courier Charge</p>
+
+                  <Separator />
+
+                  {/* Weight & Shipping Info */}
+                  {product.item_weight && (
+                    <div className="bg-destructive/5 border border-destructive/20 rounded-lg p-3">
+                      <p className="text-xs font-bold text-destructive flex items-center gap-1.5">
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                        Approximate weight: {product.item_weight} kg
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="bg-muted/50 border rounded-lg p-3 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-bold">শিপিং চার্জ</span>
+                      <ShippingRatesModal>
+                        <button className="text-xs text-primary font-semibold hover:underline">বিস্তারিত</button>
+                      </ShippingRatesModal>
+                    </div>
+                    <p className="text-xs text-muted-foreground">৳750/ ৳1150 Per Kg</p>
+                  </div>
+
+                  {product.item_weight && (
+                    <p className="text-[11px] text-destructive leading-relaxed">
+                      *** উল্লেখিত পণ্যের ওজন সম্পূর্ণ সঠিক নয়, আনুমানিক মাত্র। বাংলাদেশে আসার পর পণ্যটির প্রকৃত ওজন মেপে শিপিং চার্জ হিসাব করা হবে।
+                    </p>
+                  )}
+
+                  {/* Quick Info */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex items-center gap-2 p-2 bg-card border rounded-lg">
+                      <Package className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                      <div className="min-w-0">
+                        <div className="text-[10px] text-muted-foreground">Stock</div>
+                        <div className="font-semibold text-xs truncate">{product.num || 'Available'}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 p-2 bg-card border rounded-lg">
+                      <Box className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                      <div className="min-w-0">
+                        <div className="text-[10px] text-muted-foreground">Min Order</div>
+                        <div className="font-semibold text-xs">{product.min_num} pcs</div>
+                      </div>
                     </div>
                   </div>
-                )}
 
-                {/* SKU total pieces */}
-                {hasSkus && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium">{totalSelectedQty} Pieces</span>
-                    <span className="text-primary font-bold">৳{totalSelectedPrice.toLocaleString()}</span>
-                  </div>
-                )}
-
-                <div className="flex items-center justify-between py-2 border-t border-b">
-                  <span className="font-bold">Total</span>
-                  <span className="text-lg font-bold">৳{totalSelectedPrice.toLocaleString()}</span>
-                </div>
-
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  China warehouse delivery charge will be added on the cart page.
-                </p>
-
-                <Button className="w-full h-12 text-base font-bold rounded-xl shadow-md hover:shadow-lg transition-shadow" onClick={handleBuyNow} disabled={ordering}>
-                  {ordering ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ShoppingCart className="w-5 h-5 mr-2" />}
-                  {ordering ? "Placing Order..." : "Buy Now"}
-                </Button>
-
-                <Button variant="outline" className="w-full h-11 rounded-xl font-semibold" onClick={handleBuyNow} disabled={ordering}>
-                  <ShoppingCart className="w-4 h-4 mr-2" />
-                  Add to Cart
-                </Button>
-
-                <Button variant="ghost" className="w-full h-10 rounded-xl text-muted-foreground hover:text-foreground">
-                  <MessageCircle className="w-4 h-4 mr-2" />
-                  WhatsApp Order
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Dropship CTA */}
-            <Card className="overflow-hidden border-0 shadow-md bg-gradient-to-br from-green-600 to-emerald-700 text-white">
-              <CardContent className="p-5">
-                <div className="flex items-start gap-3">
-                  <Truck className="h-6 w-6 mt-0.5 flex-shrink-0 opacity-90" />
-                  <div>
-                    <p className="font-bold text-lg leading-tight">Dropship this product!</p>
-                    <p className="text-sm text-white/80 mt-1">No stock, No risk! Just sell and grow your business.</p>
-                    <Button size="sm" variant="secondary" className="mt-3 font-semibold">
-                      Start Dropshipping
+                  {/* Action Buttons */}
+                  <div className="flex items-center gap-2 pt-1">
+                    <Button variant="outline" size="icon" className="h-11 w-11 rounded-xl shrink-0">
+                      <Heart className="h-5 w-5" />
+                    </Button>
+                    <Button variant="outline" className="flex-1 h-11 rounded-xl font-semibold" onClick={handleBuyNow} disabled={ordering}>
+                      <ShoppingCart className="w-4 h-4 mr-2" />
+                      Add to Cart
+                    </Button>
+                    <Button className="flex-1 h-11 rounded-xl font-bold shadow-md" onClick={handleBuyNow} disabled={ordering}>
+                      {ordering ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ShoppingCart className="w-4 h-4 mr-2" />}
+                      {ordering ? "Placing..." : "Buy Now"}
                     </Button>
                   </div>
                 </div>
@@ -628,8 +652,8 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
 
             {/* Assurance */}
             <Card className="shadow-sm">
-              <CardContent className="p-5 space-y-3">
-                <h3 className="font-bold text-sm">HumayraTraders Assurance</h3>
+              <CardContent className="p-4 space-y-2.5">
+                <h3 className="font-bold text-sm">TradeOn Assurance</h3>
                 {[
                   { icon: ShieldCheck, text: "100% money back guarantee" },
                   { icon: Clock, text: "On time guarantee" },
@@ -638,99 +662,20 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                   { icon: Lock, text: "Security & Privacy" },
                 ].map(({ icon: Icon, text }) => (
                   <div key={text} className="flex items-center gap-2.5 text-sm text-muted-foreground">
-                    <Icon className="h-4 w-4 text-green-600 flex-shrink-0" />
+                    <Icon className="h-4 w-4 text-primary flex-shrink-0" />
                     {text}
                   </div>
                 ))}
               </CardContent>
             </Card>
-
           </div>
         </div>
 
-        {/* ===== Tabs Section: Specifications | Product Description | Reviews ===== */}
-        <div className="mt-10">
-          <Tabs defaultValue="specs">
-            <TabsList className="w-full justify-start border-b rounded-none bg-transparent h-auto p-0 gap-0 overflow-x-auto scrollbar-hide">
-              <TabsTrigger
-                value="specs"
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-6 py-3 text-sm font-medium"
-              >
-                Specifications
-              </TabsTrigger>
-              <TabsTrigger
-                value="description"
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-6 py-3 text-sm font-medium"
-              >
-                Product Description
-              </TabsTrigger>
-              <TabsTrigger
-                value="reviews"
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-6 py-3 text-sm font-medium"
-              >
-                Reviews
-              </TabsTrigger>
-            </TabsList>
-
-            {/* Specifications Tab */}
-            <TabsContent value="specs" className="mt-0">
-              {displayProps.length > 0 ? (
-                <div className="border rounded-b-lg overflow-hidden">
-                  <table className="w-full text-sm">
-                    <tbody>
-                      {displayProps.map((prop, index) => (
-                        <tr key={index} className="border-b last:border-b-0">
-                          <td className="py-3.5 px-5 bg-muted/30 font-medium text-muted-foreground w-1/3 align-top">
-                            {prop.name}
-                          </td>
-                          <td className="py-3.5 px-5">
-                            {prop.value}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <p className="text-muted-foreground text-sm py-12 text-center">No specifications available</p>
-              )}
-            </TabsContent>
-
-            {/* Product Description Tab */}
-            <TabsContent value="description" className="mt-0">
-              {product.desc_img && product.desc_img.length > 0 ? (
-                <div className="space-y-3 py-6 max-w-4xl">
-                  {product.desc_img.map((img, index) => (
-                    <img
-                      key={index}
-                      src={img}
-                      alt={`Product detail ${index + 1}`}
-                      referrerPolicy="no-referrer"
-                      className="w-full rounded-lg border"
-                      loading="lazy"
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <p className="text-muted-foreground text-sm py-12 text-center">No product description images available</p>
-              )}
-            </TabsContent>
-
-            {/* Reviews Tab */}
-            <TabsContent value="reviews" className="mt-0">
-              <div className="py-12 text-center">
-                <p className="text-muted-foreground text-sm">No reviews yet for this product.</p>
-              </div>
-            </TabsContent>
-          </Tabs>
-        </div>
-
-        {/* ===== Seller Info (below tabs) ===== */}
+        {/* ===== Seller Info ===== */}
         {product.seller_info && (
-          <div className="mt-8 mb-8">
+          <div className="mt-6">
             <Card className="max-w-2xl">
-              <CardContent className="p-5">
+              <CardContent className="p-4 sm:p-5">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
                     <span className="text-xl font-bold text-primary">
@@ -739,7 +684,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                   </div>
                   <div className="flex-1">
                     <div className="font-semibold text-base">{product.seller_info.shop_name || "1688 Seller"}</div>
-                    <div className="flex items-center gap-3 mt-1">
+                    <div className="flex items-center gap-3 mt-1 flex-wrap">
                       <Badge variant="secondary" className="text-xs">Verified Supplier</Badge>
                       {product.location && (
                         <span className="text-sm text-muted-foreground flex items-center gap-1">
@@ -750,7 +695,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                     </div>
                   </div>
                   {(product.seller_info.item_score || product.seller_info.delivery_score || product.seller_info.composite_score) && (
-                    <div className="flex gap-5">
+                    <div className="hidden sm:flex gap-4">
                       {product.seller_info.item_score && (
                         <div className="text-center">
                           <div className="flex items-center gap-1"><Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" /><span className="font-bold text-sm">{product.seller_info.item_score}</span></div>
@@ -776,8 +721,82 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
             </Card>
           </div>
         )}
-      </div>
 
+        {/* ===== Tabs Section ===== */}
+        <div className="mt-8">
+          <Tabs defaultValue="specs">
+            <TabsList className="w-full justify-start border-b rounded-none bg-transparent h-auto p-0 gap-0 overflow-x-auto scrollbar-hide">
+              <TabsTrigger
+                value="specs"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-5 py-3 text-sm font-medium"
+              >
+                Specifications
+              </TabsTrigger>
+              <TabsTrigger
+                value="description"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-5 py-3 text-sm font-medium"
+              >
+                Description
+              </TabsTrigger>
+              <TabsTrigger
+                value="reviews"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-5 py-3 text-sm font-medium"
+              >
+                Reviews
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="specs" className="mt-0">
+              {displayProps.length > 0 ? (
+                <div className="border rounded-b-lg overflow-hidden">
+                  <table className="w-full text-sm">
+                    <tbody>
+                      {displayProps.map((prop, index) => (
+                        <tr key={index} className="border-b last:border-b-0">
+                          <td className="py-3.5 px-5 bg-muted/30 font-medium text-muted-foreground w-1/3 align-top">
+                            {prop.name}
+                          </td>
+                          <td className="py-3.5 px-5">
+                            {prop.value}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-sm py-12 text-center">No specifications available</p>
+              )}
+            </TabsContent>
+
+            <TabsContent value="description" className="mt-0">
+              {product.desc_img && product.desc_img.length > 0 ? (
+                <div className="space-y-0 max-w-3xl">
+                  {product.desc_img.map((img, idx) => (
+                    <img
+                      key={idx}
+                      src={img}
+                      alt={`Description ${idx + 1}`}
+                      referrerPolicy="no-referrer"
+                      className="w-full"
+                      loading="lazy"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-sm py-12 text-center">No product description images available</p>
+              )}
+            </TabsContent>
+
+            <TabsContent value="reviews" className="mt-0">
+              <div className="py-12 text-center">
+                <p className="text-muted-foreground text-sm">No reviews yet for this product.</p>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
     </div>
   );
 }
