@@ -437,25 +437,33 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                     <span className="text-primary text-sm font-medium">{selectedSkuItem.title}</span>
                   )}
                 </div>
-                <div className="flex flex-wrap gap-2.5">
-                  {product.configuredItems!.filter(sku => sku.imageUrl).map((sku) => (
-                    <button
-                      key={sku.id}
-                      onClick={() => {
-                        setSelectedSkuId(sku.id);
-                        const imgIdx = images.findIndex(img => img === sku.imageUrl);
-                        if (imgIdx >= 0) { setSelectedImage(imgIdx); setShowVideo(false); }
-                      }}
-                      className={`flex-shrink-0 w-[72px] h-[72px] rounded-lg overflow-hidden border-2 transition-all ${
-                        selectedSkuId === sku.id
-                          ? 'border-primary ring-2 ring-primary/20'
-                          : 'border-border hover:border-primary/40'
-                      }`}
-                    >
-                      <img src={sku.imageUrl} alt={sku.title} referrerPolicy="no-referrer" className="w-full h-full object-cover"
-                        onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
-                    </button>
-                  ))}
+                <div className="flex flex-wrap gap-2">
+                  {product.configuredItems!.filter(sku => sku.imageUrl).map((sku) => {
+                    const skuQty = skuQuantities[sku.id] || 0;
+                    return (
+                      <button
+                        key={sku.id}
+                        onClick={() => {
+                          setSelectedSkuId(sku.id);
+                          const imgIdx = images.findIndex(img => img === sku.imageUrl);
+                          if (imgIdx >= 0) { setSelectedImage(imgIdx); setShowVideo(false); }
+                        }}
+                        className={`relative flex-shrink-0 w-[68px] h-[68px] rounded-md overflow-hidden border-2 transition-all ${
+                          selectedSkuId === sku.id
+                            ? 'border-primary ring-2 ring-primary/20'
+                            : 'border-border hover:border-primary/40'
+                        }`}
+                      >
+                        <img src={sku.imageUrl} alt={sku.title} referrerPolicy="no-referrer" className="w-full h-full object-cover"
+                          onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
+                        {skuQty > 0 && (
+                          <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-sm">
+                            {skuQty}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -468,7 +476,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                     <thead>
                       <tr className="border-b bg-muted/50">
                         <th className="text-left py-3 px-3 font-semibold text-foreground">Size</th>
-                        <th className="text-center py-3 px-2 font-semibold text-foreground w-[90px]">Price</th>
+                        <th className="text-center py-3 px-2 font-semibold text-foreground w-[100px]">Price</th>
                         <th className="text-center py-3 px-2 font-semibold text-foreground w-[120px]">Quantity</th>
                       </tr>
                     </thead>
@@ -476,23 +484,42 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                       {product.configuredItems!.map((sku) => {
                         const qty = skuQuantities[sku.id] || 0;
                         return (
-                          <tr key={sku.id} className={`transition-colors ${selectedSkuId === sku.id ? 'bg-primary/5' : 'hover:bg-muted/30'}`}>
-                            <td className="py-3 px-3 text-sm">{sku.title || '—'}</td>
-                            <td className="py-3 px-2 text-center font-bold text-sm">৳{convertToBDT(sku.price).toLocaleString()}</td>
+                          <tr key={sku.id} className={`transition-colors ${qty > 0 ? 'bg-primary/5' : 'hover:bg-muted/30'}`}>
+                            <td className="py-3 px-3 text-sm font-medium">{sku.title || '—'}</td>
+                            <td className="py-3 px-2 text-center">
+                              <div className="font-bold text-sm">৳{convertToBDT(sku.price).toLocaleString()}</div>
+                              <div className="text-xs text-muted-foreground line-through">৳{Math.round(convertToBDT(sku.price) * 1.05).toLocaleString()}</div>
+                            </td>
                             <td className="py-3 px-2">
-                              <div className="flex items-center justify-center gap-0">
-                                <Button variant="outline" size="icon" className="h-8 w-8 rounded-l-md rounded-r-none border-r-0"
-                                  onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: Math.max(0, (prev[sku.id] || 0) - 1) }))}>
-                                  <Minus className="h-3.5 w-3.5" />
-                                </Button>
-                                <div className="h-8 w-10 border border-input flex items-center justify-center text-sm font-semibold tabular-nums bg-background">
-                                  {qty}
+                              {qty > 0 ? (
+                                <div className="flex flex-col items-center gap-1">
+                                  <div className="flex items-center gap-0">
+                                    <Button variant="outline" size="icon" className="h-8 w-8 rounded-l-md rounded-r-none border-r-0"
+                                      onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: Math.max(0, (prev[sku.id] || 0) - 1) }))}>
+                                      <Minus className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <div className="h-8 w-10 border border-input flex items-center justify-center text-sm font-semibold tabular-nums bg-background">
+                                      {qty}
+                                    </div>
+                                    <Button variant="outline" size="icon" className="h-8 w-8 rounded-r-md rounded-l-none border-l-0"
+                                      onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: (prev[sku.id] || 0) + 1 }))}>
+                                      <Plus className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </div>
+                                  <span className="text-[11px] text-muted-foreground">{sku.stock}</span>
                                 </div>
-                                <Button variant="outline" size="icon" className="h-8 w-8 rounded-r-md rounded-l-none border-l-0"
-                                  onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: (prev[sku.id] || 0) + 1 }))}>
-                                  <Plus className="h-3.5 w-3.5" />
-                                </Button>
-                              </div>
+                              ) : (
+                                <div className="flex flex-col items-center gap-1">
+                                  <Button
+                                    size="sm"
+                                    className="h-8 px-6 rounded-md font-semibold"
+                                    onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: 1 }))}
+                                  >
+                                    Add
+                                  </Button>
+                                  <span className="text-[11px] text-muted-foreground">{sku.stock}</span>
+                                </div>
+                              )}
                             </td>
                           </tr>
                         );
