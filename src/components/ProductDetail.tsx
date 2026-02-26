@@ -522,14 +522,14 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                   {hasSkus && selectedSkuItem && (() => {
                     const qty = skuQuantities[selectedSkuId!] || 0;
                     return (
-                      <div className="border border-primary/20 rounded-lg p-3.5 space-y-3 bg-primary/5">
-                        <div className="flex items-center gap-3">
+                      <div className="border border-primary/20 rounded-lg p-3 space-y-2.5 bg-primary/5">
+                        <div className="flex items-start gap-3">
                           {selectedSkuItem.imageUrl && (
-                            <img src={selectedSkuItem.imageUrl} alt="" referrerPolicy="no-referrer" className="w-12 h-12 rounded-md object-cover border" />
+                            <img src={selectedSkuItem.imageUrl} alt="" referrerPolicy="no-referrer" className="w-14 h-14 rounded-md object-cover border" />
                           )}
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold truncate">{selectedSkuItem.title}</p>
-                            <div className="flex items-baseline gap-2 mt-0.5">
+                            <p className="text-sm font-semibold leading-tight line-clamp-2">{selectedSkuItem.title}</p>
+                            <div className="flex items-baseline gap-2 mt-1">
                               <span className="text-lg font-bold text-primary">৳{convertToBDT(selectedSkuItem.price).toLocaleString()}</span>
                               <span className="text-xs text-muted-foreground line-through">৳{Math.round(convertToBDT(selectedSkuItem.price) * 1.05).toLocaleString()}</span>
                             </div>
@@ -563,6 +563,47 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                         </div>
                       </div>
                     );
+                  })()}
+
+                  {/* Added products list */}
+                  {hasSkus && (() => {
+                    const addedSkus = product.configuredItems!.filter(sku => (skuQuantities[sku.id] || 0) > 0 && sku.id !== selectedSkuId);
+                    if (addedSkus.length === 0) return null;
+                    return addedSkus.map(sku => {
+                      const qty = skuQuantities[sku.id] || 0;
+                      return (
+                        <div key={sku.id} className="border rounded-lg p-3 space-y-2.5">
+                          <div className="flex items-start gap-3">
+                            {sku.imageUrl && (
+                              <img src={sku.imageUrl} alt="" referrerPolicy="no-referrer" className="w-14 h-14 rounded-md object-cover border" />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold leading-tight line-clamp-2">{sku.title}</p>
+                              <div className="flex items-baseline gap-2 mt-1">
+                                <span className="text-lg font-bold text-primary">৳{convertToBDT(sku.price).toLocaleString()}</span>
+                                <span className="text-xs text-muted-foreground line-through">৳{Math.round(convertToBDT(sku.price) * 1.05).toLocaleString()}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-0">
+                              <Button variant="outline" size="icon" className="h-8 w-8 rounded-l-md rounded-r-none border-r-0"
+                                onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: Math.max(0, (prev[sku.id] || 0) - 1) }))}>
+                                <Minus className="h-3.5 w-3.5" />
+                              </Button>
+                              <div className="h-8 w-10 border border-input flex items-center justify-center text-sm font-semibold tabular-nums bg-background">
+                                {qty}
+                              </div>
+                              <Button variant="outline" size="icon" className="h-8 w-8 rounded-r-md rounded-l-none border-l-0"
+                                onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: (prev[sku.id] || 0) + 1 }))}>
+                                <Plus className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                            <span className="text-xs text-muted-foreground">Stock: {sku.stock}</span>
+                          </div>
+                        </div>
+                      );
+                    });
                   })()}
 
                   {!hasSkus && (
