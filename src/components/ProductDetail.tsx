@@ -134,7 +134,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
     return (
       <div className="min-h-screen bg-background animate-fade-in">
         <div className="border-b bg-card">
-          <div className="container mx-auto px-4 max-w-7xl">
+          <div className="mx-auto px-2 sm:px-3 max-w-[1600px]">
             <div className="flex items-center gap-2 py-3">
               <Skeleton className="h-4 w-12" />
               <Skeleton className="h-4 w-4" />
@@ -142,7 +142,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
             </div>
           </div>
         </div>
-        <div className="container mx-auto px-4 py-6 max-w-7xl">
+        <div className="mx-auto px-2 sm:px-3 py-4 max-w-[1600px]">
           <Skeleton className="h-7 w-full mb-4" />
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
             <div className="flex gap-3">
@@ -197,8 +197,8 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
 
       {/* ===== TOP: Breadcrumb + Actions ===== */}
       <div className="border-b bg-card">
-        <div className="container mx-auto px-3 sm:px-4 max-w-7xl">
-          <div className="flex items-center justify-between py-2.5 sm:py-3">
+      <div className="mx-auto px-2 sm:px-3 max-w-[1600px]">
+          <div className="flex items-center justify-between py-2">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               {onBack ? (
                 <button onClick={onBack} className="hover:text-foreground transition-colors flex items-center gap-1">
@@ -269,8 +269,8 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
       </div>
 
       {/* ===== Title Section (Full Width) ===== */}
-      <div className="container mx-auto px-3 sm:px-4 max-w-7xl pt-4 pb-2">
-        <h1 className="text-base sm:text-xl md:text-2xl font-bold leading-tight">{product.title}</h1>
+      <div className="mx-auto px-2 sm:px-3 max-w-[1600px] pt-3 pb-1">
+        <h1 className="text-base sm:text-lg md:text-xl font-bold leading-tight">{product.title}</h1>
         <div className="flex items-center gap-3 mt-2 flex-wrap">
           {product.total_sold && (
             <Badge variant="secondary" className="text-xs font-semibold gap-1">
@@ -287,8 +287,8 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
       </div>
 
       {/* ===== Main 3-Column Content ===== */}
-      <div className="container mx-auto px-3 sm:px-4 max-w-7xl py-3">
-        <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr_300px] gap-4 lg:gap-5">
+      <div className="mx-auto px-2 sm:px-3 max-w-[1600px] py-2">
+        <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr_320px] gap-3 lg:gap-4">
 
           {/* ===== COL 1: Vertical Thumbnails + Main Image ===== */}
           <div className="flex gap-3 lg:col-span-1">
@@ -321,7 +321,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
             </div>
 
             {/* Main Image */}
-            <div className="relative rounded-xl overflow-hidden bg-muted border shadow-sm w-full md:w-[420px] lg:w-[440px]">
+            <div className="relative rounded-xl overflow-hidden bg-muted border shadow-sm w-full md:w-[480px] lg:w-[520px]">
               {showVideo && product.video ? (
                 <video src={product.video} controls autoPlay className="w-full aspect-square object-contain" />
               ) : (
@@ -373,8 +373,8 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
             )}
           </div>
 
-          {/* ===== COL 2: Product Info + Specifications/Variant Table (SkyBuyBD style) ===== */}
-          <div className="space-y-4 lg:col-span-1">
+          {/* ===== COL 2: Product Info + Variants ===== */}
+          <div className="space-y-3 lg:col-span-1">
 
             {/* Service info */}
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -384,33 +384,33 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
             </div>
 
             {/* Stock / Min Order / Weight / Origin grid */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="border rounded-lg p-3 flex items-center gap-2.5">
-                <Package className="h-5 w-5 text-primary flex-shrink-0" />
+            <div className="grid grid-cols-2 gap-2">
+              <div className="border rounded-lg p-2.5 flex items-center gap-2">
+                <Package className="h-4.5 w-4.5 text-primary flex-shrink-0" />
                 <div>
-                  <div className="text-[11px] uppercase tracking-wide text-primary font-semibold">Stock</div>
-                  <div className="font-bold text-sm">{product.num ? parseInt(product.num).toLocaleString() : '—'}</div>
+                  <div className="text-[10px] uppercase tracking-wide text-primary font-semibold">Stock</div>
+                  <div className="font-bold text-base">{product.num ? parseInt(product.num).toLocaleString() : '—'}</div>
                 </div>
               </div>
-              <div className="border rounded-lg p-3 flex items-center gap-2.5">
-                <Box className="h-5 w-5 text-primary flex-shrink-0" />
+              <div className="border rounded-lg p-2.5 flex items-center gap-2">
+                <Box className="h-4.5 w-4.5 text-primary flex-shrink-0" />
                 <div>
-                  <div className="text-[11px] uppercase tracking-wide text-primary font-semibold">Min Order</div>
-                  <div className="font-bold text-sm">{product.min_num || 1} pcs</div>
+                  <div className="text-[10px] uppercase tracking-wide text-primary font-semibold">Min Order</div>
+                  <div className="font-bold text-base">{product.min_num || 1} pcs</div>
                 </div>
               </div>
-              <div className="border rounded-lg p-3 flex items-center gap-2.5">
-                <Weight className="h-5 w-5 text-primary flex-shrink-0" />
+              <div className="border rounded-lg p-2.5 flex items-center gap-2">
+                <Weight className="h-4.5 w-4.5 text-primary flex-shrink-0" />
                 <div>
-                  <div className="text-[11px] uppercase tracking-wide text-primary font-semibold">Weight</div>
-                  <div className="font-bold text-sm">{product.item_weight ? `${product.item_weight} kg` : '—'}</div>
+                  <div className="text-[10px] uppercase tracking-wide text-primary font-semibold">Weight</div>
+                  <div className="font-bold text-base">{product.item_weight ? `${product.item_weight} kg` : '—'}</div>
                 </div>
               </div>
-              <div className="border rounded-lg p-3 flex items-center gap-2.5">
-                <MapPin className="h-5 w-5 text-primary flex-shrink-0" />
+              <div className="border rounded-lg p-2.5 flex items-center gap-2">
+                <MapPin className="h-4.5 w-4.5 text-primary flex-shrink-0" />
                 <div>
-                  <div className="text-[11px] uppercase tracking-wide text-primary font-semibold">Origin</div>
-                  <div className="font-bold text-sm">{product.location ? translateLocation(product.location) : '—'}</div>
+                  <div className="text-[10px] uppercase tracking-wide text-primary font-semibold">Origin</div>
+                  <div className="font-bold text-base">{product.location ? translateLocation(product.location) : '—'}</div>
                 </div>
               </div>
             </div>
@@ -437,7 +437,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                     <span className="text-primary text-sm font-medium">{selectedSkuItem.title}</span>
                   )}
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5">
                   {product.configuredItems!.filter(sku => sku.imageUrl).map((sku) => {
                     const skuQty = skuQuantities[sku.id] || 0;
                     return (
@@ -448,7 +448,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                           const imgIdx = images.findIndex(img => img === sku.imageUrl);
                           if (imgIdx >= 0) { setSelectedImage(imgIdx); setShowVideo(false); }
                         }}
-                        className={`relative flex-shrink-0 w-[68px] h-[68px] rounded-md overflow-hidden border-2 transition-all ${
+                        className={`relative flex-shrink-0 w-[60px] h-[60px] rounded overflow-hidden border-2 transition-all ${
                           selectedSkuId === sku.id
                             ? 'border-primary ring-2 ring-primary/20'
                             : 'border-border hover:border-primary/40'
@@ -457,7 +457,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                         <img src={sku.imageUrl} alt={sku.title} referrerPolicy="no-referrer" className="w-full h-full object-cover"
                           onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
                         {skuQty > 0 && (
-                          <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-sm">
+                          <span className="absolute -top-0.5 -right-0.5 bg-primary text-primary-foreground text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center shadow-sm">
                             {skuQty}
                           </span>
                         )}
@@ -483,8 +483,8 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
             )}
           </div>
 
-          {/* ===== COL 3: Right Sidebar (SkyBuyBD style) ===== */}
-          <div className="space-y-4 lg:sticky lg:top-4 lg:self-start">
+          {/* ===== COL 3: Right Sidebar ===== */}
+          <div className="space-y-3 lg:sticky lg:top-4 lg:self-start">
 
             {/* Shipping Methods Card */}
             <Card className="shadow-sm overflow-hidden">
@@ -517,7 +517,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                   </button>
                 </div>
 
-                <div className="p-5 space-y-4">
+                <div className="p-4 space-y-3">
                   {/* Selected Variant Detail (shown when a variant thumbnail is clicked) */}
                   {hasSkus && selectedSkuItem && (() => {
                     const qty = skuQuantities[selectedSkuId!] || 0;
