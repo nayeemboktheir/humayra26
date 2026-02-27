@@ -10,10 +10,11 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   ExternalLink, UserCircle, Search, Trash2, Pencil, Package,
   Truck, DollarSign, Calendar, Hash, StickyNote, ImageIcon, Copy,
-  CheckSquare, Square, Download, ShoppingBag
+  CheckSquare, Square, Download, ShoppingBag, FileText
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import ShipmentTimeline from "@/components/admin/ShipmentTimeline";
+import OrderInvoice from "@/components/OrderInvoice";
 
 interface OrderWithProfile {
   id: string;
@@ -72,6 +73,7 @@ export default function AdminOrders() {
   const [saving, setSaving] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkStatus, setBulkStatus] = useState("");
+  const [invoiceOrder, setInvoiceOrder] = useState<OrderWithProfile | null>(null);
 
   const [shipmentMap, setShipmentMap] = useState<Record<string, any>>({});
 
@@ -120,6 +122,7 @@ export default function AdminOrders() {
       tracking_number: order.tracking_number || "",
       shipping_charges: order.shipping_charges || 0,
       commission: order.commission || 0,
+      domestic_courier_charge: (order as any).domestic_courier_charge || 0,
       notes: order.notes || "",
     });
   };
@@ -132,9 +135,10 @@ export default function AdminOrders() {
         ...editValues,
         shipping_charges: Number(editValues.shipping_charges) || 0,
         commission: Number(editValues.commission) || 0,
+        domestic_courier_charge: Number(editValues.domestic_courier_charge) || 0,
         quantity: Number(editValues.quantity) || 1,
       };
-      const { error } = await supabase.from("orders").update(updates).eq("id", editOrder.id);
+      const { error } = await supabase.from("orders").update(updates as any).eq("id", editOrder.id);
       if (error) throw error;
       toast({ title: "Order updated successfully" });
       setEditOrder(null);
@@ -229,7 +233,7 @@ export default function AdminOrders() {
   }, {} as Record<string, number>);
 
   const grandTotal = (order: OrderWithProfile) =>
-    Number(order.total_price) + Number(order.shipping_charges || 0) + Number(order.commission || 0);
+    Number(order.total_price) + Number(order.shipping_charges || 0) + Number(order.commission || 0) + Number((order as any).domestic_courier_charge || 0);
 
   return (
     <div className="space-y-6">
@@ -356,6 +360,10 @@ export default function AdminOrders() {
                       <span>৳{Number(order.total_price).toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
+                      <span className="text-muted-foreground">Domestic Courier</span>
+                      <span>৳{Number((order as any).domestic_courier_charge || 0).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
                       <span className="text-muted-foreground">Shipping</span>
                       <span>৳{Number(order.shipping_charges || 0).toFixed(2)}</span>
                     </div>
@@ -430,7 +438,10 @@ export default function AdminOrders() {
                       <Calendar className="h-3 w-3" />
                       {new Date(order.created_at).toLocaleDateString()}
                     </div>
-                    <div className="flex gap-1">
+                     <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setInvoiceOrder(order)} title="Invoice">
+                        <FileText className="h-3.5 w-3.5 text-primary" />
+                      </Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(order)}>
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
@@ -498,6 +509,7 @@ export default function AdminOrders() {
               { key: "tracking_number", label: "Tracking Number", type: "text" },
               { key: "shipping_charges", label: "Shipping Charges (৳)", type: "number" },
               { key: "commission", label: "Commission (৳)", type: "number" },
+              { key: "domestic_courier_charge", label: "Domestic Courier Charge (৳)", type: "number" },
               { key: "notes", label: "Notes", type: "text" },
             ].map((field) => (
               <div key={field.key}>
@@ -528,6 +540,12 @@ export default function AdminOrders() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Invoice Dialog */}
+      <OrderInvoice
+        order={invoiceOrder}
+        open={!!invoiceOrder}
+        onOpenChange={(open) => { if (!open) setInvoiceOrder(null); }}
+      />
     </div>
   );
 }

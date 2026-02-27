@@ -156,6 +156,7 @@ export type Database = {
         Row: {
           commission: number | null
           created_at: string
+          domestic_courier_charge: number | null
           id: string
           notes: string | null
           order_number: string
@@ -178,6 +179,7 @@ export type Database = {
         Insert: {
           commission?: number | null
           created_at?: string
+          domestic_courier_charge?: number | null
           id?: string
           notes?: string | null
           order_number: string
@@ -200,6 +202,7 @@ export type Database = {
         Update: {
           commission?: number | null
           created_at?: string
+          domestic_courier_charge?: number | null
           id?: string
           notes?: string | null
           order_number?: string
