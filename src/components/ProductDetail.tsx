@@ -331,7 +331,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
 
       {/* ===== Main 3-Column Content ===== */}
       <div className="mx-auto px-2 sm:px-3 max-w-[1600px] py-2">
-        <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr_320px] gap-3 lg:gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_320px] lg:grid-cols-[auto_1fr_320px] gap-3 lg:gap-4">
 
           {/* ===== COL 1: Vertical Thumbnails + Main Image ===== */}
           <div className="flex gap-3 lg:col-span-1">
@@ -364,7 +364,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
             </div>
 
             {/* Main Image */}
-            <div className="relative rounded-xl overflow-hidden bg-muted border shadow-sm w-full md:w-[480px] lg:w-[520px]">
+            <div className="relative rounded-xl overflow-hidden bg-muted border shadow-sm w-full max-w-[520px]">
               {showVideo && product.video ? (
                 <video src={product.video} controls autoPlay className="w-full aspect-square object-contain" />
               ) : (
@@ -389,7 +389,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
           </div>
 
           {/* Horizontal Thumbnails (mobile only) */}
-          <div className="flex md:hidden gap-2 overflow-x-auto pb-1 scrollbar-hide lg:col-span-3">
+          <div className="flex md:hidden gap-2 overflow-x-auto pb-1 scrollbar-hide col-span-full">
             {images.map((img, idx) => (
               <button
                 key={idx}
@@ -417,7 +417,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
           </div>
 
           {/* ===== COL 2: Product Info + Variants ===== */}
-          <div className="space-y-3 lg:col-span-1">
+          <div className="space-y-3 md:col-span-2 lg:col-span-1">
 
             {/* Service info */}
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -516,13 +516,14 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
               <div>
                 <h3 className="text-base font-bold mb-2">Specifications</h3>
                 <div className="border rounded-lg overflow-hidden">
-                  <table className="w-full text-sm">
+                  <div className="overflow-x-auto">
+                  <table className="w-full text-sm min-w-[400px]">
                     <thead>
                       <tr className="border-b bg-muted/50">
-                        <th className="text-left py-2.5 px-3 font-semibold">Variant</th>
-                        <th className="text-right py-2.5 px-3 font-semibold">Price</th>
-                        <th className="text-right py-2.5 px-3 font-semibold">Stock</th>
-                        <th className="text-center py-2.5 px-3 font-semibold">Quantity</th>
+                        <th className="text-left py-2.5 px-2 sm:px-3 font-semibold">Variant</th>
+                        <th className="text-right py-2.5 px-2 sm:px-3 font-semibold">Price</th>
+                        <th className="text-right py-2.5 px-2 sm:px-3 font-semibold">Stock</th>
+                        <th className="text-center py-2.5 px-2 sm:px-3 font-semibold">Quantity</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -563,6 +564,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                   </table>
                 </div>
               </div>
+              </div>
             )}
 
             {/* Prohibited Items Notice */}
@@ -590,7 +592,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
           </div>
 
           {/* ===== COL 3: Right Sidebar ===== */}
-          <div className="space-y-3 lg:sticky lg:top-4 lg:self-start">
+          <div className="space-y-3 md:col-span-2 lg:col-span-1 lg:sticky lg:top-4 lg:self-start">
 
             {/* Shipping Methods Card */}
             <Card className="shadow-sm overflow-hidden">
