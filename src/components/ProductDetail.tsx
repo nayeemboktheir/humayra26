@@ -522,6 +522,19 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
               </div>
             )}
 
+            {/* Prohibited Items Notice */}
+            <div className="flex gap-3 bg-destructive/5 border border-destructive/20 rounded-xl p-4">
+              <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-destructive text-sm mb-1">Prohibited Items</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Certain items are restricted or prohibited from import under Bangladesh customs law. Please review our{' '}
+                  <a href="/prohibited-items" className="text-primary hover:underline font-medium">prohibited items list</a>{' '}
+                  before placing an order. TradeOn.global is not liable for orders containing restricted goods.
+                </p>
+              </div>
+            </div>
+
             {/* If no variants, show price */}
             {!hasSkus && (
               <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 rounded-xl p-4">
