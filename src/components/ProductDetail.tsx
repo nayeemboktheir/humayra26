@@ -468,7 +468,59 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
               </div>
             )}
 
-            {/* Size/Quantity table removed — selection now in sidebar */}
+            {/* Specifications Table */}
+            {hasSkus && (
+              <div>
+                <h3 className="text-base font-bold mb-2">Specifications</h3>
+                <div className="border rounded-lg overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b bg-muted/50">
+                        <th className="text-left py-2.5 px-3 font-semibold">Variant</th>
+                        <th className="text-right py-2.5 px-3 font-semibold">Price</th>
+                        <th className="text-right py-2.5 px-3 font-semibold">Stock</th>
+                        <th className="text-center py-2.5 px-3 font-semibold">Quantity</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {product.configuredItems!.map((sku) => {
+                        const qty = skuQuantities[sku.id] || 0;
+                        return (
+                          <tr key={sku.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                            <td className="py-2.5 px-3">
+                              <div className="flex items-center gap-2.5">
+                                {sku.imageUrl && (
+                                  <img src={sku.imageUrl} alt="" referrerPolicy="no-referrer" className="w-10 h-10 rounded object-cover border flex-shrink-0"
+                                    onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
+                                )}
+                                <span className="font-medium line-clamp-2 text-xs sm:text-sm">{sku.title}</span>
+                              </div>
+                            </td>
+                            <td className="py-2.5 px-3 text-right font-semibold text-primary whitespace-nowrap">৳{convertToBDT(sku.price).toLocaleString()}</td>
+                            <td className="py-2.5 px-3 text-right text-muted-foreground whitespace-nowrap">{sku.stock}</td>
+                            <td className="py-2.5 px-3">
+                              <div className="flex items-center justify-center gap-0">
+                                <Button variant="outline" size="icon" className="h-7 w-7 rounded-l-md rounded-r-none border-r-0"
+                                  onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: Math.max(0, (prev[sku.id] || 0) - 1) }))}>
+                                  <Minus className="h-3 w-3" />
+                                </Button>
+                                <div className="h-7 w-8 border border-input flex items-center justify-center text-xs font-semibold tabular-nums bg-background">
+                                  {qty}
+                                </div>
+                                <Button variant="outline" size="icon" className="h-7 w-7 rounded-r-md rounded-l-none border-l-0"
+                                  onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: (prev[sku.id] || 0) + 1 }))}>
+                                  <Plus className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
             {/* If no variants, show price */}
             {!hasSkus && (
