@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -43,8 +43,51 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
   const [ordering, setOrdering] = useState(false);
   const [selectedSkuId, setSelectedSkuId] = useState<string | null>(null);
   const [shippingMethod, setShippingMethod] = useState<'air' | 'sea'>('air');
+  const [addingToWishlist, setAddingToWishlist] = useState(false);
+  const [isWishlisted, setIsWishlisted] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  const handleToggleWishlist = async () => {
+    if (!product) return;
+    if (!user) {
+      toast({ title: "Please login first", description: "You need to be logged in to add to wishlist.", variant: "destructive" });
+      navigate("/auth");
+      return;
+    }
+    setAddingToWishlist(true);
+    try {
+      if (isWishlisted) {
+        await supabase.from('wishlist').delete().eq('user_id', user.id).eq('product_id', String(product.num_iid));
+        setIsWishlisted(false);
+        toast({ title: "Removed from wishlist" });
+      } else {
+        await supabase.from('wishlist').insert({
+          user_id: user.id,
+          product_id: String(product.num_iid),
+          product_name: product.title,
+          product_image: product.pic_url,
+          product_price: convertToBDT(product.price),
+          product_url: `${window.location.origin}/?product=${product.num_iid}`,
+        });
+        setIsWishlisted(true);
+        toast({ title: "Added to wishlist!" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Something went wrong.", variant: "destructive" });
+    } finally {
+      setAddingToWishlist(false);
+    }
+  };
+
+  // Check if product is already in wishlist
+  useEffect(() => {
+    if (user && product) {
+      supabase.from('wishlist').select('id').eq('user_id', user.id).eq('product_id', String(product.num_iid)).maybeSingle().then(({ data }) => {
+        if (data) setIsWishlisted(true);
+      });
+    }
+  }, [user, product]);
 
   const downloadFile = async (url: string, filename: string) => {
     try {
@@ -723,8 +766,8 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
 
                   {/* Action Buttons */}
                   <div className="flex flex-wrap items-center gap-2 pt-1">
-                    <Button variant="outline" size="icon" className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl shrink-0">
-                      <Heart className="h-4 w-4 sm:h-5 sm:w-5" />
+                    <Button variant="outline" size="icon" className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl shrink-0" onClick={handleToggleWishlist} disabled={addingToWishlist}>
+                      <Heart className={`h-4 w-4 sm:h-5 sm:w-5 ${isWishlisted ? 'fill-destructive text-destructive' : ''}`} />
                     </Button>
                     <Button variant="outline" className="min-w-0 flex-1 basis-[calc(50%-2rem)] h-10 sm:h-11 rounded-xl font-semibold text-xs sm:text-sm px-2 sm:px-4" onClick={handleBuyNow} disabled={ordering}>
                       <ShoppingCart className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2 shrink-0" />
