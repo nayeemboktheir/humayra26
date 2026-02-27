@@ -1,22 +1,19 @@
 project_id = "kcihftfgmsrpcljsbjdj"
 
-[functions.firecrawl-scrape]
-verify_jwt = false
-
-[functions.firecrawl-search]
-verify_jwt = false
-
-[functions.firecrawl-map]
-verify_jwt = false
-
-[functions.alibaba-1688-search]
-verify_jwt = false
-
-[functions.alibaba-1688-item-get]
-verify_jwt = false
-
-[functions.alibaba-1688-image-search]
-verify_jwt = false
-
-[functions.alibaba-1688-cached-search]
-verify_jwt = false
+[functions]
+  [functions.alibaba-1688-cached-search]
+    verify_jwt = false
+  [functions.alibaba-1688-image-search]
+    verify_jwt = false
+  [functions.alibaba-1688-item-get]
+    verify_jwt = false
+  [functions.alibaba-1688-search]
+    verify_jwt = false
+  [functions.auth-email-hook]
+    verify_jwt = false
+  [functions.firecrawl-map]
+    verify_jwt = false
+  [functions.firecrawl-scrape]
+    verify_jwt = false
+  [functions.firecrawl-search]
+    verify_jwt = false
