@@ -541,32 +541,13 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
             {/* Shipping Methods Card */}
             <Card className="shadow-sm overflow-hidden">
               <CardContent className="p-0">
-                {/* By Air / By Sea toggle */}
-                <div className="grid grid-cols-2">
-                  <button
-                    onClick={() => setShippingMethod('air')}
-                    className={`flex flex-col items-center py-4 border-2 rounded-tl-lg transition-all ${
-                      shippingMethod === 'air'
-                        ? 'border-primary bg-primary/5'
-                        : 'border-transparent border-b-border hover:bg-muted/30'
-                    }`}
-                  >
-                    <Plane className={`h-6 w-6 mb-1.5 ${shippingMethod === 'air' ? 'text-primary' : 'text-muted-foreground'}`} />
-                    <span className={`text-sm font-bold ${shippingMethod === 'air' ? 'text-primary' : 'text-muted-foreground'}`}>By Air</span>
-                    <span className="text-xs text-muted-foreground mt-0.5">৳750/ ৳1150 Per Kg</span>
-                  </button>
-                  <button
-                    onClick={() => setShippingMethod('sea')}
-                    className={`flex flex-col items-center py-4 border-2 rounded-tr-lg transition-all ${
-                      shippingMethod === 'sea'
-                        ? 'border-primary bg-primary/5'
-                        : 'border-transparent border-b-border hover:bg-muted/30'
-                    }`}
-                  >
-                    <Anchor className={`h-6 w-6 mb-1.5 ${shippingMethod === 'sea' ? 'text-primary' : 'text-muted-foreground'}`} />
-                    <span className={`text-sm font-bold ${shippingMethod === 'sea' ? 'text-primary' : 'text-muted-foreground'}`}>By Sea</span>
-                    <span className="text-xs text-muted-foreground mt-0.5">৳170/ ৳400 Per Kg</span>
-                  </button>
+                {/* By Air only */}
+                <div className="flex items-center justify-center py-4 border-b border-border">
+                  <Plane className="h-6 w-6 mb-1.5 text-primary" />
+                  <div className="ml-2">
+                    <span className="text-sm font-bold text-primary">By Air</span>
+                    <span className="text-xs text-muted-foreground ml-2">৳750/ ৳1150 Per Kg</span>
+                  </div>
                 </div>
 
                 <div className="p-4 space-y-3">
