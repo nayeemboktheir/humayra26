@@ -526,11 +526,9 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
             <div className="flex gap-3 bg-destructive/5 border border-destructive/20 rounded-xl p-4">
               <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
               <div>
-                <p className="font-bold text-destructive text-sm mb-1">Prohibited Items</p>
+                <p className="font-bold text-destructive text-sm mb-1">আমাদের প্ল্যাটফর্মে কিছু পণ্যের ধরন অনুমোদিত নয়</p>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Certain items are restricted or prohibited from import under Bangladesh customs law. Please review our{' '}
-                  <a href="/prohibited-items" className="text-primary hover:underline font-medium">prohibited items list</a>{' '}
-                  before placing an order. TradeOn.global is not liable for orders containing restricted goods.
+                  নিষিদ্ধ পণ্যের মধ্যে অন্তর্ভুক্ত : সিগারেট, অ্যালকোহল, তামাক, ক্যানাবিস, জুয়া সামগ্রী, মাদকদ্রব্য, ড্রোন, ওষুধপত্র, মোবাইল, অস্ত্র, বিস্ফোরক, ঝুঁকিপূর্ণ রাসায়নিক পদার্থ, মানবদেহের অঙ্গ বা শরীরের তরল, প্রাপ্তবয়স্ক পণ্য, অশ্লীল পণ্য, প্রাণী নির্যাতনের সাথে সম্পর্কিত পণ্য, বিপন্ন প্রজাতি, ডিজিটাল মুদ্রা, বিনিয়োগ-সংক্রান্ত পণ্য, ঘৃণা ছড়ানো সামগ্রী, সহিংস পণ্য, আপত্তিকর পণ্য, খাদ্য আইটেম
                 </p>
               </div>
             </div>
