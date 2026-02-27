@@ -3,8 +3,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import EmptyState from "@/components/dashboard/EmptyState";
-import { Loader2 } from "lucide-react";
+import OrderInvoice from "@/components/OrderInvoice";
+import { Loader2, FileText } from "lucide-react";
 
 const statusColor: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-800",
@@ -18,6 +20,7 @@ const Orders = () => {
   const { user } = useAuth();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [invoiceOrder, setInvoiceOrder] = useState<any | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -31,7 +34,7 @@ const Orders = () => {
     <div>
       <h1 className="text-2xl font-bold mb-6">My Orders</h1>
       {orders.length === 0 ? <EmptyState /> : (
-        <div className="rounded-lg border">
+        <div className="rounded-lg border overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -41,6 +44,7 @@ const Orders = () => {
                 <TableHead>Total</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Date</TableHead>
+                <TableHead>Invoice</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -49,22 +53,33 @@ const Orders = () => {
                   <TableCell className="font-mono text-sm">{order.order_number}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      {order.product_image && <img src={order.product_image} alt="" className="h-10 w-10 rounded object-cover" />}
+                      {order.product_image && <img src={order.product_image} alt="" className="h-10 w-10 rounded object-cover" referrerPolicy="no-referrer" />}
                       <span className="line-clamp-2 text-sm">{order.product_name}</span>
                     </div>
                   </TableCell>
                   <TableCell>{order.quantity}</TableCell>
-                  <TableCell>৳{order.total_price}</TableCell>
+                  <TableCell>৳{Number(order.total_price).toLocaleString()}</TableCell>
                   <TableCell>
                     <Badge className={statusColor[order.status] || ""}>{order.status}</Badge>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{new Date(order.created_at).toLocaleDateString()}</TableCell>
+                  <TableCell>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setInvoiceOrder(order)}>
+                      <FileText className="h-4 w-4 text-primary" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </div>
       )}
+
+      <OrderInvoice
+        order={invoiceOrder}
+        open={!!invoiceOrder}
+        onOpenChange={(open) => { if (!open) setInvoiceOrder(null); }}
+      />
     </div>
   );
 };
