@@ -158,6 +158,7 @@ export type Database = {
           created_at: string
           domestic_courier_charge: number | null
           id: string
+          invoice_name: string | null
           notes: string | null
           order_number: string
           product_1688_id: string | null
@@ -181,6 +182,7 @@ export type Database = {
           created_at?: string
           domestic_courier_charge?: number | null
           id?: string
+          invoice_name?: string | null
           notes?: string | null
           order_number: string
           product_1688_id?: string | null
@@ -204,6 +206,7 @@ export type Database = {
           created_at?: string
           domestic_courier_charge?: number | null
           id?: string
+          invoice_name?: string | null
           notes?: string | null
           order_number?: string
           product_1688_id?: string | null
