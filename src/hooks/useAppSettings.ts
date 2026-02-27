@@ -21,6 +21,12 @@ const defaultSettings: AppSettings = {
   hero_badge_2: "✨ New Arrivals",
   hero_badge_3: "⭐ Best Sellers",
   cny_to_bdt_rate: "17.5",
+  invoice_company_name: "TradeOn.Global",
+  invoice_company_address: "House 16, Road 07, Nikunja-02, Dhaka, Bangladesh, 1229",
+  invoice_company_phone: "01898-889950",
+  invoice_company_email: "info@TradeOn.global",
+  invoice_company_website: "www.tradeon.global",
+  invoice_footer_text: "Thank you for shopping with TradeOn Global",
 };
 
 let cachedSettings: AppSettings | null = null;

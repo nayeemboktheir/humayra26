@@ -74,6 +74,7 @@ export default function AdminOrders() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkStatus, setBulkStatus] = useState("");
   const [invoiceOrder, setInvoiceOrder] = useState<OrderWithProfile | null>(null);
+  const [combinedInvoiceOrders, setCombinedInvoiceOrders] = useState<OrderWithProfile[]>([]);
 
   const [shipmentMap, setShipmentMap] = useState<Record<string, any>>({});
 
@@ -123,6 +124,7 @@ export default function AdminOrders() {
       shipping_charges: order.shipping_charges || 0,
       commission: order.commission || 0,
       domestic_courier_charge: (order as any).domestic_courier_charge || 0,
+      invoice_name: (order as any).invoice_name || "",
       notes: order.notes || "",
     });
   };
@@ -256,7 +258,7 @@ export default function AdminOrders() {
 
       {/* Bulk Actions Bar */}
       {selectedIds.size > 0 && (
-        <div className="flex items-center gap-3 p-3 rounded-lg border bg-primary/5">
+        <div className="flex flex-wrap items-center gap-3 p-3 rounded-lg border bg-primary/5">
           <span className="text-sm font-medium">{selectedIds.size} selected</span>
           <select value={bulkStatus} onChange={(e) => setBulkStatus(e.target.value)} className="text-sm border rounded px-2 py-1 bg-background">
             <option value="">Change status...</option>
@@ -267,6 +269,13 @@ export default function AdminOrders() {
           </select>
           <Button size="sm" disabled={!bulkStatus || saving} onClick={handleBulkStatusUpdate}>
             {saving ? "Updating..." : "Apply"}
+          </Button>
+          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => {
+            const selectedOrders = filtered.filter(o => selectedIds.has(o.id));
+            if (selectedOrders.length === 0) return;
+            setCombinedInvoiceOrders(selectedOrders);
+          }}>
+            <FileText className="h-3.5 w-3.5" /> Combined Invoice
           </Button>
           <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>Clear</Button>
         </div>
@@ -510,6 +519,7 @@ export default function AdminOrders() {
               { key: "shipping_charges", label: "Shipping Charges (৳)", type: "number" },
               { key: "commission", label: "Commission (৳)", type: "number" },
               { key: "domestic_courier_charge", label: "Domestic Courier Charge (৳)", type: "number" },
+              { key: "invoice_name", label: "Invoice Name / Label", type: "text" },
               { key: "notes", label: "Notes", type: "text" },
             ].map((field) => (
               <div key={field.key}>
@@ -545,6 +555,12 @@ export default function AdminOrders() {
         order={invoiceOrder}
         open={!!invoiceOrder}
         onOpenChange={(open) => { if (!open) setInvoiceOrder(null); }}
+      />
+      {/* Combined Invoice Dialog */}
+      <OrderInvoice
+        orders={combinedInvoiceOrders}
+        open={combinedInvoiceOrders.length > 0}
+        onOpenChange={(open) => { if (!open) setCombinedInvoiceOrders([]); }}
       />
     </div>
   );

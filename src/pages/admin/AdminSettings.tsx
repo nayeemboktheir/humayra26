@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
-import { Settings, DollarSign, RefreshCw, Loader2, Save, CheckCircle, Globe, Image, MessageSquare, Phone, Mail, MapPin, Search, Type, Send } from "lucide-react";
+import { Settings, DollarSign, RefreshCw, Loader2, Save, CheckCircle, Globe, Image, MessageSquare, Phone, Mail, MapPin, Search, Type, Send, FileText } from "lucide-react";
 
 type SettingsMap = Record<string, string>;
 
@@ -30,6 +30,12 @@ const settingsKeys = [
   "hero_badge_3",
   "email_sender_name",
   "email_sender_address",
+  "invoice_company_name",
+  "invoice_company_address",
+  "invoice_company_phone",
+  "invoice_company_email",
+  "invoice_company_website",
+  "invoice_footer_text",
 ];
 
 export default function AdminSettings() {
@@ -258,6 +264,44 @@ export default function AdminSettings() {
           <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 text-sm">
             <CheckCircle className="h-4 w-4 text-emerald-500 shrink-0" />
             <span>RESEND_API_KEY is securely stored as a backend secret.</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Invoice Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <FileText className="h-5 w-5 text-primary" /> Invoice Settings
+          </CardTitle>
+          <CardDescription>Customize invoice branding, company details, and footer text.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label>Company Name</Label>
+            <Input value={settings.invoice_company_name || ""} onChange={(e) => update("invoice_company_name", e.target.value)} placeholder="TradeOn.Global" />
+          </div>
+          <div>
+            <Label>Company Address</Label>
+            <Input value={settings.invoice_company_address || ""} onChange={(e) => update("invoice_company_address", e.target.value)} placeholder="House 16, Road 07, Nikunja-02, Dhaka" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Label>Company Phone</Label>
+              <Input value={settings.invoice_company_phone || ""} onChange={(e) => update("invoice_company_phone", e.target.value)} placeholder="01898-889950" />
+            </div>
+            <div>
+              <Label>Company Email</Label>
+              <Input value={settings.invoice_company_email || ""} onChange={(e) => update("invoice_company_email", e.target.value)} placeholder="info@tradeon.global" />
+            </div>
+          </div>
+          <div>
+            <Label>Company Website</Label>
+            <Input value={settings.invoice_company_website || ""} onChange={(e) => update("invoice_company_website", e.target.value)} placeholder="www.tradeon.global" />
+          </div>
+          <div>
+            <Label>Invoice Footer Text</Label>
+            <Input value={settings.invoice_footer_text || ""} onChange={(e) => update("invoice_footer_text", e.target.value)} placeholder="Thank you for shopping with us!" />
           </div>
         </CardContent>
       </Card>
