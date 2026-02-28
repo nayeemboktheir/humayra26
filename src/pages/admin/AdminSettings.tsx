@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
-import { Settings, DollarSign, RefreshCw, Loader2, Save, CheckCircle, Globe, Image, MessageSquare, Phone, Mail, MapPin, Search, Type, Send, FileText } from "lucide-react";
+import { Settings, DollarSign, RefreshCw, Loader2, Save, CheckCircle, Globe, Image, MessageSquare, Phone, Mail, MapPin, Search, Type, Send, FileText, Footprints } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 
 type SettingsMap = Record<string, string>;
 
@@ -36,6 +37,11 @@ const settingsKeys = [
   "invoice_company_email",
   "invoice_company_website",
   "invoice_footer_text",
+  "footer_copyright_text",
+  "footer_developer_name",
+  "footer_developer_url",
+  "footer_prohibited_title",
+  "footer_prohibited_text",
 ];
 
 export default function AdminSettings() {
@@ -204,43 +210,6 @@ export default function AdminSettings() {
         </CardContent>
       </Card>
 
-      {/* Social & Contact */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Globe className="h-5 w-5 text-orange-500" /> Social Links & Contact
-          </CardTitle>
-          <CardDescription>Social media links, WhatsApp, and contact information shown in the footer.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <Label className="flex items-center gap-1"><Globe className="h-3 w-3" /> Facebook URL</Label>
-              <Input value={settings.facebook_url || ""} onChange={(e) => update("facebook_url", e.target.value)} placeholder="https://facebook.com/..." />
-            </div>
-            <div>
-              <Label className="flex items-center gap-1"><Globe className="h-3 w-3" /> YouTube URL</Label>
-              <Input value={settings.youtube_url || ""} onChange={(e) => update("youtube_url", e.target.value)} placeholder="https://youtube.com/..." />
-            </div>
-          </div>
-          <div>
-            <Label className="flex items-center gap-1"><Phone className="h-3 w-3" /> WhatsApp Number</Label>
-            <Input value={settings.whatsapp_number || ""} onChange={(e) => update("whatsapp_number", e.target.value)} placeholder="01898889950" />
-          </div>
-          <div>
-            <Label className="flex items-center gap-1"><Mail className="h-3 w-3" /> Contact Email</Label>
-            <Input value={settings.contact_email || ""} onChange={(e) => update("contact_email", e.target.value)} placeholder="info@TradeOn.global" />
-          </div>
-          <div>
-            <Label className="flex items-center gap-1"><Phone className="h-3 w-3" /> Contact Phone</Label>
-            <Input value={settings.contact_phone || ""} onChange={(e) => update("contact_phone", e.target.value)} placeholder="01898-889950" />
-          </div>
-          <div>
-            <Label className="flex items-center gap-1"><MapPin className="h-3 w-3" /> Head Office Address</Label>
-            <Input value={settings.head_office_address || ""} onChange={(e) => update("head_office_address", e.target.value)} placeholder="House 16, Road 07..." />
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Email Marketing */}
       <Card>
@@ -264,6 +233,86 @@ export default function AdminSettings() {
           <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 text-sm">
             <CheckCircle className="h-4 w-4 text-emerald-500 shrink-0" />
             <span>RESEND_API_KEY is securely stored as a backend secret.</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Footer Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Footprints className="h-5 w-5 text-teal-500" /> Footer Settings
+          </CardTitle>
+          <CardDescription>Customize footer content including social links, copyright, developer credit, and prohibited items notice.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Social Media Links</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Label className="flex items-center gap-1"><Globe className="h-3 w-3" /> Facebook URL</Label>
+              <Input value={settings.facebook_url || ""} onChange={(e) => update("facebook_url", e.target.value)} placeholder="https://facebook.com/..." />
+            </div>
+            <div>
+              <Label className="flex items-center gap-1"><Globe className="h-3 w-3" /> YouTube URL</Label>
+              <Input value={settings.youtube_url || ""} onChange={(e) => update("youtube_url", e.target.value)} placeholder="https://youtube.com/..." />
+            </div>
+          </div>
+          <div>
+            <Label className="flex items-center gap-1"><Phone className="h-3 w-3" /> WhatsApp Number</Label>
+            <Input value={settings.whatsapp_number || ""} onChange={(e) => update("whatsapp_number", e.target.value)} placeholder="01898889950" />
+          </div>
+
+          <div className="border-t pt-4 mt-2">
+            <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide mb-3">Contact Information</h4>
+            <div className="space-y-4">
+              <div>
+                <Label className="flex items-center gap-1"><Mail className="h-3 w-3" /> Contact Email</Label>
+                <Input value={settings.contact_email || ""} onChange={(e) => update("contact_email", e.target.value)} placeholder="info@TradeOn.global" />
+              </div>
+              <div>
+                <Label className="flex items-center gap-1"><Phone className="h-3 w-3" /> Contact Phone</Label>
+                <Input value={settings.contact_phone || ""} onChange={(e) => update("contact_phone", e.target.value)} placeholder="01898-889950" />
+              </div>
+              <div>
+                <Label className="flex items-center gap-1"><MapPin className="h-3 w-3" /> Head Office Address</Label>
+                <Input value={settings.head_office_address || ""} onChange={(e) => update("head_office_address", e.target.value)} placeholder="House 16, Road 07..." />
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t pt-4 mt-2">
+            <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide mb-3">Copyright & Developer Credit</h4>
+            <div className="space-y-4">
+              <div>
+                <Label>Copyright Text</Label>
+                <Input value={settings.footer_copyright_text || ""} onChange={(e) => update("footer_copyright_text", e.target.value)} placeholder="tradeon.global - Wholesale from China to Bangladesh" />
+                <p className="text-xs text-muted-foreground mt-1">Shown as "© 2026 [your text]" in the footer.</p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label>Developer Name</Label>
+                  <Input value={settings.footer_developer_name || ""} onChange={(e) => update("footer_developer_name", e.target.value)} placeholder="Platiroll" />
+                </div>
+                <div>
+                  <Label>Developer Website URL</Label>
+                  <Input value={settings.footer_developer_url || ""} onChange={(e) => update("footer_developer_url", e.target.value)} placeholder="https://platiroll.com/" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t pt-4 mt-2">
+            <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide mb-3">Prohibited Items Notice</h4>
+            <div className="space-y-4">
+              <div>
+                <Label>Notice Title (Bengali)</Label>
+                <Input value={settings.footer_prohibited_title || ""} onChange={(e) => update("footer_prohibited_title", e.target.value)} placeholder="যে পণ্যগুলো TradeOn-এ অর্ডার করা যাবে না" />
+              </div>
+              <div>
+                <Label>Notice Text (Bengali)</Label>
+                <Textarea value={settings.footer_prohibited_text || ""} onChange={(e) => update("footer_prohibited_text", e.target.value)} placeholder="সিগারেট, অ্যালকোহল, তামাক..." rows={4} />
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
