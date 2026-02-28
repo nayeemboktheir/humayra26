@@ -94,13 +94,13 @@ const topCategories = [
 
 // Hardcoded fallback trending products
 const fallbackTrendingProducts = [
-  { id: "abb-189535847655", title: "Metal Stainless Steel Compass Set for Students", image: "https://cbu01.alicdn.com/img/ibank/O1CN01hcgHP51nIHYLPqiTh_!!2220460965066-0-cib.310x310.jpg", price: 74, oldPrice: 76, sold: 8432108 },
-  { id: "abb-905114125851", title: "Original Cartoon Shoulder Bag Large Capacity Canvas", image: "https://cbu01.alicdn.com/img/ibank/O1CN01s5Oil52Eh0WsZp8Mm_!!2214657758775-0-cib.310x310.jpg", price: 91, oldPrice: 94, sold: 3982769 },
-  { id: "abb-172982973149", title: "Deli Sf568 Posture-Correcting Student Fountain Pen Set", image: "https://cbu01.alicdn.com/img/ibank/O1CN01vN7RGZ1VXFOqHBYqJ_!!2219976542662-0-cib.310x310.jpg", price: 66, oldPrice: 68, sold: 1254653 },
-  { id: "abb-113853719837", title: "Deli Ss005 Turbo Warrior Gel Pen Quick-Drying", image: "https://cbu01.alicdn.com/img/ibank/O1CN01VqLzZj2EZDqRlf3do_!!2214183158758-0-cib.310x310.jpg", price: 69, oldPrice: 71, sold: 8070966 },
-  { id: "abb-189347214600", title: "Blue Fruit Handbook Pen Morandi Color Series 9-Piece Set", image: "https://cbu01.alicdn.com/img/ibank/O1CN01mFUfmw2Kue38hmDqQ_!!2220432529617-0-cib.310x310.jpg", price: 68, oldPrice: 70, sold: 4342616 },
-  { id: "abb-104449903717", title: "New Creative Aircraft Gel Pen Military Weapon Fighter", image: "https://cbu01.alicdn.com/img/ibank/O1CN01eEHP4f1egFOeIzs0x_!!2208127063900-0-cib.310x310.jpg", price: 70, oldPrice: 72, sold: 4982215 },
-  { id: "abb-868362523543", title: "Travel to Beautiful China 30 Postcards Night Scenery", image: "https://cbu01.alicdn.com/img/ibank/O1CN01Ti6Bv71FKqRCoR1mD_!!2458430469-0-cib.310x310.jpg", price: 95, oldPrice: 98, sold: 2326810 },
+  { id: "abb-189535847655", title: "Metal Stainless Steel Compass Set for Students", image: "https://cbu01.alicdn.com/img/ibank/O1CN01hcgHP51nIHYLPqiTh_!!2220460965066-0-cib.jpg", price: 74, oldPrice: 76, sold: 8432108 },
+  { id: "abb-905114125851", title: "Original Cartoon Shoulder Bag Large Capacity Canvas", image: "https://cbu01.alicdn.com/img/ibank/O1CN01s5Oil52Eh0WsZp8Mm_!!2214657758775-0-cib.jpg", price: 91, oldPrice: 94, sold: 3982769 },
+  { id: "abb-172982973149", title: "Deli Sf568 Posture-Correcting Student Fountain Pen Set", image: "https://cbu01.alicdn.com/img/ibank/O1CN01vN7RGZ1VXFOqHBYqJ_!!2219976542662-0-cib.jpg", price: 66, oldPrice: 68, sold: 1254653 },
+  { id: "abb-113853719837", title: "Deli Ss005 Turbo Warrior Gel Pen Quick-Drying", image: "https://cbu01.alicdn.com/img/ibank/O1CN01VqLzZj2EZDqRlf3do_!!2214183158758-0-cib.jpg", price: 69, oldPrice: 71, sold: 8070966 },
+  { id: "abb-189347214600", title: "Blue Fruit Handbook Pen Morandi Color Series 9-Piece Set", image: "https://cbu01.alicdn.com/img/ibank/O1CN01mFUfmw2Kue38hmDqQ_!!2220432529617-0-cib.jpg", price: 68, oldPrice: 70, sold: 4342616 },
+  { id: "abb-104449903717", title: "New Creative Aircraft Gel Pen Military Weapon Fighter", image: "https://cbu01.alicdn.com/img/ibank/O1CN01eEHP4f1egFOeIzs0x_!!2208127063900-0-cib.jpg", price: 70, oldPrice: 72, sold: 4982215 },
+  { id: "abb-868362523543", title: "Travel to Beautiful China 30 Postcards Night Scenery", image: "https://cbu01.alicdn.com/img/ibank/O1CN01Ti6Bv71FKqRCoR1mD_!!2458430469-0-cib.jpg", price: 95, oldPrice: 98, sold: 2326810 },
 ];
 
 // Module-level session cache — survives component unmount/remount within the SPA session
@@ -1247,7 +1247,6 @@ const Index = () => {
                         src={product.image}
                         alt={product.title}
                         referrerPolicy="no-referrer"
-                        loading="lazy"
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
                       />
