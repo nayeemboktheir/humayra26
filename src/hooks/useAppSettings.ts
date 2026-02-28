@@ -32,6 +32,16 @@ const defaultSettings: AppSettings = {
   invoice_company_email: "info@TradeOn.global",
   invoice_company_website: "www.tradeon.global",
   invoice_footer_text: "Thank you for shopping with TradeOn Global",
+  // Marketing
+  meta_pixel_id: "",
+  meta_pixel_enabled: "false",
+  meta_capi_token: "",
+  meta_capi_enabled: "false",
+  meta_test_event_code: "",
+  tiktok_pixel_id: "",
+  tiktok_pixel_enabled: "false",
+  google_analytics_id: "",
+  google_analytics_enabled: "false",
 };
 
 let cachedSettings: AppSettings | null = null;
