@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
-import { Settings, DollarSign, RefreshCw, Loader2, Save, CheckCircle, Globe, Image, Phone, Mail, MapPin, Type, Send, FileText, Footprints, BarChart3, Eye, EyeOff, Megaphone } from "lucide-react";
+import { Settings, DollarSign, RefreshCw, Loader2, Save, CheckCircle, Globe, Image, Phone, Mail, MapPin, Type, Send, FileText, Footprints } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 
 type SettingsMap = Record<string, string>;
@@ -21,16 +21,12 @@ const settingsKeys = [
   "invoice_company_email", "invoice_company_website", "invoice_footer_text",
   "footer_copyright_text", "footer_developer_name", "footer_developer_url",
   "footer_prohibited_title", "footer_prohibited_text",
-  "meta_pixel_id", "meta_pixel_enabled", "meta_capi_token", "meta_capi_enabled",
-  "meta_test_event_code", "tiktok_pixel_id", "tiktok_pixel_enabled",
-  "google_analytics_id", "google_analytics_enabled",
 ];
 
 const tabs = [
   { id: "branding", label: "Branding", icon: Type },
   { id: "hero", label: "Hero", icon: Image },
   { id: "footer", label: "Footer", icon: Footprints },
-  { id: "marketing", label: "Marketing", icon: Megaphone },
   { id: "currency", label: "Currency", icon: DollarSign },
   { id: "email", label: "Email", icon: Send },
   { id: "invoice", label: "Invoice", icon: FileText },
@@ -57,7 +53,7 @@ export default function AdminSettings() {
   const [saving, setSaving] = useState(false);
   const [fetchingRate, setFetchingRate] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>("branding");
-  const [showCapiToken, setShowCapiToken] = useState(false);
+  
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -228,137 +224,6 @@ export default function AdminSettings() {
                   <Textarea value={settings.footer_prohibited_text || ""} onChange={(e) => update("footer_prohibited_text", e.target.value)} placeholder="সিগারেট, অ্যালকোহল..." rows={3} className="text-sm" />
                 </Field>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Marketing */}
-      {activeTab === "marketing" && (
-        <div className="space-y-5">
-          {/* Meta Pixel */}
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2 text-sm"><BarChart3 className="h-4 w-4 text-blue-600" /> Meta Pixel (Facebook Pixel)</CardTitle>
-                  <p className="text-xs text-muted-foreground mt-1">Track website visitors and their actions for Meta/Facebook Ads</p>
-                </div>
-                <Switch checked={settings.meta_pixel_enabled === "true"} onCheckedChange={() => toggle("meta_pixel_enabled")} />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 gap-y-3">
-                <Field label="Meta Pixel ID" hint="Find your Pixel ID in Meta Events Manager → Data Sources → Your Pixel">
-                  {inp("meta_pixel_id", "1105096634875101")}
-                </Field>
-              </div>
-              {settings.meta_pixel_enabled === "true" && settings.meta_pixel_id && (
-                <div className="flex items-center gap-2 mt-3 p-2.5 rounded-md bg-emerald-50 dark:bg-emerald-950/30 text-xs text-emerald-700 dark:text-emerald-400">
-                  <CheckCircle className="h-3.5 w-3.5 shrink-0" />
-                  <span>Pixel will track: PageView, ViewContent, AddToCart, InitiateCheckout, Purchase</span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Conversion API */}
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2 text-sm"><FileText className="h-4 w-4 text-blue-600" /> Conversion API (CAPI)</CardTitle>
-                  <p className="text-xs text-muted-foreground mt-1">Server-side tracking for better data accuracy and privacy compliance</p>
-                </div>
-                <Switch checked={settings.meta_capi_enabled === "true"} onCheckedChange={() => toggle("meta_capi_enabled")} />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 gap-y-3">
-                <Field label="Access Token" hint="Generate a token in Events Manager → Settings → Conversions API">
-                  <div className="relative">
-                    <Input
-                      type={showCapiToken ? "text" : "password"}
-                      value={settings.meta_capi_token || ""}
-                      onChange={(e) => update("meta_capi_token", e.target.value)}
-                      placeholder="EAAxxxxxxxxx..."
-                      className="h-9 text-sm pr-10"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowCapiToken(!showCapiToken)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    >
-                      {showCapiToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </Field>
-                <Field label="Test Event Code (Optional)" hint="Use this to test events in Events Manager before going live">
-                  {inp("meta_test_event_code", "TEST10922")}
-                </Field>
-              </div>
-              {settings.meta_capi_enabled === "true" && settings.meta_capi_token && (
-                <div className="mt-3 p-2.5 rounded-md bg-emerald-50 dark:bg-emerald-950/30 text-xs text-emerald-700 dark:text-emerald-400 space-y-1">
-                  <div className="flex items-center gap-2 font-medium"><CheckCircle className="h-3.5 w-3.5 shrink-0" /> Server-Side Tracking Active</div>
-                  <ul className="list-disc list-inside ml-5 space-y-0.5">
-                    <li>InitiateCheckout - When users start checkout</li>
-                    <li>Purchase - Order completion with full customer data</li>
-                    <li>Includes: Phone, Name, IP, User Agent, Meta ClickID (fbc), Browser ID (fbp)</li>
-                  </ul>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* TikTok Pixel */}
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2 text-sm"><BarChart3 className="h-4 w-4 text-foreground" /> TikTok Pixel</CardTitle>
-                  <p className="text-xs text-muted-foreground mt-1">Track website visitors for TikTok Ads campaigns</p>
-                </div>
-                <Switch checked={settings.tiktok_pixel_enabled === "true"} onCheckedChange={() => toggle("tiktok_pixel_enabled")} />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 gap-y-3">
-                <Field label="TikTok Pixel ID" hint="Find your Pixel ID in TikTok Ads Manager → Assets → Events">
-                  {inp("tiktok_pixel_id", "CxxxxxxxxxxxxxxxxP")}
-                </Field>
-              </div>
-              {settings.tiktok_pixel_enabled === "true" && settings.tiktok_pixel_id && (
-                <div className="flex items-center gap-2 mt-3 p-2.5 rounded-md bg-emerald-50 dark:bg-emerald-950/30 text-xs text-emerald-700 dark:text-emerald-400">
-                  <CheckCircle className="h-3.5 w-3.5 shrink-0" />
-                  <span>TikTok Pixel will track: PageView, ViewContent, AddToCart, PlaceAnOrder</span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Google Analytics */}
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2 text-sm"><BarChart3 className="h-4 w-4 text-primary" /> Google Analytics</CardTitle>
-                  <p className="text-xs text-muted-foreground mt-1">Track website traffic and user behavior with Google Analytics 4</p>
-                </div>
-                <Switch checked={settings.google_analytics_enabled === "true"} onCheckedChange={() => toggle("google_analytics_enabled")} />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 gap-y-3">
-                <Field label="Measurement ID" hint="Find your ID in Google Analytics → Admin → Data Streams → Your Stream">
-                  {inp("google_analytics_id", "G-XXXXXXXXXX")}
-                </Field>
-              </div>
-              {settings.google_analytics_enabled === "true" && settings.google_analytics_id && (
-                <div className="flex items-center gap-2 mt-3 p-2.5 rounded-md bg-emerald-50 dark:bg-emerald-950/30 text-xs text-emerald-700 dark:text-emerald-400">
-                  <CheckCircle className="h-3.5 w-3.5 shrink-0" />
-                  <span>GA4 is active and tracking page views automatically</span>
-                </div>
-              )}
             </CardContent>
           </Card>
         </div>
