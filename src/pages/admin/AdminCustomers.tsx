@@ -8,10 +8,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Search, Phone, MapPin, ShoppingCart, Wallet, Calendar,
-  Mail, UserCircle, Package, ArrowUpRight, ImageIcon, Hash, ExternalLink, FileText
+  Mail, UserCircle, Package, ArrowUpRight, ImageIcon, Hash, ExternalLink, FileText, Pencil, Check, X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import OrderInvoice from "@/components/OrderInvoice";
+import { toast } from "@/hooks/use-toast";
 
 interface CustomerData {
   user_id: string;
@@ -56,6 +57,10 @@ export default function AdminCustomers() {
   const [invoiceOrder, setInvoiceOrder] = useState<OrderItem | null>(null);
   const [combinedInvoiceOrders, setCombinedInvoiceOrders] = useState<any[]>([]);
   const [statusFilterOrders, setStatusFilterOrders] = useState("all");
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [editPhone, setEditPhone] = useState("");
+  const [editAddress, setEditAddress] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
   useEffect(() => {
     const fetchCustomers = async () => {
       setLoading(true);
@@ -268,7 +273,7 @@ export default function AdminCustomers() {
       )}
 
       {/* Customer Detail Dialog */}
-      <Dialog open={!!selected} onOpenChange={() => setSelected(null)}>
+      <Dialog open={!!selected} onOpenChange={(open) => { if (!open) { setSelected(null); setEditingProfile(false); } }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Customer Details</DialogTitle>
@@ -288,14 +293,53 @@ export default function AdminCustomers() {
               </div>
 
               <div className="space-y-3 text-sm">
-                <div className="flex items-center gap-3">
-                  <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                  <span>{selected.phone || "Not set"}</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                  <span className="line-clamp-2">{selected.address || "Not set"}</span>
-                </div>
+                {editingProfile ? (
+                  <>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5"><Phone className="h-3.5 w-3.5" /> Phone</label>
+                      <Input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="Phone number" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> Address</label>
+                      <Input value={editAddress} onChange={(e) => setEditAddress(e.target.value)} placeholder="Address" />
+                    </div>
+                    <div className="flex gap-2 pt-1">
+                      <Button size="sm" className="flex-1 gap-1.5" disabled={savingProfile} onClick={async () => {
+                        setSavingProfile(true);
+                        const { error } = await supabase.from("profiles").update({ phone: editPhone || null, address: editAddress || null }).eq("user_id", selected.user_id);
+                        setSavingProfile(false);
+                        if (error) { toast({ title: "Update failed", description: error.message, variant: "destructive" }); return; }
+                        setCustomers((prev) => prev.map((c) => c.user_id === selected.user_id ? { ...c, phone: editPhone || null, address: editAddress || null } : c));
+                        setSelected({ ...selected, phone: editPhone || null, address: editAddress || null });
+                        setEditingProfile(false);
+                        toast({ title: "Updated", description: "Customer profile updated." });
+                      }}>
+                        <Check className="h-3.5 w-3.5" /> Save
+                      </Button>
+                      <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setEditingProfile(false)}>
+                        <X className="h-3.5 w-3.5" /> Cancel
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-3">
+                      <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <span>{selected.phone || "Not set"}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <span className="line-clamp-2">{selected.address || "Not set"}</span>
+                    </div>
+                    <Button size="sm" variant="outline" className="w-full gap-1.5 mt-1" onClick={() => {
+                      setEditPhone(selected.phone || "");
+                      setEditAddress(selected.address || "");
+                      setEditingProfile(true);
+                    }}>
+                      <Pencil className="h-3.5 w-3.5" /> Edit Phone & Address
+                    </Button>
+                  </>
+                )}
                 <div className="flex items-center gap-3">
                   <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                   <span>Joined {new Date(selected.created_at).toLocaleDateString()}</span>
