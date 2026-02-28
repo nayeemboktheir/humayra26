@@ -133,29 +133,31 @@ function buildInvoiceHTML(orders: OrderData[], settings: Record<string, string>)
 
   // Clean invoice (no greetings)
   return `<div style="max-width:780px;margin:0 auto;">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:20px;margin-bottom:24px;border-bottom:3px solid ${ACCENT};">
-      <div>
-        <div style="font-size:26px;font-weight:800;letter-spacing:-0.5px;">${companyName}</div>
-        <div style="font-size:11px;color:#6b7280;line-height:1.7;margin-top:6px;">
-          ${companyAddress ? `<div>${companyAddress}</div>` : ""}
-          <div>${[companyPhone, companyEmail].filter(Boolean).join(" | ")}</div>
-          <div>${companyWebsite}</div>
-        </div>
-      </div>
-      <div style="text-align:right;">
-        <div style="font-size:28px;font-weight:800;color:${ACCENT};letter-spacing:3px;">INVOICE</div>
-        <div style="font-size:12px;color:#6b7280;margin-top:6px;line-height:1.8;">
-          <div style="font-weight:700;color:#1a1a2e;font-size:14px;">#${invoiceNumber}</div>
-          <div>Date: ${invoiceDate}</div>
-          ${invoiceName ? `<div style="font-weight:600;color:#1a1a2e;margin-top:2px;">${invoiceName}</div>` : ""}
-        </div>
-      </div>
+    <div style="padding-bottom:20px;margin-bottom:24px;border-bottom:3px solid ${ACCENT};">
+      <table style="width:100%;border-collapse:collapse;"><tr>
+        <td style="vertical-align:top;">
+          <div style="font-size:26px;font-weight:800;letter-spacing:-0.5px;">${companyName}</div>
+          <div style="font-size:11px;color:#6b7280;line-height:1.7;margin-top:6px;">
+            ${companyAddress ? `<div>${companyAddress}</div>` : ""}
+            <div>${[companyPhone, companyEmail].filter(Boolean).join(" | ")}</div>
+            <div>${companyWebsite}</div>
+          </div>
+        </td>
+        <td style="vertical-align:top;text-align:right;">
+          <div style="font-size:28px;font-weight:800;color:${ACCENT};letter-spacing:3px;">INVOICE</div>
+          <div style="font-size:12px;color:#6b7280;margin-top:6px;line-height:1.8;">
+            <div style="font-weight:700;color:#1a1a2e;font-size:14px;">#${invoiceNumber}</div>
+            <div>Date: ${invoiceDate}</div>
+            ${invoiceName ? `<div style="font-weight:600;color:#1a1a2e;margin-top:2px;">${invoiceName}</div>` : ""}
+          </div>
+        </td>
+      </tr></table>
     </div>
     ${profile ? `<div style="margin-bottom:24px;padding:16px 20px;background:#f8fafc;border-radius:8px;border-left:4px solid ${ACCENT};">
       <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:${ACCENT};margin-bottom:6px;">Bill To</div>
       <div style="font-size:15px;font-weight:700;margin-bottom:2px;">${profile.full_name || "—"}</div>
-      ${profile.phone ? `<div style="font-size:12px;color:#6b7280;">${profile.phone}</div>` : ""}
-      ${profile.address ? `<div style="font-size:12px;color:#6b7280;">${profile.address}</div>` : ""}
+      ${profile.phone ? `<div style="font-size:12px;color:#6b7280;margin-top:3px;">📞 ${profile.phone}</div>` : ""}
+      ${profile.address ? `<div style="font-size:12px;color:#6b7280;margin-top:3px;">📍 ${profile.address}</div>` : ""}
     </div>` : ""}
     <table style="width:100%;border-collapse:collapse;margin-bottom:28px;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;">
       <thead><tr>
