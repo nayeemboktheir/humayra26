@@ -396,11 +396,6 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
           {/* COL 2: Product Info + Color Grid + Specs Table */}
           <div className="space-y-3 md:col-span-2 lg:col-span-1">
             {/* Service */}
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Clock className="h-4 w-4" />
-              <span>Service:</span>
-              <span className="font-medium text-foreground">Ships within 48 hours</span>
-            </div>
 
             {/* Stock / Min / Weight / Origin */}
             <div className="grid grid-cols-2 gap-2">
