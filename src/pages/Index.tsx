@@ -845,7 +845,7 @@ const Index = () => {
       <div className="min-h-screen bg-background pb-20 md:pb-0">
         {imageSearchDialog}
         <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} settings={settings} />
-        <ProductDetail product={selectedProduct || undefined} isLoading={isTranslatingProduct} onBack={handleBackToSearch} />
+        <ProductDetail product={selectedProduct || undefined} isLoading={isLoadingProduct || isTranslatingProduct} onBack={handleBackToSearch} />
         <BottomNav />
       </div>
     );
