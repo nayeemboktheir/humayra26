@@ -11,9 +11,15 @@ const BottomNav = () => {
 
   const items = [
     { label: "Category", icon: LayoutGrid, action: () => {
-      const el = document.getElementById("top-categories");
-      if (el) el.scrollIntoView({ behavior: "smooth" });
-      else navigate("/");
+      if (location.pathname !== "/") {
+        navigate("/");
+        setTimeout(() => {
+          const el = document.getElementById("top-categories");
+          if (el) el.scrollIntoView({ behavior: "smooth" });
+        }, 500);
+      } else {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
     }},
     { label: "Cart", icon: ShoppingCart, action: () => navigate(user ? "/dashboard/orders" : "/auth") },
     { label: "center", icon: null, action: () => navigate("/") },
