@@ -160,6 +160,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
 
     setOrdering(true);
     try {
+      const domesticChargeBDT = domesticShippingFee != null && domesticShippingFee > 0 ? Math.round(convertToBDT(domesticShippingFee)) : 0;
       const { error } = await supabase.from('orders').insert({
         user_id: user.id,
         order_number: orderNumber,
@@ -168,6 +169,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
         quantity: totalQty,
         unit_price: unitPrice,
         total_price: totalPrice,
+        domestic_courier_charge: domesticChargeBDT,
         notes: notes || null,
         product_url: productUrl,
         source_url: sourceUrl,
@@ -746,7 +748,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                         <Truck className="h-3.5 w-3.5" />
                         China Courier (1688)
                       </span>
-                      <span className="text-sm font-semibold">¥{domesticShippingFee} <span className="text-muted-foreground font-normal">(৳{convertToBDT(domesticShippingFee).toLocaleString()})</span></span>
+                      <span className="text-sm font-semibold">৳{convertToBDT(domesticShippingFee).toLocaleString()} <span className="text-muted-foreground font-normal">(¥{domesticShippingFee})</span></span>
                     </div>
                   )}
 
