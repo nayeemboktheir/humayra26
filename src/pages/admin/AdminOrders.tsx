@@ -439,12 +439,11 @@ export default function AdminOrders() {
                         <ExternalLink className="h-3 w-3" /> Site Link
                       </a>
                     )}
-                    <button
-                      onClick={() => setInvoiceOrder(order)}
-                      className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline ml-auto"
-                    >
-                      <FileText className="h-3 w-3" /> Invoice
-                    </button>
+                    {order.product_1688_id && (
+                      <a href={`https://detail.1688.com/offer/${order.product_1688_id}.html`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline">
+                        <ExternalLink className="h-3 w-3" /> 1688
+                      </a>
+                    )}
                   </div>
 
                   {/* Date + Actions */}
@@ -453,9 +452,14 @@ export default function AdminOrders() {
                       <Calendar className="h-3 w-3" />
                       {new Date(order.created_at).toLocaleDateString()}
                     </div>
-                     <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setInvoiceOrder(order)} title="Invoice">
-                        <FileText className="h-3.5 w-3.5 text-primary" />
+                    <div className="flex gap-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2 gap-1 text-[11px] text-primary border-primary/30 hover:bg-primary/10"
+                        onClick={() => setInvoiceOrder(order)}
+                      >
+                        <FileText className="h-3 w-3" /> Invoice
                       </Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(order)}>
                         <Pencil className="h-3.5 w-3.5" />
