@@ -21,8 +21,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
-const CNY_TO_BDT = 17.5;
-const convertToBDT = (cny: number) => Math.round(cny * CNY_TO_BDT);
+import { convertToBDT } from "@/lib/currency";
 
 const translateLocation = (location: string): string => {
   if (location.includes("省") || location.includes("市")) return "China";
@@ -266,9 +265,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
   const baseUnitPrice = hasSkus
     ? convertToBDT(selectedSkuItem?.price ?? product.configuredItems?.[0]?.price ?? product.price)
     : convertToBDT(product.price);
-  const displayCnyPrice = hasSkus
-    ? Math.round(selectedSkuItem?.price ?? product.configuredItems?.[0]?.price ?? product.price)
-    : Math.round(product.price);
+  // displayCnyPrice removed — no longer showing Yuan
 
   return (
     <div className="min-h-screen bg-background">
@@ -687,7 +684,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                   {domesticShippingFee != null && domesticShippingFee > 0 && (
                     <div className="flex items-center justify-between bg-muted/40 rounded-lg px-3 py-2">
                       <span className="text-sm text-muted-foreground flex items-center gap-1.5"><Truck className="h-3.5 w-3.5" />China Courier (1688)</span>
-                      <span className="text-sm font-semibold">৳{convertToBDT(domesticShippingFee).toLocaleString()} <span className="text-muted-foreground font-normal">(¥{domesticShippingFee})</span></span>
+                      <span className="text-sm font-semibold">৳{convertToBDT(domesticShippingFee).toLocaleString()}</span>
                     </div>
                   )}
 

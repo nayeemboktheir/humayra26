@@ -3,9 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Product1688 } from "@/lib/api/alibaba1688";
-
-const CNY_TO_BDT = 17.5;
-const convertToBDT = (cny: number) => Math.round(cny * CNY_TO_BDT);
+import { convertToBDT } from "@/lib/currency";
 
 interface CategorySectionProps {
   name: string;

@@ -16,6 +16,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import SearchFilters, { SearchFilterValues, getDefaultFilters, applyFilters } from "@/components/SearchFilters";
 import CategorySection from "@/components/CategorySection";
 import { useAppSettings } from "@/hooks/useAppSettings";
+import { setCnyToBdtRate } from "@/lib/currency";
 import BottomNav from "@/components/BottomNav";
 import ImageCropper from "@/components/ImageCropper";
 
@@ -40,8 +41,7 @@ const ProductGridSkeleton = ({ count = 12 }: { count?: number }) => (
   </div>
 );
 
-const CNY_TO_BDT = 17.5;
-const convertToBDT = (cny: number) => Math.round(cny * CNY_TO_BDT);
+import { convertToBDT } from "@/lib/currency";
 
 // Categories matching chinaonlinebd.com
 const categories = [
@@ -131,6 +131,11 @@ const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { settings } = useAppSettings();
+  
+  // Set dynamic exchange rate from settings
+  const rate = parseFloat(settings.cny_to_bdt_rate || "17.5");
+  if (rate > 0) setCnyToBdtRate(rate);
+
   const [query, setQuery] = useState(_sessionCache.searchState?.query || "");
   const [products, setProducts] = useState<Product1688[]>(_sessionCache.searchState?.products || []);
   const [_translatedTitles] = useState<Record<number, string>>({});
@@ -1411,7 +1416,6 @@ const ProductCard = ({ product, getDisplayTitle, onClick }: { product: Product16
         </div>
         <div className="flex items-baseline gap-1">
           <span className="text-lg font-bold text-primary">৳{convertToBDT(product.price).toLocaleString()}</span>
-          <span className="text-xs text-muted-foreground">(¥{product.price})</span>
         </div>
         <div className="flex items-center gap-1.5 flex-wrap">
           {isVerified && (

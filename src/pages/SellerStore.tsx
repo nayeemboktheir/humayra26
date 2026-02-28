@@ -8,8 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Package, Store, Loader2 } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 
-const CNY_TO_BDT = 17.5;
-const convertToBDT = (cny: number) => Math.round(cny * CNY_TO_BDT);
+import { convertToBDT } from "@/lib/currency";
 
 interface SellerProduct {
   num_iid: number;
@@ -155,7 +154,6 @@ export default function SellerStore() {
                     <div className="flex items-baseline gap-1">
                       <span className="text-xs text-primary font-medium">৳</span>
                       <span className="text-base sm:text-lg font-bold text-primary">{convertToBDT(product.price).toLocaleString()}</span>
-                      <span className="text-[10px] text-muted-foreground ml-1">¥{Math.round(product.price)}</span>
                     </div>
                     {product.sales && product.sales > 0 && (
                       <p className="text-[10px] text-muted-foreground mt-0.5">{product.sales.toLocaleString()} sold</p>
