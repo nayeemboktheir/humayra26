@@ -138,7 +138,7 @@ export default function SellerStore() {
                 <Card
                   key={product.num_iid}
                   className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow group"
-                  onClick={() => window.open(`/?product=${product.num_iid}`, '_blank')}
+                  onClick={() => navigate(`/?product=${product.num_iid}`)}
                 >
                   <div className="aspect-square overflow-hidden bg-muted">
                     <img

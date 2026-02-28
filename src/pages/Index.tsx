@@ -685,12 +685,52 @@ const Index = () => {
   }, [isLoading]);
 
   const handleProductClick = (product: Product1688) => {
-    window.open(`/?product=${product.num_iid}`, '_blank');
+    setSearchParams({ product: String(product.num_iid) });
+    setIsLoadingProduct(true);
+    setSelectedProduct(null);
+    const fallback: ProductDetail1688 = {
+      num_iid: product.num_iid,
+      title: product.title,
+      desc: '',
+      price: product.price,
+      pic_url: product.pic_url,
+      item_imgs: (product.extra_images?.length ? product.extra_images : [product.pic_url]).filter(Boolean).map(url => ({ url })),
+      location: product.location || '',
+      num: product.stock ? String(product.stock) : '',
+      min_num: 1,
+      props: [],
+      seller_info: { nick: product.vendor_name || '', shop_name: product.vendor_name || '', item_score: '', delivery_score: '', composite_score: '' },
+      total_sold: product.sales,
+      item_weight: product.weight,
+    };
+    setSelectedProduct(fallback);
+    alibaba1688Api.getProduct(product.num_iid).then(result => {
+      if (result.success && result.data) setSelectedProduct(result.data);
+    }).catch(err => console.error("Product details error:", err))
+      .finally(() => setIsLoadingProduct(false));
   };
 
-  const handleTrendingClick = (productId: string) => {
+  const handleTrendingClick = async (productId: string) => {
     const numIid = parseInt(productId.replace('abb-', ''));
-    window.open(`/?product=${numIid}`, '_blank');
+    setIsLoadingProduct(true);
+    setSelectedProduct(null);
+    setSearchParams({ product: String(numIid) });
+    try {
+      const result = await alibaba1688Api.getProduct(numIid);
+      if (result.success && result.data) {
+        setSelectedProduct(result.data);
+      } else {
+        toast.error("This product is no longer available");
+        setSelectedProduct(null);
+        setSearchParams({});
+      }
+    } catch {
+      toast.error("This product is no longer available");
+      setSelectedProduct(null);
+      setSearchParams({});
+    } finally {
+      setIsLoadingProduct(false);
+    }
   };
 
   const handleBackToSearch = () => { setSelectedProduct(null); setActiveCategoryView(null); setSearchParams({}); };
@@ -1356,8 +1396,16 @@ const ProductCard = ({ product, getDisplayTitle, onClick }: { product: Product16
     ? product.sales >= 1000 ? `${(product.sales / 1000).toFixed(product.sales >= 10000 ? 0 : 1)}K Sold` : `${product.sales} Sold`
     : null;
 
+  const handleClick = (e: React.MouseEvent) => {
+    // Allow Ctrl/Cmd+Click and middle-click to open in new tab naturally
+    if (e.ctrlKey || e.metaKey || e.button === 1) return;
+    e.preventDefault();
+    onClick();
+  };
+
   return (
-    <Card className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow group" onClick={onClick}>
+    <a href={`/?product=${product.num_iid}`} onClick={handleClick} className="block">
+    <Card className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow group">
       <div className="aspect-square overflow-hidden bg-muted relative">
         <img src={product.pic_url} alt={getDisplayTitle(product)} referrerPolicy="no-referrer" loading="lazy"
           className="w-full h-full object-cover group-hover:scale-105 transition-transform"
@@ -1396,6 +1444,7 @@ const ProductCard = ({ product, getDisplayTitle, onClick }: { product: Product16
         </div>
       </CardContent>
     </Card>
+    </a>
   );
 };
 
