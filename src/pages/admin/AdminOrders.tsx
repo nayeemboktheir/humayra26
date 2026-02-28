@@ -10,11 +10,12 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   ExternalLink, UserCircle, Search, Trash2, Pencil, Package,
   Truck, DollarSign, Calendar, Hash, StickyNote, ImageIcon, Copy,
-  CheckSquare, Square, Download, ShoppingBag, FileText
+  CheckSquare, Square, Download, ShoppingBag, FileText, Send, Loader2
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import ShipmentTimeline from "@/components/admin/ShipmentTimeline";
 import OrderInvoice from "@/components/OrderInvoice";
+import { useAppSettings } from "@/hooks/useAppSettings";
 
 interface OrderWithProfile {
   id: string;
@@ -75,15 +76,20 @@ export default function AdminOrders() {
   const [bulkStatus, setBulkStatus] = useState("");
   const [invoiceOrder, setInvoiceOrder] = useState<OrderWithProfile | null>(null);
   const [combinedInvoiceOrders, setCombinedInvoiceOrders] = useState<OrderWithProfile[]>([]);
+  const [sendingEmailId, setSendingEmailId] = useState<string | null>(null);
+  const [emailMap, setEmailMap] = useState<Map<string, string>>(new Map());
+
+  const { settings } = useAppSettings();
 
   const [shipmentMap, setShipmentMap] = useState<Record<string, any>>({});
 
   const fetchOrders = async () => {
     setLoading(true);
-    const [ordersRes, profilesRes, shipmentsRes] = await Promise.all([
+    const [ordersRes, profilesRes, shipmentsRes, emailsRes] = await Promise.all([
       supabase.from("orders").select("*").order("created_at", { ascending: false }),
       supabase.from("profiles").select("user_id, full_name, phone, address, avatar_url"),
       supabase.from("shipments").select("*"),
+      supabase.rpc("get_user_emails"),
     ]);
     const orders = ordersRes.data || [];
     const profiles = profilesRes.data || [];
@@ -92,11 +98,38 @@ export default function AdminOrders() {
     const sMap: Record<string, any> = {};
     shipments.forEach((s: any) => { if (s.order_id) sMap[s.order_id] = s; });
     setShipmentMap(sMap);
+    const eMap = new Map<string, string>();
+    (emailsRes.data || []).forEach((e: any) => eMap.set(e.user_id, e.email));
+    setEmailMap(eMap);
     setData(orders.map((o: any) => ({ ...o, profile: profileMap.get(o.user_id) || null })));
     setLoading(false);
   };
 
   useEffect(() => { fetchOrders(); }, []);
+
+  const handleSendInvoiceEmail = async (order: OrderWithProfile) => {
+    const email = emailMap.get(order.user_id);
+    if (!email) {
+      toast({ title: "No email found", description: "This customer has no email address.", variant: "destructive" });
+      return;
+    }
+    setSendingEmailId(order.id);
+    try {
+      const orderData = {
+        ...order,
+        profile: order.profile ? { full_name: order.profile.full_name, phone: order.profile.phone, address: order.profile.address } : null,
+      };
+      const { data, error } = await supabase.functions.invoke("send-invoice-email", {
+        body: { orders: [orderData], recipientEmail: email, settings },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({ title: "Invoice sent!", description: `Invoice emailed to ${email}` });
+    } catch (e: any) {
+      toast({ title: "Failed to send", description: e.message, variant: "destructive" });
+    }
+    setSendingEmailId(null);
+  };
 
   const filtered = data.filter((order) => {
     const matchesSearch =
@@ -471,6 +504,16 @@ export default function AdminOrders() {
                         onClick={() => setInvoiceOrder(order)}
                       >
                         <FileText className="h-3 w-3" /> Invoice
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2 gap-1 text-[11px] border-primary/30 hover:bg-primary/10"
+                        disabled={sendingEmailId === order.id}
+                        onClick={() => handleSendInvoiceEmail(order)}
+                      >
+                        {sendingEmailId === order.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+                        Email
                       </Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(order)}>
                         <Pencil className="h-3.5 w-3.5" />
