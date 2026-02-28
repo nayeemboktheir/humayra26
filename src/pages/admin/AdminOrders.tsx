@@ -432,13 +432,19 @@ export default function AdminOrders() {
                     </a>
                   )}
 
-                  {/* Links */}
-                  <div className="flex gap-2">
+                  {/* Links & Invoice */}
+                  <div className="flex items-center gap-2">
                     {order.product_url && (
                       <a href={order.product_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline">
                         <ExternalLink className="h-3 w-3" /> Site Link
                       </a>
                     )}
+                    <button
+                      onClick={() => setInvoiceOrder(order)}
+                      className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline ml-auto"
+                    >
+                      <FileText className="h-3 w-3" /> Invoice
+                    </button>
                   </div>
 
                   {/* Date + Actions */}
