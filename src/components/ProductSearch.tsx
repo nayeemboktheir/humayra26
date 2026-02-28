@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { convertToBDT } from "@/lib/currency";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -120,8 +121,7 @@ export const ProductSearch = () => {
     return images;
   }, [selectedProduct]);
 
-  // Convert CNY to BDT (approximate rate: 1 CNY = 15 BDT)
-  const convertToBDT = (cny: number) => Math.round(cny * 15);
+  // Using shared convertToBDT from @/lib/currency
 
   // Get tiered pricing from API priceRange
   const getTieredPricing = (priceRange?: number[][]) => {
@@ -383,8 +383,7 @@ export const ProductSearch = () => {
                   if (!tiers || tiers.length === 0) return (
                     <div className="bg-primary/10 rounded-lg p-4 mb-4">
                       <div className="flex items-baseline gap-2">
-                        <span className="text-2xl font-bold text-primary">¥{selectedProduct.price}</span>
-                        <span className="text-lg text-muted-foreground">≈ {convertToBDT(selectedProduct.price)} ৳</span>
+                        <span className="text-2xl font-bold text-primary">৳{convertToBDT(selectedProduct.price).toLocaleString()}</span>
                       </div>
                     </div>
                   );
@@ -398,10 +397,10 @@ export const ProductSearch = () => {
                           }`}
                         >
                           <div className={`text-lg font-bold ${i === 0 ? '' : 'text-foreground'}`}>
-                            ¥{tier.priceCNY}
+                            ৳{tier.priceBDT.toLocaleString()}
                           </div>
-                          <div className={`text-sm ${i === 0 ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
-                            ≈{tier.priceBDT} ৳
+                          <div className={`text-xs mt-1 ${i === 0 ? 'text-primary-foreground/60' : 'text-muted-foreground'}`}>
+                            {tier.qty}
                           </div>
                           <div className={`text-xs mt-1 ${i === 0 ? 'text-primary-foreground/60' : 'text-muted-foreground'}`}>
                             {tier.qty}
