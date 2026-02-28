@@ -17,6 +17,7 @@ import { toast } from "@/hooks/use-toast";
 interface CustomerData {
   user_id: string;
   full_name: string | null;
+  email: string | null;
   phone: string | null;
   address: string | null;
   avatar_url: string | null;
@@ -64,10 +65,11 @@ export default function AdminCustomers() {
   useEffect(() => {
     const fetchCustomers = async () => {
       setLoading(true);
-      const [profilesRes, ordersRes, walletsRes] = await Promise.all([
+      const [profilesRes, ordersRes, walletsRes, emailsRes] = await Promise.all([
         supabase.from("profiles").select("*").order("created_at", { ascending: false }),
         supabase.from("orders").select("user_id, total_price, shipping_charges, commission"),
         supabase.from("wallets").select("user_id, balance"),
+        supabase.rpc("get_user_emails"),
       ]);
 
       const profiles = profilesRes.data || [];
@@ -85,9 +87,13 @@ export default function AdminCustomers() {
       const walletMap = new Map<string, number>();
       wallets.forEach((w: any) => walletMap.set(w.user_id, Number(w.balance)));
 
+      const emailMap = new Map<string, string>();
+      (emailsRes.data || []).forEach((e: any) => emailMap.set(e.user_id, e.email));
+
       const data: CustomerData[] = profiles.map((p: any) => ({
         user_id: p.user_id,
         full_name: p.full_name,
+        email: emailMap.get(p.user_id) || null,
         phone: p.phone,
         address: p.address,
         avatar_url: p.avatar_url,
@@ -107,6 +113,7 @@ export default function AdminCustomers() {
     const q = search.toLowerCase();
     return (
       (c.full_name || "").toLowerCase().includes(q) ||
+      (c.email || "").toLowerCase().includes(q) ||
       (c.phone || "").toLowerCase().includes(q) ||
       (c.address || "").toLowerCase().includes(q)
     );
@@ -221,15 +228,16 @@ export default function AdminCustomers() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b bg-muted/50">
-                  <th className="text-left p-3 font-medium text-muted-foreground">Customer</th>
-                  <th className="text-left p-3 font-medium text-muted-foreground">Phone</th>
-                  <th className="text-left p-3 font-medium text-muted-foreground">Address</th>
-                  <th className="text-center p-3 font-medium text-muted-foreground">Orders</th>
-                  <th className="text-right p-3 font-medium text-muted-foreground">Spent</th>
-                  <th className="text-right p-3 font-medium text-muted-foreground">Balance</th>
-                  <th className="text-right p-3 font-medium text-muted-foreground">Joined</th>
-                </tr>
+                 <tr className="border-b bg-muted/50">
+                   <th className="text-left p-3 font-medium text-muted-foreground">Customer</th>
+                   <th className="text-left p-3 font-medium text-muted-foreground">Email</th>
+                   <th className="text-left p-3 font-medium text-muted-foreground">Phone</th>
+                   <th className="text-left p-3 font-medium text-muted-foreground">Address</th>
+                   <th className="text-center p-3 font-medium text-muted-foreground">Orders</th>
+                   <th className="text-right p-3 font-medium text-muted-foreground">Spent</th>
+                   <th className="text-right p-3 font-medium text-muted-foreground">Balance</th>
+                   <th className="text-right p-3 font-medium text-muted-foreground">Joined</th>
+                 </tr>
               </thead>
               <tbody>
                 {filtered.map((customer) => (
@@ -250,9 +258,10 @@ export default function AdminCustomers() {
                         </Avatar>
                         <span className="font-medium truncate max-w-[150px]">{customer.full_name || "Unnamed"}</span>
                       </div>
-                    </td>
-                    <td className="p-3 text-muted-foreground">{customer.phone || "—"}</td>
-                    <td className="p-3 text-muted-foreground truncate max-w-[180px]">{customer.address || "—"}</td>
+                     </td>
+                     <td className="p-3 text-muted-foreground text-xs truncate max-w-[180px]">{customer.email || "—"}</td>
+                     <td className="p-3 text-muted-foreground">{customer.phone || "—"}</td>
+                     <td className="p-3 text-muted-foreground truncate max-w-[180px]">{customer.address || "—"}</td>
                     <td className="p-3 text-center">
                       <button
                         className="font-semibold hover:text-primary transition-colors"
@@ -293,6 +302,10 @@ export default function AdminCustomers() {
               </div>
 
               <div className="space-y-3 text-sm">
+                <div className="flex items-center gap-3">
+                  <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <span className="truncate">{selected.email || "No email"}</span>
+                </div>
                 {editingProfile ? (
                   <>
                     <div className="space-y-1.5">
