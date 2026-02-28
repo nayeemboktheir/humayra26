@@ -268,8 +268,17 @@ export default function AdminCustomers() {
               </div>
 
               <div className="grid grid-cols-3 gap-2">
+                <button
+                  className="bg-muted/50 rounded-lg p-3 text-center hover:bg-primary/10 hover:ring-1 hover:ring-primary/30 transition-all cursor-pointer"
+                  onClick={(e) => {
+                    setSelected(null);
+                    handleOrdersClick(e, selected);
+                  }}
+                >
+                  <p className="text-xs text-muted-foreground">Orders</p>
+                  <p className="font-bold text-sm mt-0.5 text-primary">{selected.order_count}</p>
+                </button>
                 {[
-                  { label: "Orders", value: selected.order_count },
                   { label: "Spent", value: `৳${selected.total_spent.toFixed(0)}` },
                   { label: "Balance", value: `৳${selected.wallet_balance.toFixed(0)}` },
                 ].map((s) => (
