@@ -147,25 +147,27 @@ function buildPrintHTML(orders: OrderData[], settings: Record<string, string>) {
 <body>
   <div style="max-width:780px;margin:0 auto;">
     <!-- Header -->
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:20px;margin-bottom:24px;border-bottom:3px solid ${ACCENT};">
-      <div>
-        <div style="font-size:26px;font-weight:800;letter-spacing:-0.5px;">
-          ${companyName.includes(".") ? `${companyName.split(".")[0]}.<span style="color:${ACCENT};">${companyName.split(".").slice(1).join(".")}</span>` : `<span>${companyName}</span>`}
-        </div>
-        <div style="font-size:11px;color:#6b7280;line-height:1.7;margin-top:6px;">
-          ${companyAddress ? `<div>${companyAddress}</div>` : ""}
-          <div>${[companyPhone, companyEmail].filter(Boolean).join(" | ")}</div>
-          <div>${companyWebsite}</div>
-        </div>
-      </div>
-      <div style="text-align:right;">
-        <div style="font-size:28px;font-weight:800;color:${ACCENT};letter-spacing:3px;">INVOICE</div>
-        <div style="font-size:12px;color:#6b7280;margin-top:6px;line-height:1.8;">
-          <div style="font-weight:700;color:#1a1a2e;font-size:14px;">#${invoiceNumber}</div>
-          <div>Date: ${invoiceDate}</div>
-          ${invoiceName ? `<div style="font-weight:600;color:#1a1a2e;margin-top:2px;">${invoiceName}</div>` : ""}
-        </div>
-      </div>
+    <div style="padding-bottom:20px;margin-bottom:24px;border-bottom:3px solid ${ACCENT};">
+      <table style="width:100%;border-collapse:collapse;"><tr>
+        <td style="vertical-align:top;">
+          <div style="font-size:26px;font-weight:800;letter-spacing:-0.5px;">
+            ${companyName.includes(".") ? `${companyName.split(".")[0]}.<span style="color:${ACCENT};">${companyName.split(".").slice(1).join(".")}</span>` : `<span>${companyName}</span>`}
+          </div>
+          <div style="font-size:11px;color:#6b7280;line-height:1.7;margin-top:6px;">
+            ${companyAddress ? `<div>${companyAddress}</div>` : ""}
+            <div>${[companyPhone, companyEmail].filter(Boolean).join(" | ")}</div>
+            <div>${companyWebsite}</div>
+          </div>
+        </td>
+        <td style="vertical-align:top;text-align:right;">
+          <div style="font-size:28px;font-weight:800;color:${ACCENT};letter-spacing:3px;">INVOICE</div>
+          <div style="font-size:12px;color:#6b7280;margin-top:6px;line-height:1.8;">
+            <div style="font-weight:700;color:#1a1a2e;font-size:14px;">#${invoiceNumber}</div>
+            <div>Date: ${invoiceDate}</div>
+            ${invoiceName ? `<div style="font-weight:600;color:#1a1a2e;margin-top:2px;">${invoiceName}</div>` : ""}
+          </div>
+        </td>
+      </tr></table>
     </div>
 
     <!-- Bill To -->
@@ -173,8 +175,8 @@ function buildPrintHTML(orders: OrderData[], settings: Record<string, string>) {
     <div style="margin-bottom:24px;padding:16px 20px;background:#f8fafc;border-radius:8px;border-left:4px solid ${ACCENT};">
       <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:${ACCENT};margin-bottom:6px;">Bill To</div>
       <div style="font-size:15px;font-weight:700;margin-bottom:2px;">${profile.full_name || "—"}</div>
-      ${profile.phone ? `<div style="font-size:12px;color:#6b7280;">${profile.phone}</div>` : ""}
-      ${profile.address ? `<div style="font-size:12px;color:#6b7280;">${profile.address}</div>` : ""}
+      ${profile.phone ? `<div style="font-size:12px;color:#6b7280;margin-top:3px;">📞 ${profile.phone}</div>` : ""}
+      ${profile.address ? `<div style="font-size:12px;color:#6b7280;margin-top:3px;">📍 ${profile.address}</div>` : ""}
     </div>` : ""}
 
     <!-- Table -->
@@ -290,28 +292,30 @@ export default function OrderInvoice({ order, orders: ordersProp, open, onOpenCh
         {/* Preview */}
         <div ref={invoiceRef} className="px-6 pb-6 pt-4">
           {/* Header */}
-          <div className="flex justify-between items-start pb-4 mb-5 border-b-[3px] border-primary">
-            <div>
-              <p className="text-2xl font-extrabold tracking-tight">
-                {companyName.includes(".")
-                  ? <>{companyName.split(".")[0]}.<span className="text-primary">{companyName.split(".").slice(1).join(".")}</span></>
-                  : <span>{companyName}</span>
-                }
-              </p>
-              <div className="text-[11px] text-muted-foreground mt-1 space-y-0.5 leading-relaxed">
-                {companyAddress && <p>{companyAddress}</p>}
-                <p>{[companyPhone, companyEmail].filter(Boolean).join(" | ")}</p>
-                <p>{companyWebsite}</p>
+          <div className="pb-5 mb-5 border-b-[3px] border-primary">
+            <div className="flex justify-between items-start">
+              <div className="flex-1">
+                <p className="text-2xl font-extrabold tracking-tight">
+                  {companyName.includes(".")
+                    ? <>{companyName.split(".")[0]}.<span className="text-primary">{companyName.split(".").slice(1).join(".")}</span></>
+                    : <span>{companyName}</span>
+                  }
+                </p>
+                <div className="text-[11px] text-muted-foreground mt-1.5 space-y-0.5 leading-relaxed">
+                  {companyAddress && <p>{companyAddress}</p>}
+                  <p>{[companyPhone, companyEmail].filter(Boolean).join(" | ")}</p>
+                  <p>{companyWebsite}</p>
+                </div>
               </div>
-            </div>
-            <div className="text-right">
-              <p className="text-2xl font-extrabold tracking-[3px] text-primary">INVOICE</p>
-              <div className="text-xs text-muted-foreground mt-1.5 space-y-0.5">
-                <p className="font-bold text-sm text-foreground">#{invoiceNumber}</p>
-                <p>Date: {invoiceDate}</p>
-                {orders[0].invoice_name && (
-                  <p className="font-semibold text-foreground mt-0.5">{orders[0].invoice_name}</p>
-                )}
+              <div className="text-right flex-shrink-0 ml-8">
+                <p className="text-2xl font-extrabold tracking-[3px] text-primary">INVOICE</p>
+                <div className="text-xs text-muted-foreground mt-2 space-y-0.5">
+                  <p className="font-bold text-sm text-foreground">#{invoiceNumber}</p>
+                  <p>Date: {invoiceDate}</p>
+                  {orders[0].invoice_name && (
+                    <p className="font-semibold text-foreground mt-0.5">{orders[0].invoice_name}</p>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -320,9 +324,9 @@ export default function OrderInvoice({ order, orders: ordersProp, open, onOpenCh
           {profile && (
             <div className="mb-5 p-4 bg-muted/40 rounded-lg border-l-4 border-primary">
               <p className="text-[10px] font-bold uppercase tracking-[1.5px] text-primary mb-1.5">Bill To</p>
-              <p className="text-sm font-bold">{profile.full_name || "—"}</p>
-              {profile.phone && <p className="text-xs text-muted-foreground">{profile.phone}</p>}
-              {profile.address && <p className="text-xs text-muted-foreground">{profile.address}</p>}
+              <p className="text-[15px] font-bold">{profile.full_name || "—"}</p>
+              {profile.phone && <p className="text-xs text-muted-foreground mt-0.5">📞 {profile.phone}</p>}
+              {profile.address && <p className="text-xs text-muted-foreground mt-0.5">📍 {profile.address}</p>}
             </div>
           )}
 
