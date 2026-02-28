@@ -26,20 +26,30 @@ interface VendorInfo {
   location: string;
 }
 
+// Module-level cache for seller store data
+let _sellerCache: Record<string, {
+  products: SellerProduct[];
+  vendorInfo: VendorInfo | null;
+  total: number;
+  page: number;
+}> = {};
+
 export default function SellerStore() {
   const { vendorId } = useParams<{ vendorId: string }>();
   const navigate = useNavigate();
-  const [products, setProducts] = useState<SellerProduct[]>([]);
-  const [vendorInfo, setVendorInfo] = useState<VendorInfo | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
+  
+  const cached = vendorId ? _sellerCache[vendorId] : null;
+  const [products, setProducts] = useState<SellerProduct[]>(cached?.products || []);
+  const [vendorInfo, setVendorInfo] = useState<VendorInfo | null>(cached?.vendorInfo || null);
+  const [loading, setLoading] = useState(!cached);
+  const [page, setPage] = useState(cached?.page || 1);
+  const [total, setTotal] = useState(cached?.total || 0);
   const [loadingMore, setLoadingMore] = useState(false);
 
   const fetchProducts = async (pageNum: number, append = false) => {
     if (!vendorId) return;
-    if (pageNum === 1) setLoading(true);
-    else setLoadingMore(true);
+    if (pageNum === 1 && !cached) setLoading(true);
+    else if (pageNum > 1) setLoadingMore(true);
 
     try {
       const { data, error } = await supabase.functions.invoke('alibaba-1688-seller-products', {
@@ -48,9 +58,18 @@ export default function SellerStore() {
 
       if (!error && data?.success) {
         const items = data.data?.items || [];
-        setProducts(prev => append ? [...prev, ...items] : items);
-        setTotal(data.data?.total || 0);
+        const newProducts = append ? [...products, ...items] : items;
+        setProducts(newProducts);
+        const newTotal = data.data?.total || 0;
+        setTotal(newTotal);
         if (data.data?.vendorInfo) setVendorInfo(data.data.vendorInfo);
+        // Update cache
+        _sellerCache[vendorId] = {
+          products: newProducts,
+          vendorInfo: data.data?.vendorInfo || vendorInfo,
+          total: newTotal,
+          page: pageNum,
+        };
       }
     } catch {
       // silently fail
@@ -61,7 +80,7 @@ export default function SellerStore() {
   };
 
   useEffect(() => {
-    fetchProducts(1);
+    if (!cached) fetchProducts(1);
   }, [vendorId]);
 
   const handleLoadMore = () => {
