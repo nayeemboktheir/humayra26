@@ -8,11 +8,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Search, Phone, MapPin, ShoppingCart, Wallet, Calendar,
-  Mail, UserCircle, Package, ArrowUpRight, ImageIcon, Hash, ExternalLink, FileText, Pencil, Check, X
+  Mail, UserCircle, Package, ArrowUpRight, ImageIcon, Hash, ExternalLink, FileText, Pencil, Check, X, Send, Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import OrderInvoice from "@/components/OrderInvoice";
 import { toast } from "@/hooks/use-toast";
+import { useAppSettings } from "@/hooks/useAppSettings";
 
 interface CustomerData {
   user_id: string;
@@ -62,6 +63,8 @@ export default function AdminCustomers() {
   const [editPhone, setEditPhone] = useState("");
   const [editAddress, setEditAddress] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
+  const [sendingInvoiceEmail, setSendingInvoiceEmail] = useState(false);
+  const { settings } = useAppSettings();
   useEffect(() => {
     const fetchCustomers = async () => {
       setLoading(true);
@@ -174,6 +177,29 @@ export default function AdminCustomers() {
       profile: ordersCustomer ? { full_name: ordersCustomer.full_name, phone: ordersCustomer.phone, address: ordersCustomer.address } : null,
     }));
     if (orders.length > 0) setCombinedInvoiceOrders(orders);
+  };
+
+  const handleSendInvoiceToEmail = async (orderItems: OrderItem[]) => {
+    if (!ordersCustomer?.email) {
+      toast({ title: "No email found", description: "This customer has no email address.", variant: "destructive" });
+      return;
+    }
+    setSendingInvoiceEmail(true);
+    try {
+      const ordersData = orderItems.map((o) => ({
+        ...o,
+        profile: { full_name: ordersCustomer.full_name, phone: ordersCustomer.phone, address: ordersCustomer.address },
+      }));
+      const { data, error } = await supabase.functions.invoke("send-invoice-email", {
+        body: { orders: ordersData, recipientEmail: ordersCustomer.email, settings },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({ title: "Invoice sent!", description: `Invoice emailed to ${ordersCustomer.email}` });
+    } catch (e: any) {
+      toast({ title: "Failed to send", description: e.message, variant: "destructive" });
+    }
+    setSendingInvoiceEmail(false);
   };
 
   return (
@@ -422,11 +448,23 @@ export default function AdminCustomers() {
                 ))}
               </div>
 
-              {/* Combined invoice button */}
-              <Button size="sm" variant="outline" className="gap-1.5 mb-2 w-full" onClick={handleCombinedInvoice}>
-                <FileText className="h-3.5 w-3.5" />
-                Print Combined Invoice ({filteredCustomerOrders.length} orders)
-              </Button>
+              {/* Combined invoice buttons */}
+              <div className="flex gap-2 mb-2">
+                <Button size="sm" variant="outline" className="gap-1.5 flex-1" onClick={handleCombinedInvoice}>
+                  <FileText className="h-3.5 w-3.5" />
+                  Print Combined Invoice ({filteredCustomerOrders.length})
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5 flex-1"
+                  disabled={sendingInvoiceEmail}
+                  onClick={() => handleSendInvoiceToEmail(filteredCustomerOrders)}
+                >
+                  {sendingInvoiceEmail ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                  Email Invoice ({filteredCustomerOrders.length})
+                </Button>
+              </div>
 
               <ScrollArea className="max-h-[50vh] pr-3">
                 <div className="space-y-3">
@@ -452,9 +490,12 @@ export default function AdminCustomers() {
                           </p>
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-semibold text-primary">৳{grandTotal(order).toFixed(0)}</span>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1">
                               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setInvoiceOrder(order)}>
                                 <FileText className="h-3.5 w-3.5 text-primary" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" disabled={sendingInvoiceEmail} onClick={() => handleSendInvoiceToEmail([order])}>
+                                {sendingInvoiceEmail ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5 text-primary" />}
                               </Button>
                               <span className="text-[11px] text-muted-foreground">{new Date(order.created_at).toLocaleDateString()}</span>
                             </div>
