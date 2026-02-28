@@ -220,6 +220,14 @@ export default function AdminOrders() {
     toast({ title: `Exported ${rows.length} orders to CSV` });
   };
 
+  const handleOpenAllInvoices = () => {
+    if (filtered.length === 0) {
+      toast({ title: "No orders available for invoice" });
+      return;
+    }
+    setCombinedInvoiceOrders(filtered);
+  };
+
   const SHIPMENT_STAGES = ["Ordered", "Purchased from 1688", "Shipped to Warehouse", "Arrived at Warehouse", "Shipped to Bangladesh", "In Customs", "Out for Delivery", "Delivered"];
   const statuses = ["pending", ...SHIPMENT_STAGES, "all"];
   const statusCounts = statuses.reduce((acc, s) => {
@@ -245,7 +253,10 @@ export default function AdminOrders() {
           <h1 className="text-2xl font-bold tracking-tight">Orders</h1>
           <p className="text-sm text-muted-foreground">{data.length} total orders</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button size="sm" className="gap-1.5" onClick={handleOpenAllInvoices}>
+            <FileText className="h-4 w-4" /> See All Invoices
+          </Button>
           <Button variant="outline" size="sm" onClick={exportCSV}>
             <Download className="h-4 w-4 mr-1" /> Export CSV
           </Button>
