@@ -224,6 +224,23 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
   }
 
   if (!product) {
+    // If URL has a product param, show loading instead of "no product"
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('product')) {
+      return (
+        <div className="max-w-7xl mx-auto px-4 py-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Skeleton className="aspect-square w-full rounded-xl" />
+            <div className="space-y-4">
+              <Skeleton className="h-8 w-3/4" />
+              <Skeleton className="h-6 w-1/2" />
+              <Skeleton className="h-24 w-full" />
+            </div>
+            <Skeleton className="h-64 w-full rounded-xl" />
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <p className="text-muted-foreground">No product selected</p>
