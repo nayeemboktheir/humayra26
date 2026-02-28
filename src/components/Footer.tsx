@@ -115,8 +115,9 @@ const Footer = () => {
         </div>
 
         {/* Copyright */}
-        <div className="border-t mt-6 pt-6 text-center text-sm text-muted-foreground">
+        <div className="border-t mt-6 pt-6 text-center text-sm text-muted-foreground space-y-1">
           <p>© {new Date().getFullYear()} tradeon.global - Wholesale from China to Bangladesh</p>
+          <p>Developed by <a href="https://platiroll.com/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium">Platiroll</a></p>
         </div>
         </div>
       </div>
