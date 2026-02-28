@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { useAdmin } from "@/hooks/useAdmin";
 import { Loader2 } from "lucide-react";
 import PageLoader from "@/components/PageLoader";
+import TrackingScripts from "@/components/TrackingScripts";
 
 // Lazy load all pages
 const Index = lazy(() => import("./pages/Index"));
@@ -92,6 +93,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <TrackingScripts />
           <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route path="/" element={<Index />} />
