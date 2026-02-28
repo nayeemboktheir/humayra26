@@ -45,8 +45,22 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
   const [shippingMethod, setShippingMethod] = useState<'air' | 'sea'>('air');
   const [addingToWishlist, setAddingToWishlist] = useState(false);
   const [isWishlisted, setIsWishlisted] = useState(false);
+  const [domesticShippingFee, setDomesticShippingFee] = useState<number | null>(null);
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  // Fetch 1688 domestic shipping fee
+  useEffect(() => {
+    if (!product?.num_iid) return;
+    setDomesticShippingFee(null);
+    supabase.functions.invoke('alibaba-1688-shipping-fee', {
+      body: { itemId: String(product.num_iid), province: '广东' },
+    }).then(({ data }) => {
+      if (data?.success && data?.data?.total_fee != null) {
+        setDomesticShippingFee(data.data.total_fee);
+      }
+    }).catch(() => {});
+  }, [product?.num_iid]);
 
   const handleToggleWishlist = async () => {
     if (!product) return;
@@ -724,6 +738,17 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                     <span className="text-base font-semibold">Product price</span>
                     <span className="text-base font-bold">৳{totalSelectedPrice.toLocaleString()}</span>
                   </div>
+
+                  {/* 1688 Domestic Shipping (China courier) */}
+                  {domesticShippingFee != null && domesticShippingFee > 0 && (
+                    <div className="flex items-center justify-between bg-muted/40 rounded-lg px-3 py-2">
+                      <span className="text-sm text-muted-foreground flex items-center gap-1.5">
+                        <Truck className="h-3.5 w-3.5" />
+                        China Courier (1688)
+                      </span>
+                      <span className="text-sm font-semibold">¥{domesticShippingFee} <span className="text-muted-foreground font-normal">(৳{convertToBDT(domesticShippingFee).toLocaleString()})</span></span>
+                    </div>
+                  )}
 
                   {/* Pay now / delivery breakdown */}
                   <div className="flex items-center justify-between">
