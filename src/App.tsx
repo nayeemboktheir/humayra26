@@ -19,6 +19,7 @@ const ContactUs = lazy(() => import("./pages/ContactUs"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const ReturnRefundPolicy = lazy(() => import("./pages/ReturnRefundPolicy"));
 const ProhibitedItems = lazy(() => import("./pages/ProhibitedItems"));
+const SellerStore = lazy(() => import("./pages/SellerStore"));
 
 // Dashboard pages
 const DashboardLayout = lazy(() => import("./components/dashboard/DashboardLayout"));
@@ -100,6 +101,7 @@ const App = () => (
               <Route path="/return-refund-policy" element={<ReturnRefundPolicy />} />
               <Route path="/prohibited-items" element={<ProhibitedItems />} />
               <Route path="/install" element={<Install />} />
+              <Route path="/seller/:vendorId" element={<SellerStore />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/dashboard" element={<DashboardRoute><Overview /></DashboardRoute>} />
               <Route path="/dashboard/orders" element={<DashboardRoute><Orders /></DashboardRoute>} />

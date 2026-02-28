@@ -729,7 +729,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                     onClick={() => {
                       const vendorId = product.seller_info.vendor_id;
                       if (vendorId) {
-                        window.open(`https://otcommerce.com/seller/${vendorId}`, '_blank');
+                        navigate(`/seller/${encodeURIComponent(vendorId)}`);
                       }
                     }}
                   >

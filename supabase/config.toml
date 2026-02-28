@@ -11,6 +11,8 @@ project_id = "kcihftfgmsrpcljsbjdj"
     verify_jwt = false
   [functions.alibaba-1688-shipping-fee]
     verify_jwt = false
+  [functions.alibaba-1688-seller-products]
+    verify_jwt = false
   [functions.auth-email-hook]
     verify_jwt = false
   [functions.firecrawl-map]
