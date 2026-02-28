@@ -610,6 +610,51 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
           {/* ===== COL 3: Right Sidebar ===== */}
           <div className="space-y-3 md:col-span-2 lg:col-span-1 lg:sticky lg:top-4 lg:self-start">
 
+            {/* Seller Info Card */}
+            {product.seller_info && (
+              <Card className="shadow-sm overflow-hidden">
+                <CardContent className="p-4 flex flex-col items-center text-center space-y-3">
+                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Package className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold">{product.seller_info.shop_name || product.seller_info.nick || 'Seller'}</p>
+                    {product.location && (
+                      <p className="text-xs text-muted-foreground mt-0.5">{product.location}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-center gap-4 text-center w-full">
+                    {product.total_sold != null && product.total_sold > 0 && (
+                      <div>
+                        <p className="text-sm font-bold">{product.total_sold.toLocaleString()}</p>
+                        <p className="text-[10px] text-muted-foreground">Total Sale</p>
+                      </div>
+                    )}
+                    {product.seller_info.item_score && (
+                      <div>
+                        <p className="text-sm font-bold">{product.seller_info.item_score}</p>
+                        <p className="text-[10px] text-muted-foreground">Rating</p>
+                      </div>
+                    )}
+                    {product.seller_info.delivery_score && (
+                      <div>
+                        <p className="text-sm font-bold">{product.seller_info.delivery_score}</p>
+                        <p className="text-[10px] text-muted-foreground">Service</p>
+                      </div>
+                    )}
+                  </div>
+                  <a
+                    href={`https://detail.1688.com/offer/${product.num_iid}.html`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center rounded-full border border-primary text-primary text-xs font-semibold px-4 py-1.5 hover:bg-primary hover:text-primary-foreground transition-colors"
+                  >
+                    Visit Seller Store
+                  </a>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Shipping Methods Card */}
             <Card className="shadow-sm overflow-hidden">
               <CardContent className="p-0">
