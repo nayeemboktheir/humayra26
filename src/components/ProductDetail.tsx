@@ -701,6 +701,30 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                   </div>
                   <p className="text-xs text-primary font-medium cursor-pointer hover:underline">Shipping + China Courier Charge</p>
 
+                  {/* Approximate Weight */}
+                  {product.item_weight && (
+                    <div className="flex items-center gap-2 border border-orange-300 bg-orange-50 dark:bg-orange-950/30 rounded-lg px-3 py-2">
+                      <AlertTriangle className="h-4 w-4 text-orange-500 flex-shrink-0" />
+                      <span className="text-sm font-semibold text-orange-600 dark:text-orange-400">Approximate weight: {product.item_weight} kg</span>
+                    </div>
+                  )}
+
+                  {/* Shipping Charges */}
+                  <div className="border rounded-lg p-3 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-bold">শিপিং চার্জ</span>
+                      <ShippingRatesModal>
+                        <span className="text-xs text-primary font-semibold cursor-pointer hover:underline">বিস্তারিত</span>
+                      </ShippingRatesModal>
+                    </div>
+                    <p className="text-xs text-muted-foreground">৳750/ ৳1150 Per Kg</p>
+                  </div>
+
+                  {/* Weight Disclaimer */}
+                  <p className="text-[11px] text-destructive leading-relaxed">
+                    *** উল্লেখিত পণ্যের ওজন সম্পূর্ণ সঠিক নয়, আনুমানিক মাত্র। বাংলাদেশে আসার পর পণ্যটির প্রকৃত ওজন মেপে শিপিং চার্জ হিসাব করা হবে।
+                  </p>
+
                   <Separator />
 
                   {/* Action Buttons */}
