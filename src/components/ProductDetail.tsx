@@ -54,7 +54,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
     if (!product?.num_iid) return;
     setDomesticShippingFee(null);
     supabase.functions.invoke('alibaba-1688-shipping-fee', {
-      body: { itemId: String(product.num_iid), province: '广东' },
+      body: { numIid: String(product.num_iid), province: 'Guangdong' },
     }).then(({ data }) => {
       if (data?.success && data?.data?.total_fee != null) {
         setDomesticShippingFee(data.data.total_fee);
