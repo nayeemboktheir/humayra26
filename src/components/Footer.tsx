@@ -17,9 +17,9 @@ const Footer = () => {
           <div className="flex items-start gap-2 sm:gap-3">
             <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-destructive shrink-0 mt-0.5" />
             <div>
-              <p className="font-bold text-destructive text-xs sm:text-sm mb-0.5 sm:mb-1">যে পণ্যগুলো TradeOn-এ অর্ডার করা যাবে না</p>
+              <p className="font-bold text-destructive text-xs sm:text-sm mb-0.5 sm:mb-1">{settings.footer_prohibited_title || "যে পণ্যগুলো TradeOn-এ অর্ডার করা যাবে না"}</p>
               <p className="text-muted-foreground text-[10px] sm:text-xs leading-relaxed">
-                সিগারেট, অ্যালকোহল, তামাক, ক্যানাবিস, জুয়া সামগ্রী, মাদকদ্রব্য, ড্রোন, ওষুধপত্র, মোবাইল, অস্ত্র, বিস্ফোরক, ঝুঁকিপূর্ণ রাসায়নিক পদার্থ, মানবদেহের অঙ্গ বা শরীরের তরল, প্রাপ্তবয়স্ক পণ্য, অশ্লীল পণ্য, প্রাণী নির্যাতনের সাথে সম্পর্কিত পণ্য, বিপন্ন প্রজাতি, ডিজিটাল মুদ্রা, বিনিয়োগ-সংক্রান্ত পণ্য, ঘৃণা ছড়ানো সামগ্রী, সহিংস পণ্য, আপত্তিকর পণ্য, খাদ্য আইটেম।{' '}
+                {settings.footer_prohibited_text || "সিগারেট, অ্যালকোহল, তামাক..."}{' '}
                 <Link to="/prohibited-items" className="text-primary hover:underline font-medium whitespace-nowrap">বিস্তারিত দেখুন →</Link>
               </p>
             </div>
@@ -116,8 +116,10 @@ const Footer = () => {
 
         {/* Copyright */}
         <div className="border-t mt-6 pt-6 text-center text-sm text-muted-foreground space-y-1">
-          <p>© {new Date().getFullYear()} tradeon.global - Wholesale from China to Bangladesh</p>
-          <p>Developed by <a href="https://platiroll.com/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium">Platiroll</a></p>
+          <p>© {new Date().getFullYear()} {settings.footer_copyright_text || "tradeon.global - Wholesale from China to Bangladesh"}</p>
+          {(settings.footer_developer_name) && (
+            <p>Developed by <a href={settings.footer_developer_url || "#"} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium">{settings.footer_developer_name}</a></p>
+          )}
         </div>
         </div>
       </div>
