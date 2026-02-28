@@ -421,85 +421,110 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
             </div>
 
             {/* Color / Variant Thumbnail Grid */}
-            {hasSkus && (
-              <div>
-                <div className="flex items-baseline gap-2 mb-3">
-                  <span className="text-base font-bold">Color :</span>
-                  {selectedSkuItem && <span className="text-primary text-sm font-medium">{selectedSkuItem.title}</span>}
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {product.configuredItems!.filter(sku => sku.imageUrl).map((sku) => {
-                    const skuQty = skuQuantities[sku.id] || 0;
-                    return (
-                      <button key={sku.id} onClick={() => {
-                        setSelectedSkuId(sku.id);
-                        const imgIdx = images.findIndex(img => img === sku.imageUrl);
-                        if (imgIdx >= 0) { setSelectedImage(imgIdx); setShowVideo(false); }
-                      }}
-                        className={`relative flex-shrink-0 w-[60px] h-[60px] rounded overflow-hidden border-2 transition-all ${
-                          selectedSkuId === sku.id ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-primary/40'
-                        }`}>
-                        <img src={sku.imageUrl} alt={sku.title} referrerPolicy="no-referrer" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
-                        {skuQty > 0 && (
-                          <span className="absolute -top-0.5 -right-0.5 bg-primary text-primary-foreground text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center shadow-sm">{skuQty}</span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+            {hasSkus && (() => {
+              // Group SKUs by imageUrl to get unique colors
+              const colorGroups = new Map<string, typeof product.configuredItems>();
+              product.configuredItems!.forEach(sku => {
+                const key = sku.imageUrl || sku.id;
+                if (!colorGroups.has(key)) colorGroups.set(key, []);
+                colorGroups.get(key)!.push(sku);
+              });
+              const uniqueColors = Array.from(colorGroups.entries());
+              // Find which color group the selected SKU belongs to
+              const selectedColorKey = selectedSkuId
+                ? (product.configuredItems!.find(s => s.id === selectedSkuId)?.imageUrl || selectedSkuId)
+                : uniqueColors[0]?.[0] || null;
+              const filteredSkus = selectedColorKey ? (colorGroups.get(selectedColorKey) || product.configuredItems!) : product.configuredItems!;
+              // Get the color name from the first SKU in the selected group
+              const selectedColorName = selectedColorKey
+                ? (colorGroups.get(selectedColorKey)?.[0]?.title?.split(' / ')?.[0] || '')
+                : '';
 
-            {/* Specifications Table */}
-            {hasSkus && (
-              <div>
-                <h3 className="text-base font-bold mb-2">Specifications</h3>
-                <div className="border rounded-lg overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm min-w-[400px]">
-                      <thead>
-                        <tr className="border-b bg-muted/50">
-                          <th className="text-left py-2.5 px-2 sm:px-3 font-semibold">Variant</th>
-                          <th className="text-right py-2.5 px-2 sm:px-3 font-semibold">Price</th>
-                          <th className="text-right py-2.5 px-2 sm:px-3 font-semibold">Stock</th>
-                          <th className="text-center py-2.5 px-2 sm:px-3 font-semibold">Quantity</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {product.configuredItems!.map((sku) => {
-                          const qty = skuQuantities[sku.id] || 0;
-                          return (
-                            <tr key={sku.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
-                              <td className="py-2.5 px-3">
-                                <div className="flex items-center gap-2.5">
-                                  {sku.imageUrl && (
-                                    <img src={sku.imageUrl} alt="" referrerPolicy="no-referrer" className="w-10 h-10 rounded object-cover border flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
-                                  )}
-                                  <span className="font-medium line-clamp-2 text-xs sm:text-sm">{sku.title}</span>
-                                </div>
-                              </td>
-                              <td className="py-2.5 px-3 text-right font-semibold text-primary whitespace-nowrap">৳{convertToBDT(sku.price).toLocaleString()}</td>
-                              <td className="py-2.5 px-3 text-right text-muted-foreground whitespace-nowrap">{sku.stock}</td>
-                              <td className="py-2.5 px-3">
-                                <div className="flex items-center justify-center gap-0">
-                                  <Button variant="outline" size="icon" className="h-7 w-7 rounded-l-md rounded-r-none border-r-0" onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: Math.max(0, (prev[sku.id] || 0) - 1) }))}>
-                                    <Minus className="h-3 w-3" />
-                                  </Button>
-                                  <div className="h-7 w-8 border border-input flex items-center justify-center text-xs font-semibold tabular-nums bg-background">{qty}</div>
-                                  <Button variant="outline" size="icon" className="h-7 w-7 rounded-r-md rounded-l-none border-l-0" onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: (prev[sku.id] || 0) + 1 }))}>
-                                    <Plus className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+              return (
+                <>
+                  <div>
+                    <div className="flex items-baseline gap-2 mb-3">
+                      <span className="text-base font-bold">Color :</span>
+                      <span className="text-primary text-sm font-medium">{selectedColorName}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {uniqueColors.filter(([key]) => key !== colorGroups.entries().next().value?.[0] || colorGroups.get(key)?.[0]?.imageUrl).map(([colorKey, skus]) => {
+                        const firstSku = skus![0];
+                        if (!firstSku.imageUrl) return null;
+                        const totalQtyForColor = skus!.reduce((sum, s) => sum + (skuQuantities[s.id] || 0), 0);
+                        return (
+                          <button key={colorKey} onClick={() => {
+                            setSelectedSkuId(firstSku.id);
+                            const imgIdx = images.findIndex(img => img === firstSku.imageUrl);
+                            if (imgIdx >= 0) { setSelectedImage(imgIdx); setShowVideo(false); }
+                          }}
+                            className={`relative flex-shrink-0 w-[60px] h-[60px] rounded overflow-hidden border-2 transition-all ${
+                              selectedColorKey === colorKey ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-primary/40'
+                            }`}>
+                            <img src={firstSku.imageUrl} alt={firstSku.title} referrerPolicy="no-referrer" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
+                            {totalQtyForColor > 0 && (
+                              <span className="absolute -top-0.5 -right-0.5 bg-primary text-primary-foreground text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center shadow-sm">{totalQtyForColor}</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              </div>
-            )}
+
+                  {/* Specifications Table — filtered by selected color */}
+                  <div>
+                    <div className="border rounded-lg overflow-hidden max-h-[340px] overflow-y-auto">
+                      <table className="w-full text-sm">
+                        <thead className="sticky top-0 z-10">
+                          <tr className="border-b bg-muted/80 backdrop-blur-sm">
+                            <th className="text-left py-2.5 px-3 font-semibold">Size</th>
+                            <th className="text-center py-2.5 px-3 font-semibold">Price</th>
+                            <th className="text-center py-2.5 px-3 font-semibold">Quantity</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredSkus.map((sku) => {
+                            const qty = skuQuantities[sku.id] || 0;
+                            // Extract size part (after " / ") or full title
+                            const sizePart = sku.title.includes(' / ') ? sku.title.split(' / ').slice(1).join(' / ') : sku.title;
+                            return (
+                              <tr key={sku.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                                <td className="py-3 px-3 font-medium">{sizePart}</td>
+                                <td className="py-3 px-3 text-center font-semibold text-primary whitespace-nowrap">৳ {convertToBDT(sku.price).toLocaleString()}</td>
+                                <td className="py-3 px-3">
+                                  <div className="flex flex-col items-center gap-1">
+                                    {qty > 0 ? (
+                                      <div className="flex items-center gap-0">
+                                        <Button variant="outline" size="icon" className="h-7 w-7 rounded-l-md rounded-r-none border-r-0" onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: Math.max(0, (prev[sku.id] || 0) - 1) }))}>
+                                          <Minus className="h-3 w-3" />
+                                        </Button>
+                                        <div className="h-7 w-8 border border-input flex items-center justify-center text-xs font-semibold tabular-nums bg-background">{qty}</div>
+                                        <Button variant="outline" size="icon" className="h-7 w-7 rounded-r-md rounded-l-none border-l-0" onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: (prev[sku.id] || 0) + 1 }))}>
+                                          <Plus className="h-3 w-3" />
+                                        </Button>
+                                      </div>
+                                    ) : (
+                                      <Button size="sm" className="h-7 px-5 rounded-md font-semibold text-xs"
+                                        onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: 1 }))}>
+                                        Add
+                                      </Button>
+                                    )}
+                                    <span className="text-[10px] text-muted-foreground">Stock {sku.stock.toLocaleString()}</span>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    <button className="w-full text-center text-sm text-muted-foreground py-2 hover:text-foreground transition-colors flex items-center justify-center gap-1">
+                      <ChevronDown className="h-3.5 w-3.5" /> Scroll More
+                    </button>
+                  </div>
+                </>
+              );
+            })()}
 
             {/* If no variants, show price */}
             {!hasSkus && (
