@@ -1201,23 +1201,18 @@ const Index = () => {
 
 
           {/* Mobile horizontal categories */}
-          <section id="top-categories" className="lg:hidden mb-4 sticky top-[44px] md:top-[64px] z-40 bg-background pt-2 pb-3 -mx-3 px-3 sm:-mx-6 sm:px-6 border-b border-border/50">
-            <div className="relative">
-              <div ref={topCatScrollRef} className="flex overflow-x-auto gap-3 pb-1 scrollbar-hide snap-x">
-                {topCategories.map((cat) => (
-                  <button
-                    key={cat.name}
-                    onClick={() => handleCategoryClick(cat.query)}
-                    className="flex flex-col items-center gap-1 shrink-0 snap-start group min-w-[64px]"
-                  >
-                    <div className="w-14 h-14 rounded-full border-2 border-primary/20 flex items-center justify-center bg-card transition-all group-hover:border-primary group-hover:scale-105">
-                      <span className="text-lg">{cat.icon}</span>
-                    </div>
-                    <span className="text-[8px] text-primary font-semibold leading-tight">From {cat.price} ৳</span>
-                    <span className="text-[8px] text-muted-foreground text-center leading-tight capitalize line-clamp-1 max-w-[64px]">{cat.name}</span>
-                  </button>
-                ))}
-              </div>
+          <section id="top-categories" className="lg:hidden mb-4 sticky top-[88px] z-40 bg-background pt-2 pb-2 -mx-3 px-3 sm:-mx-6 sm:px-6 border-b border-border/50">
+            <div ref={topCatScrollRef} className="flex overflow-x-auto gap-2 scrollbar-hide">
+              {topCategories.map((cat) => (
+                <button
+                  key={cat.name}
+                  onClick={() => handleCategoryClick(cat.query)}
+                  className="flex items-center gap-1.5 shrink-0 px-3 py-2 rounded-full border bg-card hover:bg-primary/10 hover:border-primary/30 transition-colors text-sm whitespace-nowrap"
+                >
+                  <span>{cat.icon}</span>
+                  <span className="text-xs font-medium text-foreground capitalize">{cat.name}</span>
+                </button>
+              ))}
             </div>
           </section>
 
@@ -1329,18 +1324,33 @@ const Index = () => {
 const SiteHeader = ({ query, setQuery, handleSearch, isLoading, handleImageButtonClick, fileInputRef, handleFileChange, user, navigate, handleInstallClick, settings }: any) => (
   <header className="sticky top-0 z-50">
     {/* Mobile header */}
-    <div className="md:hidden header-gradient">
-      <div className="px-3 pt-1.5 pb-2">
+    <div className="md:hidden bg-card border-b">
+      {/* Top row: Logo + action icons */}
+      <div className="flex items-center justify-between px-3 pt-2 pb-1">
+        <button onClick={() => { setQuery(""); window.location.href = "/"; }} className="shrink-0">
+          <h1 className="text-xl font-bold text-primary">{settings?.site_name || "TradeOn Global"}</h1>
+        </button>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => navigate("/dashboard/orders")} title="Orders">
+            <ShoppingCart className="h-5 w-5 text-foreground" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => navigate("/dashboard/wishlist")} title="Wishlist">
+            <Heart className="h-5 w-5 text-foreground" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-9 w-9" onClick={handleImageButtonClick} title="Image Search">
+            <Camera className="h-5 w-5 text-foreground" />
+          </Button>
+        </div>
+      </div>
+      {/* Search bar */}
+      <div className="px-3 pb-2">
         <form onSubmit={handleSearch} className="flex gap-1.5">
           <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
           <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input type="text" placeholder={settings?.search_placeholder || "Search For Money"} value={query} onChange={(e: any) => setQuery(e.target.value)} className="pl-9 h-9 bg-primary-foreground/95 border-0 rounded-lg text-xs shadow-sm" />
+            <Camera className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input type="text" placeholder={settings?.search_placeholder || "Search by keyword"} value={query} onChange={(e: any) => setQuery(e.target.value)} className="pl-9 h-10 bg-muted/50 border rounded-lg text-sm" />
           </div>
-          <Button type="button" variant="secondary" size="icon" title="Search by image" onClick={handleImageButtonClick} disabled={isLoading} className="shrink-0 h-9 w-9 rounded-lg bg-primary-foreground/20 border-0 text-primary-foreground hover:bg-primary-foreground/30">
-            <Camera className="h-4 w-4" />
-          </Button>
-          <Button type="submit" disabled={isLoading} className="shrink-0 h-9 w-9 rounded-lg bg-primary-foreground text-primary hover:bg-primary-foreground/90">
+          <Button type="submit" disabled={isLoading} className="shrink-0 h-10 w-10 rounded-lg">
             {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
           </Button>
         </form>
