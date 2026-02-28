@@ -1316,7 +1316,7 @@ const SiteHeader = ({ query, setQuery, handleSearch, isLoading, handleImageButto
           <button onClick={() => { setQuery(""); window.location.href = "/"; }} className="shrink-0">
             <h1 className="text-xl font-bold text-primary">{settings?.site_name || "TradeOn Global"}</h1>
           </button>
-          <form onSubmit={handleSearch} className="flex-1 flex gap-2">
+          <form onSubmit={handleSearch} className="flex-1 flex gap-2 max-w-2xl">
             <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

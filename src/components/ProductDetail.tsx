@@ -623,6 +623,52 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                 </div>
 
                 <div className="p-4 space-y-3">
+                  {/* Selected Variant Detail (shown when a variant thumbnail is clicked) */}
+                  {hasSkus && selectedSkuItem && (() => {
+                    const qty = skuQuantities[selectedSkuId!] || 0;
+                    return (
+                      <div className="border border-primary/20 rounded-lg p-3 space-y-2.5 bg-primary/5">
+                        <div className="flex items-start gap-3">
+                          {selectedSkuItem.imageUrl && (
+                            <img src={selectedSkuItem.imageUrl} alt="" referrerPolicy="no-referrer" className="w-14 h-14 rounded-md object-cover border" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold leading-tight line-clamp-2">{selectedSkuItem.title}</p>
+                            <div className="flex items-baseline gap-2 mt-1">
+                              <span className="text-lg font-bold text-primary">৳{convertToBDT(selectedSkuItem.price).toLocaleString()}</span>
+                              <span className="text-xs text-muted-foreground line-through">৳{Math.round(convertToBDT(selectedSkuItem.price) * 1.05).toLocaleString()}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          {qty > 0 ? (
+                            <div className="flex items-center gap-0">
+                              <Button variant="outline" size="icon" className="h-8 w-8 rounded-l-md rounded-r-none border-r-0"
+                                onClick={() => setSkuQuantities(prev => ({ ...prev, [selectedSkuId!]: Math.max(0, (prev[selectedSkuId!] || 0) - 1) }))}>
+                                <Minus className="h-3.5 w-3.5" />
+                              </Button>
+                              <div className="h-8 w-10 border border-input flex items-center justify-center text-sm font-semibold tabular-nums bg-background">
+                                {qty}
+                              </div>
+                              <Button variant="outline" size="icon" className="h-8 w-8 rounded-r-md rounded-l-none border-l-0"
+                                onClick={() => setSkuQuantities(prev => ({ ...prev, [selectedSkuId!]: (prev[selectedSkuId!] || 0) + 1 }))}>
+                                <Plus className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button
+                              size="sm"
+                              className="h-8 px-6 rounded-md font-semibold"
+                              onClick={() => setSkuQuantities(prev => ({ ...prev, [selectedSkuId!]: 1 }))}
+                            >
+                              Add
+                            </Button>
+                          )}
+                          <span className="text-xs text-muted-foreground">Stock: {selectedSkuItem.stock}</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/* Added products list */}
                   {hasSkus && (() => {
