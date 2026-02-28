@@ -103,6 +103,26 @@ const fallbackTrendingProducts = [
   { id: "abb-868362523543", title: "Travel to Beautiful China 30 Postcards Night Scenery", image: "https://cbu01.alicdn.com/img/ibank/O1CN01Ti6Bv71FKqRCoR1mD_!!2458430469-0-cib.310x310.jpg", price: 95, oldPrice: 98, sold: 2326810 },
 ];
 
+// Module-level session cache — survives component unmount/remount within the SPA session
+let _sessionCache: {
+  trendingProducts: typeof fallbackTrendingProducts | null;
+  categoryProductsMap: Record<string, any[]> | null;
+  loadedCategoryCount: number;
+  searchState: {
+    query: string;
+    products: Product1688[];
+    currentPage: number;
+    totalResults: number | null;
+    hasSearched: boolean;
+    activeSearch: { mode: "text" | "image"; query: string; altQueries: string[] } | null;
+  } | null;
+} = {
+  trendingProducts: null,
+  categoryProductsMap: null,
+  loadedCategoryCount: 0,
+  searchState: null,
+};
+
 
 
 
@@ -111,11 +131,11 @@ const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { settings } = useAppSettings();
-  const [query, setQuery] = useState("");
-  const [products, setProducts] = useState<Product1688[]>([]);
+  const [query, setQuery] = useState(_sessionCache.searchState?.query || "");
+  const [products, setProducts] = useState<Product1688[]>(_sessionCache.searchState?.products || []);
   const [_translatedTitles] = useState<Record<number, string>>({});
   const [isLoading, setIsLoading] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
+  const [hasSearched, setHasSearched] = useState(_sessionCache.searchState?.hasSearched || false);
   const [selectedProduct, setSelectedProduct] = useState<ProductDetail1688 | null>(null);
   const [isLoadingProduct, setIsLoadingProduct] = useState(false);
   const [isTranslatingProduct] = useState(false);
@@ -139,19 +159,19 @@ const Index = () => {
   const dragCounterRef = useRef(0);
   const topCatScrollRef = useRef<HTMLDivElement>(null);
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalResults, setTotalResults] = useState<number | null>(null);
+  const [currentPage, setCurrentPage] = useState(_sessionCache.searchState?.currentPage || 1);
+  const [totalResults, setTotalResults] = useState<number | null>(_sessionCache.searchState?.totalResults ?? null);
   const [activeSearch, setActiveSearch] = useState<{
     mode: "text" | "image";
     query: string;
     altQueries: string[];
-  } | null>(null);
+  } | null>(_sessionCache.searchState?.activeSearch || null);
   const [altQueryIndex, setAltQueryIndex] = useState(0);
   const [_isTranslatingTitles] = useState(false);
   const [filters, setFilters] = useState<SearchFilterValues>(getDefaultFilters());
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [trendingProducts, setTrendingProducts] = useState(fallbackTrendingProducts);
+  const [trendingProducts, setTrendingProducts] = useState(_sessionCache.trendingProducts || fallbackTrendingProducts);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -163,30 +183,42 @@ const Index = () => {
   }, []);
 
   // Prefetch all category products in one query + trending products
-  const [categoryProductsMap, setCategoryProductsMap] = useState<Record<string, any[]>>({});
-  const [isTrendingLoaded, setIsTrendingLoaded] = useState(false);
-  const [loadedCategoryCount, setLoadedCategoryCount] = useState(0);
+  const [categoryProductsMap, setCategoryProductsMap] = useState<Record<string, any[]>>(_sessionCache.categoryProductsMap || {});
+  const [isTrendingLoaded, setIsTrendingLoaded] = useState(!!_sessionCache.trendingProducts);
+  const [loadedCategoryCount, setLoadedCategoryCount] = useState(_sessionCache.loadedCategoryCount || 0);
+
+  // Save search state to module cache on changes
+  useEffect(() => {
+    if (hasSearched) {
+      _sessionCache.searchState = { query, products, currentPage, totalResults, hasSearched, activeSearch };
+    }
+  }, [query, products, currentPage, totalResults, hasSearched, activeSearch]);
 
   useEffect(() => {
+    // Skip fetching if we already have cached data
+    if (_sessionCache.trendingProducts && _sessionCache.categoryProductsMap) {
+      return;
+    }
+
     // Step 1: Load trending products first (instant display)
     const fetchTrending = async () => {
       const trendingRes = await supabase.from("trending_products").select("*").order("sold", { ascending: false });
       if (!trendingRes.error && trendingRes.data && trendingRes.data.length > 0) {
-        setTrendingProducts(
-          trendingRes.data.map((p: any) => ({
-            id: p.product_id,
-            title: p.title,
-            image: p.image_url,
-            price: Number(p.price) || 0,
-            oldPrice: Number(p.old_price) || Number(p.price) || 0,
-            sold: Number(p.sold) || 0,
-          }))
-        );
+        const mapped = trendingRes.data.map((p: any) => ({
+          id: p.product_id,
+          title: p.title,
+          image: p.image_url,
+          price: Number(p.price) || 0,
+          oldPrice: Number(p.old_price) || Number(p.price) || 0,
+          sold: Number(p.sold) || 0,
+        }));
+        setTrendingProducts(mapped);
+        _sessionCache.trendingProducts = mapped;
       }
       setIsTrendingLoaded(true);
     };
 
-    // Step 2: Load categories progressively (serial batches so sections appear one-by-one)
+    // Step 2: Load categories progressively
     const fetchCategories = async () => {
       const [categoryRes1, categoryRes2] = await Promise.all([
         supabase.from("category_products").select("*").order("created_at", { ascending: true }).range(0, 999),
@@ -203,22 +235,21 @@ const Index = () => {
           if (!grouped[row.category_query]) grouped[row.category_query] = [];
           grouped[row.category_query].push(row);
         }
-        // Progressive reveal: add categories one by one with small delays
         const categoryKeys = categories.map(c => c.query).filter(q => grouped[q]);
         const buildMap: Record<string, any[]> = {};
         for (let i = 0; i < categoryKeys.length; i++) {
           buildMap[categoryKeys[i]] = grouped[categoryKeys[i]];
           setCategoryProductsMap({ ...buildMap });
           setLoadedCategoryCount(i + 1);
-          // Small stagger so each category animates in
           if (i < categoryKeys.length - 1) {
             await new Promise(r => setTimeout(r, 80));
           }
         }
+        _sessionCache.categoryProductsMap = { ...buildMap };
+        _sessionCache.loadedCategoryCount = categoryKeys.length;
       }
     };
 
-    // Fire trending first, then categories after
     fetchTrending().then(fetchCategories);
   }, []);
 
