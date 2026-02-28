@@ -54,6 +54,8 @@ export default function AdminCustomers() {
   const [customerShipments, setCustomerShipments] = useState<Record<string, string>>({});
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [invoiceOrder, setInvoiceOrder] = useState<OrderItem | null>(null);
+  const [combinedInvoiceOrders, setCombinedInvoiceOrders] = useState<any[]>([]);
+  const [statusFilterOrders, setStatusFilterOrders] = useState("all");
   useEffect(() => {
     const fetchCustomers = async () => {
       setLoading(true);
@@ -134,6 +136,33 @@ export default function AdminCustomers() {
 
   const grandTotal = (o: OrderItem) =>
     Number(o.total_price) + Number(o.shipping_charges || 0) + Number(o.commission || 0);
+
+  const statusColorMap: Record<string, string> = {
+    Ordered: "bg-amber-100 text-amber-800",
+    "Purchased from 1688": "bg-blue-100 text-blue-800",
+    "Shipped to Warehouse": "bg-indigo-100 text-indigo-800",
+    "Arrived at Warehouse": "bg-violet-100 text-violet-800",
+    "Shipped to Bangladesh": "bg-purple-100 text-purple-800",
+    "In Customs": "bg-orange-100 text-orange-800",
+    "Out for Delivery": "bg-cyan-100 text-cyan-800",
+    Delivered: "bg-emerald-100 text-emerald-800",
+  };
+
+  const getOrderStatus = (order: OrderItem) => customerShipments[order.id] || "Ordered";
+
+  const uniqueStatuses = Array.from(new Set(customerOrders.map(getOrderStatus)));
+
+  const filteredCustomerOrders = statusFilterOrders === "all"
+    ? customerOrders
+    : customerOrders.filter((o) => getOrderStatus(o) === statusFilterOrders);
+
+  const handleCombinedInvoice = () => {
+    const orders = filteredCustomerOrders.map((o) => ({
+      ...o,
+      profile: ordersCustomer ? { full_name: ordersCustomer.full_name, phone: ordersCustomer.phone, address: ordersCustomer.address } : null,
+    }));
+    if (orders.length > 0) setCombinedInvoiceOrders(orders);
+  };
 
   return (
     <div className="space-y-6">
@@ -316,39 +345,70 @@ export default function AdminCustomers() {
               <p>No orders found</p>
             </div>
           ) : (
-            <ScrollArea className="max-h-[60vh] pr-3">
-              <div className="space-y-3">
-                {customerOrders.map((order) => (
-                  <div key={order.id} className="flex gap-3 p-3 rounded-lg border border-border/60 hover:border-primary/20 transition-colors">
-                    {order.product_image ? (
-                      <img src={order.product_image} alt="" className="w-14 h-14 rounded-lg object-cover border border-border/40 flex-shrink-0" referrerPolicy="no-referrer" />
-                    ) : (
-                      <div className="w-14 h-14 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                        <ImageIcon className="h-5 w-5 text-muted-foreground/40" />
-                      </div>
-                    )}
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-medium line-clamp-1">{order.product_name}</p>
-                        <Badge variant="secondary" className="text-[10px] flex-shrink-0">{customerShipments[order.id] || "Ordered"}</Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        <span className="font-mono">#{order.order_number}</span> · Qty: {order.quantity} × ৳{Number(order.unit_price).toFixed(0)}
-                      </p>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-primary">৳{grandTotal(order).toFixed(0)}</span>
-                        <div className="flex items-center gap-2">
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setInvoiceOrder(order)}>
-                            <FileText className="h-3.5 w-3.5 text-primary" />
-                          </Button>
-                          <span className="text-[11px] text-muted-foreground">{new Date(order.created_at).toLocaleDateString()}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+            <>
+              {/* Status filter tabs */}
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                <button
+                  className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors ${statusFilterOrders === "all" ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted"}`}
+                  onClick={() => setStatusFilterOrders("all")}
+                >
+                  All ({customerOrders.length})
+                </button>
+                {uniqueStatuses.map((s) => (
+                  <button
+                    key={s}
+                    className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors ${statusFilterOrders === s ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted"}`}
+                    onClick={() => setStatusFilterOrders(s)}
+                  >
+                    {s} ({customerOrders.filter((o) => getOrderStatus(o) === s).length})
+                  </button>
                 ))}
               </div>
-            </ScrollArea>
+
+              {/* Combined invoice button */}
+              <Button size="sm" variant="outline" className="gap-1.5 mb-2 w-full" onClick={handleCombinedInvoice}>
+                <FileText className="h-3.5 w-3.5" />
+                Print Combined Invoice ({filteredCustomerOrders.length} orders)
+              </Button>
+
+              <ScrollArea className="max-h-[50vh] pr-3">
+                <div className="space-y-3">
+                  {filteredCustomerOrders.map((order) => {
+                    const status = getOrderStatus(order);
+                    const statusColor = statusColorMap[status] || "bg-muted text-muted-foreground";
+                    return (
+                      <div key={order.id} className="flex gap-3 p-3 rounded-lg border border-border/60 hover:border-primary/20 transition-colors">
+                        {order.product_image ? (
+                          <img src={order.product_image} alt="" className="w-14 h-14 rounded-lg object-cover border border-border/40 flex-shrink-0" referrerPolicy="no-referrer" />
+                        ) : (
+                          <div className="w-14 h-14 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                            <ImageIcon className="h-5 w-5 text-muted-foreground/40" />
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-sm font-medium line-clamp-1">{order.product_name}</p>
+                            <Badge className={`text-[10px] flex-shrink-0 border-0 ${statusColor}`}>{status}</Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            <span className="font-mono">#{order.order_number}</span> · Qty: {order.quantity} × ৳{Number(order.unit_price).toFixed(0)}
+                          </p>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold text-primary">৳{grandTotal(order).toFixed(0)}</span>
+                            <div className="flex items-center gap-2">
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setInvoiceOrder(order)}>
+                                <FileText className="h-3.5 w-3.5 text-primary" />
+                              </Button>
+                              <span className="text-[11px] text-muted-foreground">{new Date(order.created_at).toLocaleDateString()}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
+            </>
           )}
         </DialogContent>
       </Dialog>
@@ -357,6 +417,11 @@ export default function AdminCustomers() {
         order={invoiceOrder ? { ...invoiceOrder, profile: ordersCustomer ? { full_name: ordersCustomer.full_name, phone: ordersCustomer.phone, address: ordersCustomer.address } : null } : null}
         open={!!invoiceOrder}
         onOpenChange={(open) => { if (!open) setInvoiceOrder(null); }}
+      />
+      <OrderInvoice
+        orders={combinedInvoiceOrders}
+        open={combinedInvoiceOrders.length > 0}
+        onOpenChange={(open) => { if (!open) setCombinedInvoiceOrders([]); }}
       />
     </div>
   );
