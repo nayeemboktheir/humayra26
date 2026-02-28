@@ -55,10 +55,11 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
     setDomesticShippingFee(null);
     supabase.functions.invoke('alibaba-1688-shipping-fee', {
       body: { numIid: String(product.num_iid), province: 'Guangdong' },
-    }).then(({ data }) => {
-      if (data?.success && data?.data?.total_fee != null) {
+    }).then(({ data, error }) => {
+      if (!error && data?.success && data?.data?.total_fee != null) {
         setDomesticShippingFee(data.data.total_fee);
       }
+      // Silently ignore failures — shipping fee is optional
     }).catch(() => {});
   }, [product?.num_iid]);
 
