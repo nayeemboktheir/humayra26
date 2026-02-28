@@ -8,8 +8,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Search, Phone, MapPin, ShoppingCart, Wallet, Calendar,
-  Mail, UserCircle, Package, ArrowUpRight, ImageIcon, Hash, ExternalLink
+  Mail, UserCircle, Package, ArrowUpRight, ImageIcon, Hash, ExternalLink, FileText
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import OrderInvoice from "@/components/OrderInvoice";
 
 interface CustomerData {
   user_id: string;
@@ -33,6 +35,10 @@ interface OrderItem {
   total_price: number;
   shipping_charges: number | null;
   commission: number | null;
+  domestic_courier_charge: number | null;
+  variant_name: string | null;
+  notes: string | null;
+  invoice_name: string | null;
   status: string;
   created_at: string;
   product_url: string | null;
@@ -47,7 +53,7 @@ export default function AdminCustomers() {
   const [customerOrders, setCustomerOrders] = useState<OrderItem[]>([]);
   const [customerShipments, setCustomerShipments] = useState<Record<string, string>>({});
   const [ordersLoading, setOrdersLoading] = useState(false);
-
+  const [invoiceOrder, setInvoiceOrder] = useState<OrderItem | null>(null);
   useEffect(() => {
     const fetchCustomers = async () => {
       setLoading(true);
@@ -111,7 +117,7 @@ export default function AdminCustomers() {
     const [ordersRes, shipmentsRes] = await Promise.all([
       supabase
         .from("orders")
-        .select("id, order_number, product_name, product_image, quantity, unit_price, total_price, shipping_charges, commission, status, created_at, product_url")
+        .select("id, order_number, product_name, product_image, quantity, unit_price, total_price, shipping_charges, commission, domestic_courier_charge, variant_name, notes, invoice_name, status, created_at, product_url")
         .eq("user_id", customer.user_id)
         .order("created_at", { ascending: false }),
       supabase
@@ -331,7 +337,12 @@ export default function AdminCustomers() {
                       </p>
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-semibold text-primary">৳{grandTotal(order).toFixed(0)}</span>
-                        <span className="text-[11px] text-muted-foreground">{new Date(order.created_at).toLocaleDateString()}</span>
+                        <div className="flex items-center gap-2">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setInvoiceOrder(order)}>
+                            <FileText className="h-3.5 w-3.5 text-primary" />
+                          </Button>
+                          <span className="text-[11px] text-muted-foreground">{new Date(order.created_at).toLocaleDateString()}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -341,6 +352,12 @@ export default function AdminCustomers() {
           )}
         </DialogContent>
       </Dialog>
+
+      <OrderInvoice
+        order={invoiceOrder ? { ...invoiceOrder, profile: ordersCustomer ? { full_name: ordersCustomer.full_name, phone: ordersCustomer.phone, address: ordersCustomer.address } : null } : null}
+        open={!!invoiceOrder}
+        onOpenChange={(open) => { if (!open) setInvoiceOrder(null); }}
+      />
     </div>
   );
 }
