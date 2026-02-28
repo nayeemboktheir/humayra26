@@ -43,9 +43,13 @@ export interface ProductDetail1688 {
   seller_info: {
     nick: string;
     shop_name: string;
+    vendor_id?: string;
     item_score: string;
     delivery_score: string;
     composite_score: string;
+    rating?: string;
+    service_score?: string;
+    total_sales?: number;
   };
   total_sold?: number;
   item_weight?: number;
@@ -261,7 +265,13 @@ export const alibaba1688Api = {
       seller_info: {
         nick: item?.VendorName || item?.VendorDisplayName || '',
         shop_name: item?.VendorName || item?.VendorDisplayName || '',
-        item_score: '', delivery_score: '', composite_score: '',
+        vendor_id: item?.VendorId || '',
+        item_score: getFeatured('rating') || '',
+        delivery_score: '',
+        composite_score: '',
+        rating: getFeatured('normalizedRating') || getFeatured('rating') || '',
+        service_score: '',
+        total_sales: parseInt(getFeatured('TotalSales') || '0', 10) || undefined,
       },
       total_sold: parseInt(getFeatured('SalesInLast30Days') || getFeatured('TotalSales') || '0', 10) || undefined,
       item_weight: item?.PhysicalParameters?.Weight || undefined,

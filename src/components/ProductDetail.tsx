@@ -694,22 +694,47 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
 
             {/* Seller Info Card */}
             {product.seller_info && (
-              <Card>
-                <CardContent className="p-4 sm:p-5">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
-                      <span className="text-xl font-bold text-primary">{(product.seller_info.shop_name || 'S')[0].toUpperCase()}</span>
+              <Card className="overflow-hidden">
+                <CardContent className="p-5 flex flex-col items-center text-center gap-3">
+                  {/* Store icon */}
+                  <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center">
+                    <Package className="h-7 w-7 text-primary" />
+                  </div>
+                  {/* Seller name & location */}
+                  <div>
+                    <div className="font-bold text-base">{product.seller_info.shop_name || "1688 Seller"}</div>
+                    {product.seller_info.vendor_id && (
+                      <div className="text-xs text-muted-foreground mt-0.5 break-all">{product.seller_info.vendor_id}</div>
+                    )}
+                  </div>
+                  {/* Stats row */}
+                  <div className="grid grid-cols-3 w-full border rounded-lg divide-x">
+                    <div className="py-2.5 px-1">
+                      <div className="text-base font-bold">{product.total_sold?.toLocaleString() || '—'}</div>
+                      <div className="text-[10px] text-muted-foreground uppercase">Total Sale</div>
                     </div>
-                    <div className="flex-1">
-                      <div className="font-semibold text-base">{product.seller_info.shop_name || "1688 Seller"}</div>
-                      <div className="flex items-center gap-3 mt-1 flex-wrap">
-                        <Badge variant="secondary" className="text-xs">Verified Supplier</Badge>
-                        {product.location && (
-                          <span className="text-sm text-muted-foreground flex items-center gap-1"><MapPin className="h-3 w-3" />{translateLocation(product.location)}</span>
-                        )}
-                      </div>
+                    <div className="py-2.5 px-1">
+                      <div className="text-base font-bold">{product.seller_info.rating || '—'}</div>
+                      <div className="text-[10px] text-muted-foreground uppercase">Rating</div>
+                    </div>
+                    <div className="py-2.5 px-1">
+                      <div className="text-base font-bold">{product.seller_info.service_score || '—'}</div>
+                      <div className="text-[10px] text-muted-foreground uppercase">Service</div>
                     </div>
                   </div>
+                  {/* Visit Seller Store button */}
+                  <Button
+                    variant="outline"
+                    className="w-full border-primary text-primary hover:bg-primary hover:text-primary-foreground font-semibold rounded-full"
+                    onClick={() => {
+                      const vendorId = product.seller_info.vendor_id;
+                      if (vendorId) {
+                        window.open(`https://otcommerce.com/seller/${vendorId}`, '_blank');
+                      }
+                    }}
+                  >
+                    Visit Seller Store
+                  </Button>
                 </CardContent>
               </Card>
             )}
