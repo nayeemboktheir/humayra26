@@ -1,8 +1,9 @@
 import { useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Printer } from "lucide-react";
+import { Printer, X } from "lucide-react";
 import { useAppSettings } from "@/hooks/useAppSettings";
+import { toast } from "@/hooks/use-toast";
 
 interface OrderData {
   order_number: string;
@@ -231,11 +232,40 @@ export default function OrderInvoice({ order, orders: ordersProp, open, onOpenCh
   const footerText = settings.invoice_footer_text || "Thank you for shopping with us!";
 
   const handlePrint = () => {
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) return;
+    const printWindow = window.open("", "_blank", "noopener,noreferrer,width=980,height=800");
+
+    if (!printWindow) {
+      toast({
+        title: "Popup blocked",
+        description: "Please allow popups for this site to print/download the invoice.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    printWindow.document.open();
     printWindow.document.write(buildPrintHTML(orders, settings));
     printWindow.document.close();
-    printWindow.print();
+
+    const triggerPrint = () => {
+      try {
+        printWindow.focus();
+        printWindow.print();
+      } catch {
+        toast({
+          title: "Print failed",
+          description: "Please try again, or use your browser print shortcut.",
+          variant: "destructive",
+        });
+      }
+    };
+
+    if (printWindow.document.readyState === "complete") {
+      setTimeout(triggerPrint, 150);
+    } else {
+      printWindow.onload = () => setTimeout(triggerPrint, 150);
+      setTimeout(triggerPrint, 900); // fallback for browsers where onload is unreliable
+    }
   };
 
   return (
@@ -244,10 +274,16 @@ export default function OrderInvoice({ order, orders: ordersProp, open, onOpenCh
         <DialogHeader className="px-6 pt-6 pb-0">
           <DialogTitle className="flex items-center justify-between">
             <span className="text-lg font-bold">{isCombined ? "Combined Invoice" : "Invoice"}</span>
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={handlePrint}>
-              <Printer className="h-3.5 w-3.5" />
-              Print / Download
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={handlePrint}>
+                <Printer className="h-3.5 w-3.5" />
+                Print / Download
+              </Button>
+              <Button variant="ghost" size="sm" className="gap-1" onClick={() => onOpenChange(false)}>
+                <X className="h-3.5 w-3.5" />
+                Close
+              </Button>
+            </div>
           </DialogTitle>
         </DialogHeader>
 
