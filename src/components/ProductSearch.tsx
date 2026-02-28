@@ -67,40 +67,8 @@ export const ProductSearch = () => {
     }
   };
 
-  const handleProductClick = async (product: Product1688) => {
-    setCurrentImageIndex(0);
-
-    // Show fallback detail from search data immediately
-    const fallbackDetail: ProductDetail1688 = {
-      num_iid: product.num_iid,
-      title: product.title,
-      desc: '',
-      price: product.price,
-      pic_url: product.pic_url,
-      item_imgs: (product.extra_images?.length ? product.extra_images : [product.pic_url]).filter(Boolean).map(url => ({ url })),
-      location: product.location || '',
-      num: product.stock ? String(product.stock) : '',
-      min_num: 1,
-      props: [],
-      seller_info: { nick: product.vendor_name || '', shop_name: product.vendor_name || '', item_score: '', delivery_score: '', composite_score: '' },
-      total_sold: product.sales,
-      item_weight: product.weight,
-    };
-
-    setSelectedProduct(fallbackDetail);
-    setIsDetailsOpen(true);
-    setIsLoadingDetails(true);
-
-    // Fetch full details (already translated in the API layer)
-    try {
-      const response = await alibaba1688Api.getProduct(product.num_iid);
-      if (response.success && response.data) {
-        setSelectedProduct(response.data);
-      }
-    } catch (error) {
-      console.error("Product details error:", error);
-    }
-    setIsLoadingDetails(false);
+  const handleProductClick = (product: Product1688) => {
+    window.open(`/?product=${product.num_iid}`, '_blank');
   };
 
   // Get all images from product
