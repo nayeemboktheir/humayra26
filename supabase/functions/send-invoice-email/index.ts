@@ -79,7 +79,6 @@ function buildInvoiceHTML(orders: OrderData[], settings: Record<string, string>)
   const companyWebsite = settings.invoice_company_website || "www.tradeon.global";
   const footerText = settings.invoice_footer_text || "Thank you for shopping with us!";
   const invoiceName = orders[0].invoice_name;
-  const customerName = profile?.full_name || invoiceName || "Valued Customer";
 
   let tableRows = "";
   for (const o of orders) {
@@ -132,68 +131,100 @@ function buildInvoiceHTML(orders: OrderData[], settings: Record<string, string>)
     </div>`;
   }
 
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Invoice - ${invoiceNumber}</title></head><body style="font-family:'Segoe UI',system-ui,-apple-system,sans-serif;padding:40px;color:#1a1a2e;background:#f4f6f9;margin:0;">
-  <div style="max-width:780px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
-    <div style="background:${ACCENT};padding:28px 36px;color:#fff;">
-      <div style="font-size:26px;font-weight:800;letter-spacing:-0.5px;">${companyName}</div>
-      <div style="font-size:12px;opacity:0.85;margin-top:4px;">${companyWebsite} | ${companyEmail}</div>
-    </div>
-    <div style="padding:32px 36px;">
-      <div style="margin-bottom:24px;">
-        <div style="font-size:16px;color:#1a1a2e;">Assalamu Alaikum <strong>${customerName}</strong>,</div>
-        <div style="font-size:14px;color:#4b5563;margin-top:8px;line-height:1.6;">
-          Thank you for your ${isCombined ? "orders" : "order"} with <strong>${companyName}</strong>! We truly appreciate your trust in us. 
-          Please find your invoice details below. If you have any questions, feel free to reach out to us anytime.
-        </div>
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:20px;margin-bottom:20px;border-bottom:2px solid #e5e7eb;">
-        <div>
-          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:${ACCENT};margin-bottom:4px;">Invoice Details</div>
-          <div style="font-size:14px;font-weight:700;color:#1a1a2e;">#${invoiceNumber}</div>
-          <div style="font-size:12px;color:#6b7280;margin-top:2px;">Date: ${invoiceDate}</div>
-          ${invoiceName ? `<div style="font-size:12px;color:#6b7280;">${invoiceName}</div>` : ""}
-        </div>
-        <div style="text-align:right;font-size:12px;color:#6b7280;line-height:1.7;">
+  // Clean invoice (no greetings)
+  return `<div style="max-width:780px;margin:0 auto;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:20px;margin-bottom:24px;border-bottom:3px solid ${ACCENT};">
+      <div>
+        <div style="font-size:26px;font-weight:800;letter-spacing:-0.5px;">${companyName}</div>
+        <div style="font-size:11px;color:#6b7280;line-height:1.7;margin-top:6px;">
           ${companyAddress ? `<div>${companyAddress}</div>` : ""}
           <div>${[companyPhone, companyEmail].filter(Boolean).join(" | ")}</div>
+          <div>${companyWebsite}</div>
         </div>
       </div>
-      ${profile ? `<div style="margin-bottom:20px;padding:14px 18px;background:#f8fafc;border-radius:8px;border-left:4px solid ${ACCENT};">
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:${ACCENT};margin-bottom:6px;">Bill To</div>
-        <div style="font-size:15px;font-weight:700;margin-bottom:2px;">${profile.full_name || "—"}</div>
-        ${profile.phone ? `<div style="font-size:12px;color:#6b7280;">${profile.phone}</div>` : ""}
-        ${profile.address ? `<div style="font-size:12px;color:#6b7280;">${profile.address}</div>` : ""}
-      </div>` : ""}
-      <table style="width:100%;border-collapse:collapse;margin-bottom:24px;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;">
-        <thead><tr>
-          <th style="background:${ACCENT};color:#fff;text-align:left;padding:12px 14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;">Product</th>
-          <th style="background:${ACCENT};color:#fff;text-align:center;padding:12px 14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;width:80px;">QTY</th>
-          <th style="background:${ACCENT};color:#fff;text-align:right;padding:12px 14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;width:120px;">Unit Price</th>
-          <th style="background:${ACCENT};color:#fff;text-align:right;padding:12px 14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;width:120px;">Total</th>
-        </tr></thead>
-        <tbody>${tableRows}</tbody>
-      </table>
-      <div style="display:flex;justify-content:flex-end;margin-bottom:28px;">
-        <div style="width:320px;background:#f8fafc;border-radius:8px;padding:16px 20px;">
-          ${summaryRows}
-          <div style="border-top:3px solid ${ACCENT};margin-top:10px;padding-top:12px;display:flex;justify-content:space-between;font-size:18px;font-weight:800;">
-            <span>Grand Total</span>
-            <span style="color:${ACCENT};">৳${totals.grandTotal.toLocaleString()}</span>
-          </div>
-        </div>
-      </div>
-      <div style="background:#f0f7ff;border-radius:8px;padding:18px 22px;margin-bottom:24px;">
-        <div style="font-size:13px;color:#1a1a2e;font-weight:600;margin-bottom:6px;">📦 What's Next?</div>
-        <div style="font-size:12px;color:#4b5563;line-height:1.6;">
-          We will process your order shortly. You will receive shipment tracking updates via notifications. 
-          For any queries, contact us at <strong>${companyPhone}</strong> or <strong>${companyEmail}</strong>.
+      <div style="text-align:right;">
+        <div style="font-size:28px;font-weight:800;color:${ACCENT};letter-spacing:3px;">INVOICE</div>
+        <div style="font-size:12px;color:#6b7280;margin-top:6px;line-height:1.8;">
+          <div style="font-weight:700;color:#1a1a2e;font-size:14px;">#${invoiceNumber}</div>
+          <div>Date: ${invoiceDate}</div>
+          ${invoiceName ? `<div style="font-weight:600;color:#1a1a2e;margin-top:2px;">${invoiceName}</div>` : ""}
         </div>
       </div>
     </div>
-    <div style="background:#f8fafc;text-align:center;padding:20px 36px;border-top:1px solid #e5e7eb;">
+    ${profile ? `<div style="margin-bottom:24px;padding:16px 20px;background:#f8fafc;border-radius:8px;border-left:4px solid ${ACCENT};">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:${ACCENT};margin-bottom:6px;">Bill To</div>
+      <div style="font-size:15px;font-weight:700;margin-bottom:2px;">${profile.full_name || "—"}</div>
+      ${profile.phone ? `<div style="font-size:12px;color:#6b7280;">${profile.phone}</div>` : ""}
+      ${profile.address ? `<div style="font-size:12px;color:#6b7280;">${profile.address}</div>` : ""}
+    </div>` : ""}
+    <table style="width:100%;border-collapse:collapse;margin-bottom:28px;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;">
+      <thead><tr>
+        <th style="background:${ACCENT};color:#fff;text-align:left;padding:12px 14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;">Product</th>
+        <th style="background:${ACCENT};color:#fff;text-align:center;padding:12px 14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;width:80px;">QTY</th>
+        <th style="background:${ACCENT};color:#fff;text-align:right;padding:12px 14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;width:120px;">Unit Price</th>
+        <th style="background:${ACCENT};color:#fff;text-align:right;padding:12px 14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;width:120px;">Total</th>
+      </tr></thead>
+      <tbody>${tableRows}</tbody>
+    </table>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:32px;">
+      <div style="width:320px;background:#f8fafc;border-radius:8px;padding:16px 20px;">
+        ${summaryRows}
+        <div style="border-top:3px solid ${ACCENT};margin-top:10px;padding-top:12px;display:flex;justify-content:space-between;font-size:18px;font-weight:800;">
+          <span>Grand Total</span>
+          <span style="color:${ACCENT};">৳${totals.grandTotal.toLocaleString()}</span>
+        </div>
+      </div>
+    </div>
+    <div style="text-align:center;padding-top:20px;border-top:1px solid #e5e7eb;">
       <div style="font-size:14px;font-weight:600;color:${ACCENT};margin-bottom:4px;">${footerText}</div>
       <div style="font-size:11px;color:#9ca3af;">${companyWebsite} | ${companyEmail}</div>
-      <div style="font-size:10px;color:#d1d5db;margin-top:8px;">This is an automated invoice from ${companyName}. Please do not reply to this email.</div>
+    </div>
+  </div>`;
+}
+
+function buildEmailHTML(orders: OrderData[], settings: Record<string, string>) {
+  const isCombined = orders.length > 1;
+  const profile = orders[0].profile;
+  const customerName = profile?.full_name || orders[0].invoice_name || "Valued Customer";
+  const companyName = settings.invoice_company_name || settings.site_name || "TradeOn.Global";
+  const companyPhone = settings.invoice_company_phone || settings.contact_phone || "";
+  const companyEmail = settings.invoice_company_email || settings.contact_email || "";
+  const companyWebsite = settings.invoice_company_website || "www.tradeon.global";
+  const invoiceHTML = buildInvoiceHTML(orders, settings);
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Invoice</title></head>
+<body style="font-family:'Segoe UI',system-ui,-apple-system,sans-serif;padding:0;margin:0;background:#f4f6f9;color:#1a1a2e;">
+  <div style="max-width:820px;margin:0 auto;padding:32px 16px;">
+    <!-- Greeting -->
+    <div style="background:#fff;border-radius:12px;padding:28px 32px;margin-bottom:20px;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+      <div style="font-size:17px;margin-bottom:10px;">Assalamu Alaikum <strong>${customerName}</strong>,</div>
+      <div style="font-size:14px;color:#4b5563;line-height:1.7;">
+        Thank you for your ${isCombined ? "orders" : "order"} with <strong>${companyName}</strong>! We truly appreciate your trust in us.
+        Please find your invoice attached below. If you have any questions or concerns regarding your order, feel free to contact us anytime.
+      </div>
+    </div>
+
+    <!-- Invoice -->
+    <div style="background:#fff;border-radius:12px;padding:32px;margin-bottom:20px;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+      ${invoiceHTML}
+    </div>
+
+    <!-- What's Next -->
+    <div style="background:#fff;border-radius:12px;padding:24px 28px;margin-bottom:20px;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+      <div style="font-size:15px;font-weight:700;color:#1a1a2e;margin-bottom:8px;">📦 What's Next?</div>
+      <div style="font-size:13px;color:#4b5563;line-height:1.7;">
+        We will process your order shortly and keep you updated with shipment tracking details. 
+        You can track your order status anytime from your dashboard at <a href="https://${companyWebsite}" style="color:${ACCENT};text-decoration:none;font-weight:600;">${companyWebsite}</a>.
+      </div>
+      <div style="font-size:13px;color:#4b5563;margin-top:10px;line-height:1.7;">
+        For any queries, reach us at <strong>${companyPhone}</strong> or <strong>${companyEmail}</strong>. We're always happy to help!
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="text-align:center;padding:16px 0;">
+      <div style="font-size:11px;color:#9ca3af;">This is an automated invoice email from ${companyName}. Please do not reply to this email.</div>
+      <div style="font-size:11px;color:#b0b0b0;margin-top:4px;">${companyWebsite} | ${companyEmail}</div>
     </div>
   </div>
 </body></html>`;
@@ -232,7 +263,7 @@ Deno.serve(async (req) => {
     const { orders, recipientEmail, settings } = await req.json();
     if (!orders || !recipientEmail) throw new Error("Missing orders or recipientEmail");
 
-    const html = buildInvoiceHTML(orders, settings || {});
+    const html = buildEmailHTML(orders, settings || {});
     const isCombined = orders.length > 1;
     const invoiceNumber = isCombined ? `COMB-${Date.now().toString(36).toUpperCase()}` : orders[0].order_number;
     const companyName = settings?.invoice_company_name || settings?.site_name || "TradeOn.Global";
