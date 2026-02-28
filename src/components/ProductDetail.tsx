@@ -476,12 +476,11 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
 
             {/* Price Range */}
             {product.priceRange && product.priceRange.length > 1 && (
-              <div className="grid grid-cols-3 border rounded-lg overflow-hidden">
+              <div className="flex border rounded-lg overflow-hidden bg-gradient-to-r from-primary/15 via-primary/10 to-primary/5">
                 {product.priceRange.map((range, idx) => (
-                  <div key={idx} className={`text-center py-3 px-2 ${idx === 0 ? 'bg-primary/10 border-b-2 border-primary' : 'border-l'}`}>
-                    <div className="text-lg font-bold">৳{convertToBDT(range[1]).toLocaleString()}</div>
-                    <div className="text-xs text-muted-foreground line-through">৳{Math.round(convertToBDT(range[1]) * 1.05).toLocaleString()}</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">{range[0]} or more</div>
+                  <div key={idx} className={`flex-1 text-center py-3 px-2 ${idx > 0 ? 'border-l border-primary/20' : ''}`}>
+                    <div className="text-[11px] text-muted-foreground mb-0.5">≥{range[0]} pcs</div>
+                    <div className="text-base font-bold text-primary">৳{convertToBDT(range[1]).toLocaleString()}</div>
                   </div>
                 ))}
               </div>
