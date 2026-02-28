@@ -476,11 +476,12 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
 
             {/* Price Range */}
             {product.priceRange && product.priceRange.length > 1 && (
-              <div className="flex border rounded-lg overflow-hidden bg-gradient-to-r from-primary/15 via-primary/10 to-primary/5">
+              <div className="grid grid-cols-3 border rounded-lg overflow-hidden">
                 {product.priceRange.map((range, idx) => (
-                  <div key={idx} className={`flex-1 text-center py-3 px-2 ${idx > 0 ? 'border-l border-primary/20' : ''}`}>
-                    <div className="text-[11px] text-muted-foreground mb-0.5">≥{range[0]} pcs</div>
-                    <div className="text-base font-bold text-primary">৳{convertToBDT(range[1]).toLocaleString()}</div>
+                  <div key={idx} className={`text-center py-3 px-2 ${idx === 0 ? 'bg-primary/10 border-b-2 border-primary' : 'border-l'}`}>
+                    <div className="text-lg font-bold">৳{convertToBDT(range[1]).toLocaleString()}</div>
+                    <div className="text-xs text-muted-foreground line-through">৳{Math.round(convertToBDT(range[1]) * 1.05).toLocaleString()}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">{range[0]} or more</div>
                   </div>
                 ))}
               </div>
@@ -608,51 +609,6 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
 
           {/* ===== COL 3: Right Sidebar ===== */}
           <div className="space-y-3 md:col-span-2 lg:col-span-1 lg:sticky lg:top-4 lg:self-start">
-
-            {/* Seller Info Card */}
-            {product.seller_info && (
-              <Card className="shadow-sm overflow-hidden">
-                <CardContent className="p-4 flex flex-col items-center text-center space-y-3">
-                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Package className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold">{product.seller_info.shop_name || product.seller_info.nick || 'Seller'}</p>
-                    {product.location && (
-                      <p className="text-xs text-muted-foreground mt-0.5">{product.location}</p>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-center gap-4 text-center w-full">
-                    {product.total_sold != null && product.total_sold > 0 && (
-                      <div>
-                        <p className="text-sm font-bold">{product.total_sold.toLocaleString()}</p>
-                        <p className="text-[10px] text-muted-foreground">Total Sale</p>
-                      </div>
-                    )}
-                    {product.seller_info.item_score && (
-                      <div>
-                        <p className="text-sm font-bold">{product.seller_info.item_score}</p>
-                        <p className="text-[10px] text-muted-foreground">Rating</p>
-                      </div>
-                    )}
-                    {product.seller_info.delivery_score && (
-                      <div>
-                        <p className="text-sm font-bold">{product.seller_info.delivery_score}</p>
-                        <p className="text-[10px] text-muted-foreground">Service</p>
-                      </div>
-                    )}
-                  </div>
-                  <a
-                    href={`https://detail.1688.com/offer/${product.num_iid}.html`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center rounded-full border border-primary text-primary text-xs font-semibold px-4 py-1.5 hover:bg-primary hover:text-primary-foreground transition-colors"
-                  >
-                    Visit Seller Store
-                  </a>
-                </CardContent>
-              </Card>
-            )}
 
             {/* Shipping Methods Card */}
             <Card className="shadow-sm overflow-hidden">
