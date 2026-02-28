@@ -846,6 +846,7 @@ const Index = () => {
         {imageSearchDialog}
         <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} settings={settings} />
         <ProductDetail product={selectedProduct || undefined} isLoading={isLoadingProduct || isTranslatingProduct} onBack={handleBackToSearch} />
+        <Footer />
         <BottomNav />
       </div>
     );
