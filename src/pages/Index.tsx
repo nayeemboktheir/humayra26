@@ -1347,7 +1347,9 @@ const SiteHeader = ({ query, setQuery, handleSearch, isLoading, handleImageButto
         <form onSubmit={handleSearch} className="flex gap-1.5">
           <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
           <div className="relative flex-1">
-            <Camera className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <button type="button" onClick={handleImageButtonClick} className="absolute left-2.5 top-1/2 -translate-y-1/2 z-10">
+              <Camera className="h-4 w-4 text-muted-foreground" />
+            </button>
             <Input type="text" placeholder={settings?.search_placeholder || "Search by keyword"} value={query} onChange={(e: any) => setQuery(e.target.value)} className="pl-9 h-10 bg-muted/50 border rounded-lg text-sm" />
           </div>
           <Button type="submit" disabled={isLoading} className="shrink-0 h-10 w-10 rounded-lg">
