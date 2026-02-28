@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, ShoppingCart, Truck, Package, RefreshCcw,
   Receipt, Wallet, Bell, Heart, Users, Shield, LogOut, Menu, X,
-  ChevronDown, ChevronRight, BarChart3, MessageSquare, Settings
+  ChevronDown, ChevronRight, BarChart3, MessageSquare, Settings, Megaphone
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -30,6 +30,7 @@ const navItems: NavItem[] = [
   { label: "Wallets", icon: Wallet, path: "/admin/wallets" },
   { label: "Notifications", icon: Bell, path: "/admin/notifications" },
   { label: "Wishlist", icon: Heart, path: "/admin/wishlist" },
+  { label: "Marketing", icon: Megaphone, path: "/admin/marketing" },
   { label: "Settings", icon: Settings, path: "/admin/settings" },
 ];
 
