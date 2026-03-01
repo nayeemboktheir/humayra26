@@ -200,16 +200,17 @@ const Index = () => {
   }, [query, products, currentPage, totalResults, hasSearched, activeSearch]);
 
   useEffect(() => {
-    // Skip fetching if we already have cached data
-    if (_sessionCache.trendingProducts && _sessionCache.categoryProductsMap) {
-      return;
-    }
-
-    // Step 1: Load trending products first (instant display)
+    // Always fetch fresh trending products (shuffled each visit)
     const fetchTrending = async () => {
-      const trendingRes = await supabase.from("trending_products").select("*").order("sold", { ascending: false });
+      const trendingRes = await supabase.from("trending_products").select("*");
       if (!trendingRes.error && trendingRes.data && trendingRes.data.length > 0) {
-        const mapped = trendingRes.data.map((p: any) => ({
+        // Shuffle using Fisher-Yates for fresh order every reload
+        const shuffled = [...trendingRes.data];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        const mapped = shuffled.map((p: any) => ({
           id: p.product_id,
           title: p.title,
           image: p.image_url,
@@ -222,6 +223,12 @@ const Index = () => {
       }
       setIsTrendingLoaded(true);
     };
+
+    // Skip category fetch if already cached
+    if (_sessionCache.categoryProductsMap) {
+      fetchTrending();
+      return;
+    }
 
     // Step 2: Load categories progressively
     const fetchCategories = async () => {
