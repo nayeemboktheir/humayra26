@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
-import { Settings, DollarSign, RefreshCw, Loader2, Save, CheckCircle, Globe, Image, Phone, Mail, MapPin, Type, Send, FileText, Footprints } from "lucide-react";
+import { Settings, DollarSign, Loader2, Save, CheckCircle, Globe, Image, Phone, Mail, MapPin, Type, Send, FileText, Footprints } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 
 type SettingsMap = Record<string, string>;
@@ -51,7 +51,7 @@ export default function AdminSettings() {
   const [settings, setSettings] = useState<SettingsMap>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [fetchingRate, setFetchingRate] = useState(false);
+  
   const [activeTab, setActiveTab] = useState<TabId>("branding");
   
 
@@ -87,21 +87,7 @@ export default function AdminSettings() {
     setSaving(false);
   };
 
-  const fetchLiveRate = async () => {
-    setFetchingRate(true);
-    try {
-      const resp = await fetch("https://open.er-api.com/v6/latest/CNY");
-      const data = await resp.json();
-      if (data?.rates?.BDT) {
-        const liveRate = data.rates.BDT.toFixed(2);
-        update("cny_to_bdt_rate", liveRate);
-        toast({ title: "Live rate fetched", description: `1 CNY = ${liveRate} BDT. Click Save All to apply.` });
-      } else throw new Error("Could not fetch rate");
-    } catch (e: any) {
-      toast({ title: "Error fetching rate", description: e.message, variant: "destructive" });
-    }
-    setFetchingRate(false);
-  };
+
 
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin" /></div>;
 
@@ -237,15 +223,9 @@ export default function AdminSettings() {
             <p className="text-xs text-muted-foreground">CNY to BDT conversion rate used for price calculations.</p>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-end gap-3">
-              <div className="flex-1">
-                <Label className="text-xs text-muted-foreground">1 CNY = ? BDT</Label>
-                <Input type="number" step="0.01" value={settings.cny_to_bdt_rate || ""} onChange={(e) => update("cny_to_bdt_rate", e.target.value)} className="h-9 text-sm font-semibold" />
-              </div>
-              <Button variant="outline" size="sm" onClick={fetchLiveRate} disabled={fetchingRate} className="shrink-0 h-9">
-                <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${fetchingRate ? "animate-spin" : ""}`} />
-                {fetchingRate ? "Fetching..." : "Live Rate"}
-              </Button>
+            <div>
+              <Label className="text-xs text-muted-foreground">1 CNY = ? BDT (auto-updated)</Label>
+              <Input type="number" step="0.01" value={settings.cny_to_bdt_rate || ""} onChange={(e) => update("cny_to_bdt_rate", e.target.value)} className="h-9 text-sm font-semibold" />
             </div>
             <div className="flex items-center gap-2 p-2 rounded bg-muted/50 text-xs">
               <CheckCircle className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
