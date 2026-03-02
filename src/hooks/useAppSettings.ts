@@ -21,6 +21,7 @@ const defaultSettings: AppSettings = {
   hero_badge_2: "✨ New Arrivals",
   hero_badge_3: "⭐ Best Sellers",
   cny_to_bdt_rate: "17.5",
+  price_markup_percentage: "15",
   footer_copyright_text: "tradeon.global - Wholesale from China to Bangladesh",
   footer_developer_name: "Platiroll",
   footer_developer_url: "https://platiroll.com/",

@@ -16,7 +16,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import SearchFilters, { SearchFilterValues, getDefaultFilters, applyFilters } from "@/components/SearchFilters";
 import CategorySection from "@/components/CategorySection";
 import { useAppSettings } from "@/hooks/useAppSettings";
-import { setCnyToBdtRate } from "@/lib/currency";
+import { setCnyToBdtRate, setMarkupPercentage } from "@/lib/currency";
 import BottomNav from "@/components/BottomNav";
 import ImageCropper from "@/components/ImageCropper";
 
@@ -132,9 +132,11 @@ const Index = () => {
   const { user } = useAuth();
   const { settings } = useAppSettings();
   
-  // Set dynamic exchange rate from settings
+  // Set dynamic exchange rate and markup from settings
   const rate = parseFloat(settings.cny_to_bdt_rate || "17.5");
   if (rate > 0) setCnyToBdtRate(rate);
+  const markup = parseFloat(settings.price_markup_percentage || "15");
+  if (markup >= 0) setMarkupPercentage(markup);
 
   const [query, setQuery] = useState(_sessionCache.searchState?.query || "");
   const [products, setProducts] = useState<Product1688[]>(_sessionCache.searchState?.products || []);

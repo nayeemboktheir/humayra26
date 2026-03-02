@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 type SettingsMap = Record<string, string>;
 
 const settingsKeys = [
-  "cny_to_bdt_rate", "site_name", "search_placeholder", "hero_title", "hero_subtitle",
+  "cny_to_bdt_rate", "price_markup_percentage", "site_name", "search_placeholder", "hero_title", "hero_subtitle",
   "shipping_card_title", "shipping_card_subtitle", "facebook_url", "youtube_url",
   "whatsapp_number", "favicon_url", "contact_email", "contact_phone", "head_office_address",
   "hero_badge_1", "hero_badge_2", "hero_badge_3", "email_sender_name", "email_sender_address",
@@ -236,7 +236,7 @@ export default function AdminSettings() {
             <CardTitle className="flex items-center gap-2 text-sm"><DollarSign className="h-4 w-4 text-primary" /> Currency Exchange Rate</CardTitle>
             <p className="text-xs text-muted-foreground">CNY to BDT conversion rate used for price calculations.</p>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <div className="flex items-end gap-3">
               <div className="flex-1">
                 <Label className="text-xs text-muted-foreground">1 CNY = ? BDT</Label>
@@ -247,9 +247,21 @@ export default function AdminSettings() {
                 {fetchingRate ? "Fetching..." : "Live Rate"}
               </Button>
             </div>
-            <div className="flex items-center gap-2 mt-2 p-2 rounded bg-muted/50 text-xs">
+            <div className="flex items-center gap-2 p-2 rounded bg-muted/50 text-xs">
               <CheckCircle className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-              <span>¥100 = ৳{(100 * parseFloat(settings.cny_to_bdt_rate || "0")).toFixed(2)} BDT</span>
+              <span>¥100 = ৳{(100 * parseFloat(settings.cny_to_bdt_rate || "0")).toFixed(2)} BDT (before markup)</span>
+            </div>
+
+            {/* Price Markup */}
+            <div>
+              <Label className="text-xs text-muted-foreground">Price Markup (%)</Label>
+              <Input type="number" step="0.5" min="0" value={settings.price_markup_percentage || "15"} onChange={(e) => update("price_markup_percentage", e.target.value)} className="h-9 text-sm font-semibold" placeholder="15" />
+            </div>
+            <div className="flex items-center gap-2 p-2 rounded bg-muted/50 text-xs">
+              <CheckCircle className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+              <span>
+                ¥100 → ৳{Math.round(100 * parseFloat(settings.cny_to_bdt_rate || "0") * (1 + parseFloat(settings.price_markup_percentage || "15") / 100)).toLocaleString()} BDT (with {settings.price_markup_percentage || "15"}% markup)
+              </span>
             </div>
           </CardContent>
         </Card>
