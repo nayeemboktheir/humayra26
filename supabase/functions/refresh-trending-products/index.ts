@@ -14,6 +14,9 @@ const TRENDING_QUERIES = [
 ];
 
 const MAX_PRODUCTS = 15;
+const MAX_CANDIDATES = 80;
+const SOURCE_FRAME_SIZE = 20;
+const MAX_FRAME_POSITION = 120;
 
 async function translateSingle(text: string, apiKey: string): Promise<string> {
   if (!text?.trim()) return text;
@@ -92,12 +95,15 @@ Deno.serve(async (req) => {
 
     const seenIds = new Set<string>();
 
-    for (const query of TRENDING_QUERIES) {
-      if (allProducts.length >= MAX_PRODUCTS) break;
+    const shuffledQueries = [...TRENDING_QUERIES].sort(() => Math.random() - 0.5);
+
+    for (const query of shuffledQueries) {
+      if (allProducts.length >= MAX_CANDIDATES) break;
 
       try {
+        const framePosition = Math.floor(Math.random() * (MAX_FRAME_POSITION / 10 + 1)) * 10;
         const xmlParams = `<SearchItemsParameters><ItemTitle>${query}</ItemTitle><Provider>Alibaba1688</Provider><Order>SalesDesc</Order></SearchItemsParameters>`;
-        const url = `https://otapi.net/service-json/SearchItemsFrame?instanceKey=${encodeURIComponent(otapiKey)}&language=en&xmlParameters=${encodeURIComponent(xmlParams)}&framePosition=0&frameSize=10`;
+        const url = `https://otapi.net/service-json/SearchItemsFrame?instanceKey=${encodeURIComponent(otapiKey)}&language=en&xmlParameters=${encodeURIComponent(xmlParams)}&framePosition=${framePosition}&frameSize=${SOURCE_FRAME_SIZE}`;
 
         const resp = await fetch(url, { headers: { Accept: "application/json" } });
         const data = await resp.json();
@@ -110,7 +116,7 @@ Deno.serve(async (req) => {
         const items = data?.Result?.Items?.Content || [];
 
         for (const item of items) {
-          if (allProducts.length >= MAX_PRODUCTS) break;
+          if (allProducts.length >= MAX_CANDIDATES) break;
 
           const externalId = item?.Id || "";
           if (!externalId || seenIds.has(externalId)) continue;
@@ -148,13 +154,17 @@ Deno.serve(async (req) => {
       );
     }
 
+    const selectedProducts = [...allProducts]
+      .sort(() => Math.random() - 0.5)
+      .slice(0, Math.min(MAX_PRODUCTS, allProducts.length));
+
     // Translate titles to English
     if (lovableKey) {
-      console.log(`Translating ${allProducts.length} trending product titles...`);
-      const titles = allProducts.map(p => p.title);
+      console.log(`Translating ${selectedProducts.length} trending product titles...`);
+      const titles = selectedProducts.map(p => p.title);
       const translated = await translateBatch(titles, lovableKey);
-      for (let i = 0; i < allProducts.length; i++) {
-        allProducts[i].title = translated[i];
+      for (let i = 0; i < selectedProducts.length; i++) {
+        selectedProducts[i].title = translated[i];
       }
       console.log("Translation complete");
     } else {
@@ -167,7 +177,7 @@ Deno.serve(async (req) => {
       console.error("Error deleting old trending products:", deleteError);
     }
 
-    const { error: insertError } = await supabase.from("trending_products").insert(allProducts);
+    const { error: insertError } = await supabase.from("trending_products").insert(selectedProducts);
     if (insertError) {
       console.error("Error inserting trending products:", insertError);
       return new Response(
@@ -176,9 +186,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`Successfully refreshed ${allProducts.length} trending products`);
+    console.log(`Successfully refreshed ${selectedProducts.length} trending products from ${allProducts.length} candidates`);
     return new Response(
-      JSON.stringify({ success: true, count: allProducts.length }),
+      JSON.stringify({ success: true, count: selectedProducts.length, candidates: allProducts.length }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
