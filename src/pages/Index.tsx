@@ -202,7 +202,7 @@ const Index = () => {
   useEffect(() => {
     let isMounted = true;
 
-    // Always load latest trending products and refresh source on every visit/reload
+    // Load trending from DB and cache in session for instant subsequent loads
     const loadTrendingFromDatabase = async () => {
       const { data, error } = await supabase
         .from("trending_products")
@@ -220,20 +220,30 @@ const Index = () => {
           sold: Number(p.sold) || 0,
         }));
         setTrendingProducts(mapped);
+        _sessionCache.trendingProducts = mapped;
       }
     };
 
     const refreshTrendingOnVisit = async () => {
-      await loadTrendingFromDatabase();
-      if (isMounted) setIsTrendingLoaded(true);
-
-      const { error } = await supabase.functions.invoke("refresh-trending-products");
-      if (error) {
-        console.warn("Failed to refresh trending products:", error.message);
+      // If we have session-cached trending, show instantly
+      if (_sessionCache.trendingProducts) {
+        setTrendingProducts(_sessionCache.trendingProducts);
+        if (isMounted) setIsTrendingLoaded(true);
+        // Silently refresh in background for NEXT visit (don't block UI)
+        supabase.functions.invoke("refresh-trending-products").catch(() => {});
         return;
       }
 
+      // First visit: load from DB immediately, then trigger background refresh
       await loadTrendingFromDatabase();
+      if (isMounted) setIsTrendingLoaded(true);
+
+      // Background refresh — update cache for next reload
+      supabase.functions.invoke("refresh-trending-products").then(async ({ error }) => {
+        if (!error) {
+          await loadTrendingFromDatabase();
+        }
+      }).catch(() => {});
     };
 
     // Skip category fetch if already cached
