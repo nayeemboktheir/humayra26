@@ -176,7 +176,7 @@ const Index = () => {
   const [filters, setFilters] = useState<SearchFilterValues>(getDefaultFilters());
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [trendingProducts, setTrendingProducts] = useState(_sessionCache.trendingProducts || fallbackTrendingProducts);
+  const [trendingProducts, setTrendingProducts] = useState(fallbackTrendingProducts);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -189,7 +189,7 @@ const Index = () => {
 
   // Prefetch all category products in one query + trending products
   const [categoryProductsMap, setCategoryProductsMap] = useState<Record<string, any[]>>(_sessionCache.categoryProductsMap || {});
-  const [isTrendingLoaded, setIsTrendingLoaded] = useState(!!_sessionCache.trendingProducts);
+  const [isTrendingLoaded, setIsTrendingLoaded] = useState(false);
   const [loadedCategoryCount, setLoadedCategoryCount] = useState(_sessionCache.loadedCategoryCount || 0);
 
   // Save search state to module cache on changes
@@ -200,17 +200,18 @@ const Index = () => {
   }, [query, products, currentPage, totalResults, hasSearched, activeSearch]);
 
   useEffect(() => {
-    // Always fetch fresh trending products (shuffled each visit)
-    const fetchTrending = async () => {
-      const trendingRes = await supabase.from("trending_products").select("*");
-      if (!trendingRes.error && trendingRes.data && trendingRes.data.length > 0) {
-        // Shuffle using Fisher-Yates for fresh order every reload
-        const shuffled = [...trendingRes.data];
-        for (let i = shuffled.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-        }
-        const mapped = shuffled.map((p: any) => ({
+    let isMounted = true;
+
+    // Always load latest trending products and refresh source on every visit/reload
+    const loadTrendingFromDatabase = async () => {
+      const { data, error } = await supabase
+        .from("trending_products")
+        .select("*")
+        .order("updated_at", { ascending: false })
+        .limit(24);
+
+      if (!error && data && data.length > 0 && isMounted) {
+        const mapped = data.slice(0, 12).map((p: any) => ({
           id: p.product_id,
           title: p.title,
           image: p.image_url,
@@ -219,15 +220,28 @@ const Index = () => {
           sold: Number(p.sold) || 0,
         }));
         setTrendingProducts(mapped);
-        _sessionCache.trendingProducts = mapped;
       }
-      setIsTrendingLoaded(true);
+    };
+
+    const refreshTrendingOnVisit = async () => {
+      await loadTrendingFromDatabase();
+      if (isMounted) setIsTrendingLoaded(true);
+
+      const { error } = await supabase.functions.invoke("refresh-trending-products");
+      if (error) {
+        console.warn("Failed to refresh trending products:", error.message);
+        return;
+      }
+
+      await loadTrendingFromDatabase();
     };
 
     // Skip category fetch if already cached
     if (_sessionCache.categoryProductsMap) {
-      fetchTrending();
-      return;
+      refreshTrendingOnVisit();
+      return () => {
+        isMounted = false;
+      };
     }
 
     // Step 2: Load categories progressively
@@ -262,7 +276,11 @@ const Index = () => {
       }
     };
 
-    fetchTrending().then(fetchCategories);
+    refreshTrendingOnVisit().then(fetchCategories);
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleInstallClick = async () => {
