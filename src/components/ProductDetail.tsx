@@ -22,6 +22,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
 import { convertToBDT } from "@/lib/currency";
+import CheckoutDialog from "@/components/CheckoutDialog";
 
 const translateLocation = (location: string): string => {
   if (location.includes("省") || location.includes("市")) return "China";
@@ -39,12 +40,13 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
   const [showVideo, setShowVideo] = useState(false);
   const [quantity, setQuantity] = useState(0);
   const [skuQuantities, setSkuQuantities] = useState<Record<string, number>>({});
-  const [ordering, setOrdering] = useState(false);
   const [selectedSkuId, setSelectedSkuId] = useState<string | null>(null);
   const [shippingMethod, setShippingMethod] = useState<'air' | 'sea'>('air');
   const [addingToWishlist, setAddingToWishlist] = useState(false);
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [domesticShippingFee, setDomesticShippingFee] = useState<number | null>(null);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [checkoutData, setCheckoutData] = useState<any>(null);
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -120,7 +122,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
     }
   };
 
-  const handleBuyNow = async () => {
+  const handleBuyNow = () => {
     if (!product) return;
     if (!user) {
       toast({ title: "Please login first", description: "You need to be logged in to place an order.", variant: "destructive" });
@@ -142,51 +144,83 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
       ? product.configuredItems!.reduce((sum, sku) => sum + convertToBDT(sku.price) * (skuQuantities[sku.id] || 0), 0)
       : convertToBDT(product.price) * quantity;
 
-    const unitPrice = totalQty > 0 ? Math.round(totalPrice / totalQty) : 0;
-    const orderNumber = `HT-${Date.now().toString(36).toUpperCase()}`;
-
-    let notes = '';
-    let variantName = '';
-    let variantId = '';
+    // Build line items for checkout
+    const lines: { name: string; qty: number; unitPrice: number; total: number; imageUrl?: string }[] = [];
     if (hasSkus) {
-      const selectedSkus = product.configuredItems!.filter(sku => (skuQuantities[sku.id] || 0) > 0);
-      notes = selectedSkus.map(sku => `${sku.title}: ${skuQuantities[sku.id]} pcs × ৳${convertToBDT(sku.price)}`).join('\n');
-      variantName = selectedSkus.map(sku => sku.title).join(', ');
-      variantId = selectedSkus.map(sku => sku.id).join(', ');
+      product.configuredItems!.filter(sku => (skuQuantities[sku.id] || 0) > 0).forEach(sku => {
+        const qty = skuQuantities[sku.id];
+        const price = convertToBDT(sku.price);
+        lines.push({ name: sku.title, qty, unitPrice: price, total: price * qty, imageUrl: sku.imageUrl });
+      });
+    } else {
+      lines.push({
+        name: product.title,
+        qty: quantity,
+        unitPrice: convertToBDT(product.price),
+        total: totalPrice,
+      });
     }
 
-    const productUrl = `${window.location.origin}/?product=${product.num_iid}`;
-    const sourceUrl = `https://detail.1688.com/offer/${product.num_iid}.html`;
+    const domesticChargeBDT = domesticShippingFee != null && domesticShippingFee > 0 ? Math.round(convertToBDT(domesticShippingFee)) : 0;
 
-    setOrdering(true);
-    try {
-      const domesticChargeBDT = domesticShippingFee != null && domesticShippingFee > 0 ? Math.round(convertToBDT(domesticShippingFee)) : 0;
-      const { error } = await supabase.from('orders').insert({
-        user_id: user.id,
-        order_number: orderNumber,
-        product_name: product.title,
-        product_image: product.pic_url,
-        quantity: totalQty,
-        unit_price: unitPrice,
-        total_price: totalPrice,
-        domestic_courier_charge: domesticChargeBDT,
-        notes: notes || null,
-        product_url: productUrl,
-        source_url: sourceUrl,
-        variant_name: variantName || null,
-        variant_id: variantId || null,
-        product_1688_id: String(product.num_iid),
-      } as any);
+    setCheckoutData({
+      productTitle: product.title,
+      productImage: product.pic_url,
+      lines,
+      totalQty,
+      totalPrice,
+      domesticShippingFeeBDT: domesticChargeBDT,
+      sellerName: product.seller_info?.shop_name,
+      onConfirm: async (opts: { deliveryOption: string; address: string; note: string }) => {
+        const unitPrice = totalQty > 0 ? Math.round(totalPrice / totalQty) : 0;
+        const orderNumber = `HT-${Date.now().toString(36).toUpperCase()}`;
 
-      if (error) throw error;
+        let notes = opts.note || '';
+        let variantName = '';
+        let variantId = '';
+        if (hasSkus) {
+          const selectedSkus = product.configuredItems!.filter(sku => (skuQuantities[sku.id] || 0) > 0);
+          const skuNotes = selectedSkus.map(sku => `${sku.title}: ${skuQuantities[sku.id]} pcs × ৳${convertToBDT(sku.price)}`).join('\n');
+          notes = skuNotes + (opts.note ? `\n---\n${opts.note}` : '');
+          variantName = selectedSkus.map(sku => sku.title).join(', ');
+          variantId = selectedSkus.map(sku => sku.id).join(', ');
+        }
 
-      toast({ title: "Order placed!", description: `Order ${orderNumber} has been created successfully.` });
-      navigate("/dashboard/orders");
-    } catch (err: any) {
-      toast({ title: "Order failed", description: err.message || "Something went wrong.", variant: "destructive" });
-    } finally {
-      setOrdering(false);
-    }
+        // Add delivery info to notes
+        const deliveryInfo = `\n[Delivery: ${opts.deliveryOption === 'courier' ? 'By Courier' : 'Warehouse Pickup'}]`;
+        if (opts.deliveryOption === 'courier' && opts.address) {
+          notes += `${deliveryInfo}\n[Address: ${opts.address}]`;
+        } else {
+          notes += deliveryInfo;
+        }
+
+        const productUrl = `${window.location.origin}/?product=${product.num_iid}`;
+        const sourceUrl = `https://detail.1688.com/offer/${product.num_iid}.html`;
+
+        const { error } = await supabase.from('orders').insert({
+          user_id: user!.id,
+          order_number: orderNumber,
+          product_name: product.title,
+          product_image: product.pic_url,
+          quantity: totalQty,
+          unit_price: unitPrice,
+          total_price: totalPrice,
+          domestic_courier_charge: domesticChargeBDT,
+          notes: notes || null,
+          product_url: productUrl,
+          source_url: sourceUrl,
+          variant_name: variantName || null,
+          variant_id: variantId || null,
+          product_1688_id: String(product.num_iid),
+        } as any);
+
+        if (error) throw error;
+
+        toast({ title: "Order placed!", description: `Order ${orderNumber} has been created successfully.` });
+        navigate("/dashboard/orders");
+      },
+    });
+    setCheckoutOpen(true);
   };
 
   if (!product && isLoading) {
@@ -724,12 +758,12 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                     <Button variant="outline" size="icon" className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl shrink-0" onClick={handleToggleWishlist} disabled={addingToWishlist}>
                       <Heart className={`h-4 w-4 sm:h-5 sm:w-5 ${isWishlisted ? 'fill-destructive text-destructive' : ''}`} />
                     </Button>
-                    <Button variant="outline" className="min-w-0 flex-1 basis-[calc(50%-2rem)] h-10 sm:h-11 rounded-xl font-semibold text-xs sm:text-sm px-2 sm:px-4" onClick={handleBuyNow} disabled={ordering}>
+                    <Button variant="outline" className="min-w-0 flex-1 basis-[calc(50%-2rem)] h-10 sm:h-11 rounded-xl font-semibold text-xs sm:text-sm px-2 sm:px-4" onClick={handleBuyNow}>
                       <ShoppingCart className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2 shrink-0" />Add to Cart
                     </Button>
-                    <Button className="min-w-0 flex-1 basis-[calc(50%-2rem)] h-10 sm:h-11 rounded-xl font-bold shadow-md text-xs sm:text-sm px-2 sm:px-4" onClick={handleBuyNow} disabled={ordering}>
-                      {ordering ? <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2 animate-spin shrink-0" /> : <ShoppingCart className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2 shrink-0" />}
-                      {ordering ? "Placing..." : "Buy Now"}
+                    <Button className="min-w-0 flex-1 basis-[calc(50%-2rem)] h-10 sm:h-11 rounded-xl font-bold shadow-md text-xs sm:text-sm px-2 sm:px-4" onClick={handleBuyNow}>
+                      <ShoppingCart className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2 shrink-0" />
+                      Buy Now
                     </Button>
                   </div>
                 </div>
@@ -861,6 +895,8 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
           </Tabs>
         </div>
       </div>
+
+      <CheckoutDialog open={checkoutOpen} onOpenChange={setCheckoutOpen} data={checkoutData} />
     </div>
   );
 }
