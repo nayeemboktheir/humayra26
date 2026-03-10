@@ -54,14 +54,16 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
   // Fetch 1688 domestic shipping fee
   useEffect(() => {
     if (!product?.num_iid) return;
-    setDomesticShippingFee(null);
+    setDomesticShippingFirst(null);
+    setDomesticShippingNext(null);
     supabase.functions.invoke('alibaba-1688-shipping-fee', {
       body: { numIid: String(product.num_iid), province: 'Guangdong' },
     }).then(({ data, error }) => {
-      if (!error && data?.success && data?.data?.total_fee != null) {
-        setDomesticShippingFee(data.data.total_fee);
+      if (!error && data?.success && data?.data) {
+        const d = data.data;
+        setDomesticShippingFirst(d.first_unit_fee ?? d.total_fee ?? null);
+        setDomesticShippingNext(d.next_unit_fee ?? d.first_unit_fee ?? d.total_fee ?? null);
       }
-      // Silently ignore failures — shipping fee is optional
     }).catch(() => {});
   }, [product?.num_iid]);
 
