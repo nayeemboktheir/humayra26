@@ -164,7 +164,11 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
       });
     }
 
-    const domesticChargeBDT = domesticShippingFee != null && domesticShippingFee > 0 ? Math.round(convertToBDT(domesticShippingFee)) : 0;
+    // Calculate domestic shipping: first_unit_fee + (qty-1) * next_unit_fee
+    const calcDomesticCNY = domesticShippingFirst != null && domesticShippingFirst > 0
+      ? domesticShippingFirst + (totalQty > 1 ? (totalQty - 1) * (domesticShippingNext ?? domesticShippingFirst) : 0)
+      : 0;
+    const domesticChargeBDT = calcDomesticCNY > 0 ? Math.round(convertToBDT(calcDomesticCNY)) : 0;
 
     setCheckoutData({
       productTitle: product.title,
