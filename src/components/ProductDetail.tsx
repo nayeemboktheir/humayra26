@@ -742,7 +742,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                         <span className="text-base font-semibold">China Local Delivery</span>
                         <span className="text-base font-bold text-primary">৳—</span>
                       </div>
-                      <p className="text-xs text-muted-foreground">China warehouse delivery charge will be added on the cart page.</p>
+                        <p className="text-xs text-muted-foreground">China warehouse delivery charge will be added on the cart page.</p>
                     </div>
                   )}
 
