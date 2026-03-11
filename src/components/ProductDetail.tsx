@@ -52,20 +52,39 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  // Fetch 1688 domestic shipping fee
+  // Fetch 1688 domestic shipping fee – try multiple provinces on failure
   useEffect(() => {
     if (!product?.num_iid) return;
     setDomesticShippingFirst(null);
     setDomesticShippingNext(null);
-    supabase.functions.invoke('alibaba-1688-shipping-fee', {
-      body: { numIid: String(product.num_iid), province: 'Guangdong' },
-    }).then(({ data, error }) => {
-      if (!error && data?.success && data?.data) {
-        const d = data.data;
-        setDomesticShippingFirst(d.first_unit_fee ?? d.total_fee ?? null);
-        setDomesticShippingNext(d.next_unit_fee ?? d.first_unit_fee ?? d.total_fee ?? null);
+    setDomesticShippingLoading(true);
+
+    const provinces = ['Guangdong', 'Zhejiang', 'Shanghai'];
+    let cancelled = false;
+
+    (async () => {
+      for (const province of provinces) {
+        if (cancelled) return;
+        try {
+          const { data, error } = await supabase.functions.invoke('alibaba-1688-shipping-fee', {
+            body: { numIid: String(product.num_iid), province },
+          });
+          if (!error && data?.success && data?.data) {
+            const d = data.data;
+            const first = d.first_unit_fee ?? d.total_fee ?? null;
+            if (first != null && first > 0) {
+              setDomesticShippingFirst(first);
+              setDomesticShippingNext(d.next_unit_fee ?? first);
+              setDomesticShippingLoading(false);
+              return;
+            }
+          }
+        } catch {}
       }
-    }).catch(() => {});
+      setDomesticShippingLoading(false);
+    })();
+
+    return () => { cancelled = true; };
   }, [product?.num_iid]);
 
   const handleToggleWishlist = async () => {
