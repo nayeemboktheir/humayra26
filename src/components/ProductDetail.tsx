@@ -712,21 +712,46 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
 
                   <Separator />
 
+                  {/* China Domestic Courier Charge - shown like reference image */}
+                  {domesticShippingFirst != null && domesticShippingFirst > 0 && (() => {
+                    const qty = totalSelectedQty || 1;
+                    const totalCNY = domesticShippingFirst + (qty > 1 ? (qty - 1) * (domesticShippingNext ?? domesticShippingFirst) : 0);
+                    const domesticBDT = Math.round(convertToBDT(totalCNY));
+                    return (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">{qty} {qty === 1 ? 'Piece' : 'Pieces'}</span>
+                          <span className="font-semibold">৳{domesticBDT.toLocaleString()}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-base font-semibold">China Local Delivery</span>
+                          <span className="text-base font-bold text-primary">৳{domesticBDT.toLocaleString()}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">China warehouse delivery charge will be added to the order.</p>
+                      </div>
+                    );
+                  })()}
+
+                  {!domesticShippingFirst && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">{totalSelectedQty || 1} {(totalSelectedQty || 1) === 1 ? 'Piece' : 'Pieces'}</span>
+                        <span className="font-semibold">৳—</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-base font-semibold">China Local Delivery</span>
+                        <span className="text-base font-bold text-primary">৳—</span>
+                      </div>
+                        <p className="text-xs text-muted-foreground">China warehouse delivery charge will be added on the cart page.</p>
+                    </div>
+                  )}
+
+                  <Separator />
+
                   <div className="flex items-center justify-between">
                     <span className="text-base font-semibold">Product price</span>
                     <span className="text-base font-bold">৳{totalSelectedPrice.toLocaleString()}</span>
                   </div>
-
-                  {domesticShippingFirst != null && domesticShippingFirst > 0 && (() => {
-                    const qty = totalSelectedQty || 1;
-                    const totalCNY = domesticShippingFirst + (qty > 1 ? (qty - 1) * (domesticShippingNext ?? domesticShippingFirst) : 0);
-                    return (
-                      <div className="flex items-center justify-between bg-muted/40 rounded-lg px-3 py-2">
-                        <span className="text-sm text-muted-foreground flex items-center gap-1.5"><Truck className="h-3.5 w-3.5" />China Courier (1688)</span>
-                        <span className="text-sm font-semibold">৳{convertToBDT(totalCNY).toLocaleString()}</span>
-                      </div>
-                    );
-                  })()}
 
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-foreground">Pay now <Badge variant="secondary" className="text-xs ml-1.5 py-0.5 px-1.5">70%</Badge></span>
@@ -736,7 +761,6 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                     <span className="text-sm text-foreground">Pay on delivery <Badge variant="secondary" className="text-xs ml-1.5 py-0.5 px-1.5">30%</Badge></span>
                     <span className="text-sm font-bold">৳{Math.round(totalSelectedPrice * 0.3).toLocaleString()} +</span>
                   </div>
-                  <p className="text-xs text-muted-foreground">চায়না লোকাল ডেলিভারি চার্জ কার্ট পেজে যোগ হবে</p>
 
                   {/* Approximate Weight */}
                   {product.item_weight && (
