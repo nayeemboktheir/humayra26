@@ -732,7 +732,6 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
 
                   <Separator />
 
-                  {/* China Domestic Courier Charge - shown like reference image */}
                   {domesticShippingFirst != null && domesticShippingFirst > 0 && (() => {
                     const qty = totalSelectedQty || 1;
                     const totalCNY = domesticShippingFirst + (qty > 1 ? (qty - 1) * (domesticShippingNext ?? domesticShippingFirst) : 0);
@@ -760,9 +759,13 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-base font-semibold">China Local Delivery</span>
-                        <span className="text-base font-bold text-primary">৳—</span>
+                        {domesticShippingLoading ? (
+                          <span className="text-sm text-muted-foreground flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Loading...</span>
+                        ) : (
+                          <span className="text-base font-bold text-primary">৳—</span>
+                        )}
                       </div>
-                        <p className="text-xs text-muted-foreground">China warehouse delivery charge will be added on the cart page.</p>
+                      <p className="text-xs text-muted-foreground">China warehouse delivery charge will be added on the cart page.</p>
                     </div>
                   )}
 
