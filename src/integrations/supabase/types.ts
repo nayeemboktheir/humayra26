@@ -161,6 +161,11 @@ export type Database = {
           invoice_name: string | null
           notes: string | null
           order_number: string
+          payment_amount: number | null
+          payment_invoice: string | null
+          payment_method: string | null
+          payment_status: string
+          payment_trx_id: string | null
           product_1688_id: string | null
           product_image: string | null
           product_name: string
@@ -185,6 +190,11 @@ export type Database = {
           invoice_name?: string | null
           notes?: string | null
           order_number: string
+          payment_amount?: number | null
+          payment_invoice?: string | null
+          payment_method?: string | null
+          payment_status?: string
+          payment_trx_id?: string | null
           product_1688_id?: string | null
           product_image?: string | null
           product_name: string
@@ -209,6 +219,11 @@ export type Database = {
           invoice_name?: string | null
           notes?: string | null
           order_number?: string
+          payment_amount?: number | null
+          payment_invoice?: string | null
+          payment_method?: string | null
+          payment_status?: string
+          payment_trx_id?: string | null
           product_1688_id?: string | null
           product_image?: string | null
           product_name?: string
