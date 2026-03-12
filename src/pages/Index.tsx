@@ -757,14 +757,37 @@ const Index = () => {
       if (result.success && result.data) {
         setSelectedProduct(result.data);
       } else {
-        toast.error("This product is no longer available");
-        setSelectedProduct(null);
-        setSearchParams({});
+        // Still show the product page with a minimal fallback instead of navigating away
+        setSelectedProduct({
+          num_iid: numIid,
+          title: 'Product Details Unavailable',
+          desc: '',
+          price: 0,
+          pic_url: '/placeholder.svg',
+          item_imgs: [],
+          location: '',
+          num: '0',
+          min_num: 1,
+          props: [],
+          seller_info: { nick: '', shop_name: '', item_score: '', delivery_score: '', composite_score: '' },
+        });
+        toast.error("পণ্যের বিস্তারিত তথ্য পাওয়া যায়নি। পণ্যটি স্টকে নাও থাকতে পারে।");
       }
     } catch {
-      toast.error("This product is no longer available");
-      setSelectedProduct(null);
-      setSearchParams({});
+      setSelectedProduct({
+        num_iid: numIid,
+        title: 'Product Details Unavailable',
+        desc: '',
+        price: 0,
+        pic_url: '/placeholder.svg',
+        item_imgs: [],
+        location: '',
+        num: '0',
+        min_num: 1,
+        props: [],
+        seller_info: { nick: '', shop_name: '', item_score: '', delivery_score: '', composite_score: '' },
+      });
+      toast.error("পণ্যের বিস্তারিত তথ্য পাওয়া যায়নি।");
     } finally {
       setIsLoadingProduct(false);
     }
