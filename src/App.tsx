@@ -21,6 +21,7 @@ const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const ReturnRefundPolicy = lazy(() => import("./pages/ReturnRefundPolicy"));
 const ProhibitedItems = lazy(() => import("./pages/ProhibitedItems"));
 const SellerStore = lazy(() => import("./pages/SellerStore"));
+const PaymentCallback = lazy(() => import("./pages/PaymentCallback"));
 
 // Dashboard pages
 const DashboardLayout = lazy(() => import("./components/dashboard/DashboardLayout"));
