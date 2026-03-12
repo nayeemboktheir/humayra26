@@ -101,8 +101,8 @@ export default function PaymentCallback() {
 
         {status === "canceled" && (
           <>
-            <AlertTriangle className="h-16 w-16 text-yellow-500 mx-auto" />
-            <h1 className="text-xl font-bold text-yellow-600">পেমেন্ট বাতিল হয়েছে</h1>
+            <AlertTriangle className="h-16 w-16 text-accent mx-auto" />
+            <h1 className="text-xl font-bold text-accent-foreground">পেমেন্ট বাতিল হয়েছে</h1>
             <p className="text-muted-foreground">আপনি পেমেন্ট বাতিল করেছেন।</p>
             <div className="flex gap-3 justify-center pt-4">
               <Button onClick={() => navigate("/")}>আবার কেনাকাটা করুন</Button>
