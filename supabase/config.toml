@@ -25,3 +25,7 @@ project_id = "kcihftfgmsrpcljsbjdj"
     verify_jwt = false
   [functions.paystation-verify-payment]
     verify_jwt = false
+  [functions.send-sms-otp]
+    verify_jwt = false
+  [functions.verify-sms-otp]
+    verify_jwt = false
