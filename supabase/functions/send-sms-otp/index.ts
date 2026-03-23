@@ -31,12 +31,21 @@ serve(async (req) => {
       normalizedPhone = "880" + normalizedPhone;
     }
 
-    const BULKSMS_API_KEY = Deno.env.get("BULKSMS_BD_API_KEY");
+    // Read SMS config from app_settings
+    const { data: smsSettings } = await supabase
+      .from("app_settings")
+      .select("key, value")
+      .in("key", ["bulksms_bd_api_key", "bulksms_bd_sender_id"]);
+
+    const smsMap: Record<string, string> = {};
+    if (smsSettings) smsSettings.forEach((r: any) => (smsMap[r.key] = r.value));
+
+    const BULKSMS_API_KEY = smsMap.bulksms_bd_api_key;
     if (!BULKSMS_API_KEY) {
-      throw new Error("BULKSMS_BD_API_KEY is not configured");
+      throw new Error("BulkSMS BD API Key is not configured. Please set it in Admin Settings → SMS.");
     }
 
-    const BULKSMS_SENDER_ID = Deno.env.get("BULKSMS_BD_SENDER_ID") || "8809617618686";
+    const BULKSMS_SENDER_ID = smsMap.bulksms_bd_sender_id || "8809617618686";
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;

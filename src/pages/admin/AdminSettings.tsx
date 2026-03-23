@@ -289,6 +289,22 @@ export default function AdminSettings() {
         </Card>
       )}
 
+      {/* SMS */}
+      {activeTab === "sms" && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-sm"><MessageSquare className="h-4 w-4 text-primary" /> SMS Gateway (BulkSMS BD)</CardTitle>
+            <p className="text-xs text-muted-foreground">Configure BulkSMS BD API credentials for OTP-based mobile login.</p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
+              <Field label="API Key" span={2} hint="bulksmsbd.net dashboard থেকে API Key কপি করুন">{inp("bulksms_bd_api_key", "Your BulkSMS BD API Key")}</Field>
+              <Field label="Sender ID" hint="Approved Sender ID (e.g. 8809617618686)">{inp("bulksms_bd_sender_id", "8809617618686")}</Field>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Bottom save */}
       <Button onClick={handleSaveAll} disabled={saving} className="w-full" size="sm">
         <Save className="h-4 w-4 mr-1.5" /> {saving ? "Saving..." : "Save All Changes"}
