@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
-import { Settings, DollarSign, Loader2, Save, CheckCircle, Globe, Image, Phone, Mail, MapPin, Type, Send, FileText, Footprints } from "lucide-react";
+import { Settings, DollarSign, Loader2, Save, CheckCircle, Globe, Image, Phone, Mail, MapPin, Type, Send, FileText, Footprints, MessageSquare } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 
 type SettingsMap = Record<string, string>;
