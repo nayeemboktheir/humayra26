@@ -51,6 +51,8 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutData, setCheckoutData] = useState<any>(null);
   const { user } = useAuth();
+  const { addToCart } = useCart();
+  const [addingToCart, setAddingToCart] = useState(false);
   const navigate = useNavigate();
 
   // Fetch 1688 domestic shipping fee – try multiple provinces on failure
