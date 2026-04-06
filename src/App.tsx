@@ -40,6 +40,7 @@ const Withdrawal = lazy(() => import("./pages/dashboard/Withdrawal"));
 const Transactions = lazy(() => import("./pages/dashboard/Transactions"));
 const Refunds = lazy(() => import("./pages/dashboard/Refunds"));
 const Profile = lazy(() => import("./pages/dashboard/Profile"));
+const Cart = lazy(() => import("./pages/dashboard/Cart"));
 
 // Admin pages
 const AdminLayout = lazy(() => import("./components/admin/AdminLayout"));
