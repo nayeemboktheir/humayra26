@@ -23,7 +23,7 @@ interface CartContextType {
   items: CartItem[];
   count: number;
   loading: boolean;
-  addToCart: (item: Omit<CartItem, "id" | "created_at">) => Promise<void>;
+  addToCart: (item: Partial<CartItem> & { product_id: string; product_name: string }) => Promise<void>;
   removeFromCart: (id: string) => Promise<void>;
   updateQuantity: (id: string, quantity: number) => Promise<void>;
   clearCart: () => Promise<void>;
@@ -62,7 +62,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => { fetchCart(); }, [fetchCart]);
 
-  const addToCart = async (item: Omit<CartItem, "id" | "created_at">) => {
+  const addToCart = async (item: Partial<CartItem> & { product_id: string; product_name: string }) => {
     if (!user) return;
     await (supabase.from("cart_items" as any) as any).insert({ ...item, user_id: user.id });
     await fetchCart();
