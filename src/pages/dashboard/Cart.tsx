@@ -29,7 +29,7 @@ export default function Cart() {
   if (items.length === 0) {
     return (
       <EmptyState
-        icon={ShoppingCart}
+        icon={<ShoppingCart className="h-16 w-16 mx-auto opacity-40" />}
         title="কার্ট খালি"
         description="আপনার কার্টে কোনো পণ্য নেই। পণ্য খুঁজে কার্টে যোগ করুন।"
       >

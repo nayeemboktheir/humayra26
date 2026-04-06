@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { CartProvider } from "@/contexts/CartContext";
 import { useAdmin } from "@/hooks/useAdmin";
 import { Loader2 } from "lucide-react";
 import PageLoader from "@/components/PageLoader";
@@ -95,6 +96,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <CartProvider>
           <TrackingScripts />
           <Suspense fallback={<PageLoader />}>
             <Routes>
@@ -140,6 +142,7 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
+        </CartProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
