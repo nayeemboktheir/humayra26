@@ -796,12 +796,10 @@ const Index = () => {
   const handleBackToSearch = () => {
     setSelectedProduct(null);
     setActiveCategoryView(null);
-    // Use browser history to go back to previous page instead of resetting to homepage
-    if (window.history.length > 1) {
-      navigate(-1);
-    } else {
-      setSearchParams({});
-    }
+    // Remove product param from URL but keep search query
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete('product');
+    setSearchParams(newParams);
   };
 
   // Load product or search from URL params on mount
