@@ -38,6 +38,7 @@ interface ProductDetailProps {
 
 export default function ProductDetail({ product, isLoading, onBack }: ProductDetailProps) {
   const [selectedImage, setSelectedImage] = useState(0);
+  const [variantOverrideImage, setVariantOverrideImage] = useState<string | null>(null);
   const [showVideo, setShowVideo] = useState(false);
   const [quantity, setQuantity] = useState(0);
   const [skuQuantities, setSkuQuantities] = useState<Record<string, number>>({});
