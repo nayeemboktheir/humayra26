@@ -30,6 +30,13 @@ const Auth = () => {
   const [phoneEmail, setPhoneEmail] = useState("");
   const [phonePassword, setPhonePassword] = useState("");
 
+  // Signup phone verification states
+  const [signupPhone, setSignupPhone] = useState("");
+  const [signupOtpSent, setSignupOtpSent] = useState(false);
+  const [signupOtp, setSignupOtp] = useState("");
+  const [signupPhoneVerified, setSignupPhoneVerified] = useState(false);
+  const [signupLoading, setSignupLoading] = useState(false);
+
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -47,11 +54,25 @@ const Auth = () => {
 
         navigate(isAdmin ? "/admin" : "/dashboard");
       } else {
+        if (!signupPhoneVerified) {
+          toast.error("আগে মোবাইল নাম্বার ভেরিফাই করুন");
+          setLoading(false);
+          return;
+        }
+        // Normalize signup phone
+        let normalizedPhone = signupPhone.replace(/[^0-9]/g, "");
+        if (normalizedPhone.startsWith("0")) {
+          normalizedPhone = "880" + normalizedPhone.substring(1);
+        }
+        if (!normalizedPhone.startsWith("880")) {
+          normalizedPhone = "880" + normalizedPhone;
+        }
+
         const { error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            data: { full_name: fullName },
+            data: { full_name: fullName, phone: normalizedPhone },
             emailRedirectTo: window.location.origin,
           },
         });
@@ -62,6 +83,48 @@ const Auth = () => {
       toast.error(error.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSignupSendOtp = async () => {
+    if (!signupPhone || signupPhone.length < 11) {
+      toast.error("সঠিক মোবাইল নাম্বার দিন");
+      return;
+    }
+    setSignupLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("send-sms-otp", {
+        body: { phone: signupPhone },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setSignupOtpSent(true);
+      toast.success("OTP পাঠানো হয়েছে!");
+    } catch (error: any) {
+      toast.error(error.message || "OTP পাঠাতে সমস্যা হয়েছে");
+    } finally {
+      setSignupLoading(false);
+    }
+  };
+
+  const handleSignupVerifyOtp = async () => {
+    if (signupOtp.length !== 6) {
+      toast.error("৬ সংখ্যার OTP দিন");
+      return;
+    }
+    setSignupLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("verify-sms-otp", {
+        body: { phone: signupPhone, otp: signupOtp },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setSignupPhoneVerified(true);
+      toast.success("মোবাইল নাম্বার ভেরিফাই হয়েছে!");
+    } catch (error: any) {
+      toast.error(error.message || "OTP ভেরিফাই করতে সমস্যা হয়েছে");
+    } finally {
+      setSignupLoading(false);
     }
   };
 
@@ -341,7 +404,61 @@ const Auth = () => {
                   minLength={6}
                 />
               </div>
-              <Button type="submit" className="w-full" disabled={loading}>
+
+              {/* Phone verification section */}
+              <div className="space-y-2 border rounded-lg p-3 bg-muted/30">
+                <p className="text-sm font-medium flex items-center gap-1">
+                  <Phone className="h-4 w-4" />
+                  মোবাইল ভেরিফিকেশন
+                  {signupPhoneVerified && <span className="text-green-600 text-xs ml-auto">✓ ভেরিফাইড</span>}
+                </p>
+                {signupPhoneVerified ? (
+                  <p className="text-sm text-muted-foreground">{signupPhone}</p>
+                ) : !signupOtpSent ? (
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type="tel"
+                        placeholder="01XXXXXXXXX"
+                        value={signupPhone}
+                        onChange={(e) => setSignupPhone(e.target.value)}
+                        className="pl-10"
+                        maxLength={14}
+                      />
+                    </div>
+                    <Button type="button" onClick={handleSignupSendOtp} disabled={signupLoading} size="sm">
+                      {signupLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "OTP পাঠান"}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground">{signupPhone} নাম্বারে OTP পাঠানো হয়েছে</p>
+                    <div className="flex justify-center">
+                      <InputOTP maxLength={6} value={signupOtp} onChange={setSignupOtp}>
+                        <InputOTPGroup>
+                          <InputOTPSlot index={0} />
+                          <InputOTPSlot index={1} />
+                          <InputOTPSlot index={2} />
+                          <InputOTPSlot index={3} />
+                          <InputOTPSlot index={4} />
+                          <InputOTPSlot index={5} />
+                        </InputOTPGroup>
+                      </InputOTP>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button type="button" onClick={handleSignupVerifyOtp} disabled={signupLoading} size="sm" className="flex-1">
+                        {signupLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "ভেরিফাই"}
+                      </Button>
+                      <Button type="button" variant="ghost" size="sm" onClick={() => { setSignupOtpSent(false); setSignupOtp(""); }}>
+                        আবার চেষ্টা
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <Button type="submit" className="w-full" disabled={loading || !signupPhoneVerified}>
                 {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 সাইন আপ
               </Button>
