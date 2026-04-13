@@ -519,7 +519,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
               {showVideo && product.video ? (
                 <video src={product.video} controls autoPlay className="w-full aspect-square object-contain" />
               ) : (
-                <img src={images[selectedImage]} alt={product.title} referrerPolicy="no-referrer"
+                <img src={variantOverrideImage || images[selectedImage]} alt={product.title} referrerPolicy="no-referrer"
                   className="w-full aspect-square object-contain" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
               )}
               {product.video && (
