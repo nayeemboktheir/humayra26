@@ -30,6 +30,13 @@ const Auth = () => {
   const [phoneEmail, setPhoneEmail] = useState("");
   const [phonePassword, setPhonePassword] = useState("");
 
+  // Signup phone verification states
+  const [signupPhone, setSignupPhone] = useState("");
+  const [signupOtpSent, setSignupOtpSent] = useState(false);
+  const [signupOtp, setSignupOtp] = useState("");
+  const [signupPhoneVerified, setSignupPhoneVerified] = useState(false);
+  const [signupLoading, setSignupLoading] = useState(false);
+
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
