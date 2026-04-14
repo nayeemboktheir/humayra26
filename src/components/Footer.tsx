@@ -1,4 +1,5 @@
 import { useNavigate, Link } from "react-router-dom";
+import logoFull from "@/assets/logo-full.png";
 import { MapPin, Mail, Phone, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import PaymentLogos from "@/components/PaymentLogos";
@@ -32,7 +33,7 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Company Info */}
           <div className="space-y-4">
-            <h2 className="text-2xl font-bold text-foreground">TradeOn<span className="text-primary">.Global</span></h2>
+            <img src={logoFull} alt="TradeOn Global" className="h-10 object-contain" />
 
             <div className="space-y-3 text-sm">
               <div>
