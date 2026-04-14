@@ -74,7 +74,7 @@ export default function Cart() {
           if (item.sku_details && Array.isArray(item.sku_details) && item.sku_details.length > 0) {
             notes = item.sku_details.map((s: any) => `${s.name}: ${s.qty} pcs × ৳${s.unitPrice}`).join("\n");
           }
-          notes += `\n[Address: ${opts.address}]`;
+          notes += `\n[Address: ${opts.address}]\n[Delivery: ${opts.deliveryMethod}]`;
 
           const { error } = await supabase.from("orders").insert({
             user_id: user.id,
