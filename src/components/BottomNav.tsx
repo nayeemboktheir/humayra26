@@ -1,4 +1,5 @@
 import { useState } from "react";
+import logoIcon from "@/assets/logo-icon.png";
 import { useNavigate, useLocation } from "react-router-dom";
 import { LayoutGrid, ShoppingCart, ClipboardList, MessageCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -89,7 +90,7 @@ const BottomNav = () => {
                   className="relative -mt-5 flex items-center justify-center"
                 >
                   <div className="w-14 h-14 rounded-full bg-primary shadow-lg flex items-center justify-center border-4 border-background">
-                    <span className="text-primary-foreground font-extrabold text-xl tracking-tighter">T</span>
+                    <img src={logoIcon} alt="TradeOn" className="w-9 h-9 object-contain" />
                   </div>
                 </button>
               );
