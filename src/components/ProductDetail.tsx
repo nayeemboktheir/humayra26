@@ -275,6 +275,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
         const sourceUrl = `https://detail.1688.com/offer/${product.num_iid}.html`;
 
         const grandTotal = totalPrice + domesticChargeBDT;
+        const payableAmount = opts.paymentOption === 'partial' ? Math.round(grandTotal * 0.7) : grandTotal;
         const invoiceNumber = `PS-${Date.now()}`;
 
         const { error } = await supabase.from('orders').insert({
@@ -294,7 +295,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
           product_1688_id: String(product.num_iid),
           status: 'awaiting_payment',
           payment_status: 'unpaid',
-          payment_amount: grandTotal,
+          payment_amount: payableAmount,
           payment_invoice: invoiceNumber,
         } as any);
 
@@ -306,7 +307,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
         const { data: psData, error: psError } = await supabase.functions.invoke('paystation-init-payment', {
           body: {
             invoice_number: invoiceNumber,
-            payment_amount: grandTotal,
+            payment_amount: payableAmount,
             cust_name: opts.address ? opts.address.split('\n')[0] : (user!.user_metadata?.full_name || 'Customer'),
             cust_phone: '01700000000',
             cust_email: userEmail,

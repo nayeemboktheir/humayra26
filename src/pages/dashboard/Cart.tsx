@@ -62,6 +62,7 @@ export default function Cart() {
       domesticShippingFeeBDT: totalDomestic,
       sellerName: items[0].seller_name,
       onConfirm: async (opts: { address: string; paymentOption: string }) => {
+        const payableAmount = opts.paymentOption === "partial" ? Math.round((totalPrice + totalDomestic) * 0.7) : totalPrice + totalDomestic;
         const grandTotal = totalPrice + totalDomestic;
         const invoiceNumber = `PS-${Date.now()}`;
 
@@ -92,7 +93,7 @@ export default function Cart() {
             product_1688_id: item.product_id,
             status: "awaiting_payment",
             payment_status: "unpaid",
-            payment_amount: itemTotal + (item.domestic_shipping_fee || 0),
+            payment_amount: opts.paymentOption === "partial" ? Math.round((itemTotal + (item.domestic_shipping_fee || 0)) * 0.7) : itemTotal + (item.domestic_shipping_fee || 0),
             payment_invoice: invoiceNumber,
           } as any);
 
@@ -105,7 +106,7 @@ export default function Cart() {
 
         const { data: psData, error: psError } = await supabase.functions.invoke("paystation-init-payment", {
           body: {
-            amount: grandTotal,
+            amount: payableAmount,
             invoiceNumber,
             customerEmail: userEmail,
             callbackUrl,
