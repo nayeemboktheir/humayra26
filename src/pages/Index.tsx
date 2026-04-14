@@ -1388,7 +1388,7 @@ const Index = () => {
 
 // Shared components
 
-const SiteHeader = ({ query, setQuery, handleSearch, isLoading, handleImageButtonClick, fileInputRef, handleFileChange, user, navigate, handleInstallClick, settings, cartCount }: any) => (
+const SiteHeader = ({ query, setQuery, handleSearch, isLoading, handleImageButtonClick, fileInputRef, handleFileChange, user, navigate, handleInstallClick, settings = {}, cartCount = 0 }: any) => (
   <header className="sticky top-0 z-50">
     {/* Mobile header */}
     <div className="md:hidden bg-card border-b">
