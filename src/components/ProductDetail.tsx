@@ -254,36 +254,29 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
       totalPrice,
       domesticShippingFeeBDT: domesticChargeBDT,
       sellerName: product.seller_info?.shop_name,
-      onConfirm: async (opts: { deliveryOption: string; address: string; note: string; paymentOption: string }) => {
+      onConfirm: async (opts: { address: string; paymentOption: string }) => {
         const unitPrice = totalQty > 0 ? Math.round(totalPrice / totalQty) : 0;
         const orderNumber = `HT-${Date.now().toString(36).toUpperCase()}`;
 
-        let notes = opts.note || '';
+        let notes = '';
         let variantName = '';
         let variantId = '';
         if (hasSkus) {
           const selectedSkus = product.configuredItems!.filter(sku => (skuQuantities[sku.id] || 0) > 0);
           const skuNotes = selectedSkus.map(sku => `${sku.title}: ${skuQuantities[sku.id]} pcs × ৳${convertToBDT(sku.price)}`).join('\n');
-          notes = skuNotes + (opts.note ? `\n---\n${opts.note}` : '');
+          notes = skuNotes;
           variantName = selectedSkus.map(sku => sku.title).join(', ');
           variantId = selectedSkus.map(sku => sku.id).join(', ');
         }
 
-        const deliveryInfo = `\n[Delivery: ${opts.deliveryOption === 'courier' ? 'By Courier' : 'Warehouse Pickup'}]`;
-        if (opts.deliveryOption === 'courier' && opts.address) {
-          notes += `${deliveryInfo}\n[Address: ${opts.address}]`;
-        } else {
-          notes += deliveryInfo;
-        }
+        notes += `\n[Address: ${opts.address}]`;
 
         const productUrl = `${window.location.origin}/?product=${product.num_iid}`;
         const sourceUrl = `https://detail.1688.com/offer/${product.num_iid}.html`;
 
         const grandTotal = totalPrice + domesticChargeBDT;
-        const payableAmount = opts.paymentOption === 'partial' ? Math.round(grandTotal * 0.7) : grandTotal;
         const invoiceNumber = `PS-${Date.now()}`;
 
-        // Create order with awaiting_payment status
         const { error } = await supabase.from('orders').insert({
           user_id: user!.id,
           order_number: orderNumber,
@@ -301,22 +294,19 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
           product_1688_id: String(product.num_iid),
           status: 'awaiting_payment',
           payment_status: 'unpaid',
-          payment_amount: payableAmount,
+          payment_amount: grandTotal,
           payment_invoice: invoiceNumber,
         } as any);
 
         if (error) throw error;
 
-        // Get user email for PayStation
         const userEmail = user!.email || 'customer@example.com';
-
-        // Call PayStation init payment
         const callbackUrl = `${window.location.origin}/payment/callback`;
 
         const { data: psData, error: psError } = await supabase.functions.invoke('paystation-init-payment', {
           body: {
             invoice_number: invoiceNumber,
-            payment_amount: payableAmount,
+            payment_amount: grandTotal,
             cust_name: opts.address ? opts.address.split('\n')[0] : (user!.user_metadata?.full_name || 'Customer'),
             cust_phone: '01700000000',
             cust_email: userEmail,
@@ -332,7 +322,6 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
           return;
         }
 
-        // Redirect to PayStation checkout
         window.location.href = psData.payment_url;
       },
     });
