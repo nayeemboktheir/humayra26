@@ -949,7 +949,7 @@ const Index = () => {
     return (
       <div className="min-h-screen bg-background pb-20 md:pb-0">
         {imageSearchDialog}
-        <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} settings={settings} />
+        <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} settings={settings} cartCount={cartCount} />
         <ProductDetail product={selectedProduct || undefined} isLoading={isLoadingProduct || isTranslatingProduct} onBack={handleBackToSearch} />
         <Footer />
         <BottomNav />
@@ -965,7 +965,7 @@ const Index = () => {
     return (
       <div className="min-h-screen bg-background pb-20 md:pb-0">
         {imageSearchDialog}
-        <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} settings={settings} />
+        <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} settings={settings} cartCount={cartCount} />
         <div className="px-3 sm:px-6">
           <div className="flex gap-6 mt-4">
             {/* Category Sidebar - desktop only */}
@@ -1116,7 +1116,7 @@ const Index = () => {
       <div className="min-h-screen bg-background relative pb-20 md:pb-0" onDragEnter={handleDragEnter} onDragLeave={handleDragLeave} onDragOver={handleDragOver} onDrop={handleDrop}>
         {isDragging && <DragOverlay />}
         {imageSearchDialog}
-        <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} />
+        <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} cartCount={cartCount} />
         <div className="px-3 sm:px-6 py-6">
           <div className="flex gap-6">
             {/* Filter Sidebar */}
@@ -1217,7 +1217,7 @@ const Index = () => {
     <div className="min-h-screen bg-background relative pb-20 md:pb-0" onDragEnter={handleDragEnter} onDragLeave={handleDragLeave} onDragOver={handleDragOver} onDrop={handleDrop}>
       {isDragging && <DragOverlay />}
       {imageSearchDialog}
-      <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} settings={settings} />
+      <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} settings={settings} cartCount={cartCount} />
 
       {/* Main content */}
       <div className="flex gap-0 lg:gap-4">
@@ -1388,7 +1388,7 @@ const Index = () => {
 
 // Shared components
 
-const SiteHeader = ({ query, setQuery, handleSearch, isLoading, handleImageButtonClick, fileInputRef, handleFileChange, user, navigate, handleInstallClick, settings }: any) => (
+const SiteHeader = ({ query, setQuery, handleSearch, isLoading, handleImageButtonClick, fileInputRef, handleFileChange, user, navigate, handleInstallClick, settings, cartCount }: any) => (
   <header className="sticky top-0 z-50">
     {/* Mobile header */}
     <div className="md:hidden bg-card border-b">
