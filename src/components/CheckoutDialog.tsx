@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { Loader2, MapPin, CreditCard, User, Phone, Percent } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Loader2, MapPin, CreditCard, User, Phone, Percent, Warehouse, Truck, Pencil } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -25,7 +27,7 @@ interface CheckoutData {
   totalPrice: number;
   domesticShippingFeeBDT: number;
   sellerName?: string;
-  onConfirm: (opts: { address: string; paymentOption: string }) => Promise<void>;
+  onConfirm: (opts: { address: string; paymentOption: string; deliveryMethod: string }) => Promise<void>;
 }
 
 interface CheckoutDialogProps {
@@ -37,13 +39,17 @@ interface CheckoutDialogProps {
 export default function CheckoutDialog({ open, onOpenChange, data }: CheckoutDialogProps) {
   const { user } = useAuth();
   const [paymentOption, setPaymentOption] = useState<"full" | "partial">("full");
+  const [deliveryMethod, setDeliveryMethod] = useState<"delivery" | "pickup">("delivery");
   const [placing, setPlacing] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [profile, setProfile] = useState<{ full_name: string; phone: string; address: string }>({ full_name: "", phone: "", address: "" });
+  const [editingAddress, setEditingAddress] = useState(false);
+  const [addressDraft, setAddressDraft] = useState("");
 
   useEffect(() => {
     if (!user || !open) return;
     setProfileLoaded(false);
+    setEditingAddress(false);
     supabase.from("profiles").select("full_name, phone, address").eq("user_id", user.id).maybeSingle()
       .then(({ data: p }) => {
         if (p) {
@@ -52,6 +58,7 @@ export default function CheckoutDialog({ open, onOpenChange, data }: CheckoutDia
             phone: p.phone || "",
             address: p.address || "",
           });
+          setAddressDraft(p.address || "");
         }
         setProfileLoaded(true);
       });
@@ -63,16 +70,29 @@ export default function CheckoutDialog({ open, onOpenChange, data }: CheckoutDia
   const payableAmount = paymentOption === "partial" ? Math.round(grandTotal * 0.7) : grandTotal;
   const dueAmount = paymentOption === "partial" ? grandTotal - payableAmount : 0;
 
+  const effectiveAddress = deliveryMethod === "pickup" ? "Warehouse Pickup" : profile.address;
+
+  const handleSaveAddress = async () => {
+    if (!user || !addressDraft.trim()) return;
+    const { error } = await supabase.from("profiles").update({ address: addressDraft.trim() }).eq("user_id", user.id);
+    if (!error) {
+      setProfile(prev => ({ ...prev, address: addressDraft.trim() }));
+      setEditingAddress(false);
+      toast({ title: "ঠিকানা সংরক্ষিত হয়েছে" });
+    }
+  };
+
   const handleProceedToPayment = async () => {
-    if (!profile.address.trim()) {
-      toast({ title: "ঠিকানা নেই", description: "প্রোফাইলে ডেলিভারি ঠিকানা যোগ করুন।", variant: "destructive" });
+    if (deliveryMethod === "delivery" && !profile.address.trim()) {
+      toast({ title: "ঠিকানা নেই", description: "ডেলিভারি ঠিকানা যোগ করুন।", variant: "destructive" });
       return;
     }
     setPlacing(true);
     try {
       await data.onConfirm({
-        address: profile.address.trim(),
+        address: effectiveAddress,
         paymentOption,
+        deliveryMethod,
       });
     } catch {
       // error handled in parent
@@ -108,17 +128,90 @@ export default function CheckoutDialog({ open, onOpenChange, data }: CheckoutDia
                   <span>{profile.phone}</span>
                 </div>
               )}
-              {profile.address && (
-                <div className="flex items-center gap-2 text-sm">
-                  <MapPin className="h-4 w-4 text-primary flex-shrink-0" />
-                  <span>{profile.address}</span>
-                </div>
-              )}
-              {!profile.address && (
-                <p className="text-sm text-destructive">⚠ প্রোফাইলে ঠিকানা যোগ করুন</p>
-              )}
             </div>
           )}
+
+          <Separator />
+
+          {/* Delivery Method */}
+          <div>
+            <h3 className="text-sm font-bold mb-3 flex items-center gap-1.5">
+              <MapPin className="h-4 w-4" /> ডেলিভারি পদ্ধতি
+            </h3>
+            <RadioGroup value={deliveryMethod} onValueChange={(v) => setDeliveryMethod(v as any)} className="space-y-2.5">
+              <div className={`flex items-center gap-3 border rounded-lg px-4 py-3 cursor-pointer transition-all ${deliveryMethod === "delivery" ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border"}`}>
+                <RadioGroupItem value="delivery" id="dm-delivery" />
+                <Label htmlFor="dm-delivery" className="cursor-pointer flex-1">
+                  <div className="flex items-center gap-2">
+                    <Truck className="h-4 w-4 text-primary" />
+                    <div>
+                      <p className="font-semibold text-sm">হোম ডেলিভারি</p>
+                      <p className="text-xs text-muted-foreground">আপনার ঠিকানায় পৌঁছে দেওয়া হবে</p>
+                    </div>
+                  </div>
+                </Label>
+              </div>
+              <div className={`flex items-center gap-3 border rounded-lg px-4 py-3 cursor-pointer transition-all ${deliveryMethod === "pickup" ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border"}`}>
+                <RadioGroupItem value="pickup" id="dm-pickup" />
+                <Label htmlFor="dm-pickup" className="cursor-pointer flex-1">
+                  <div className="flex items-center gap-2">
+                    <Warehouse className="h-4 w-4 text-primary" />
+                    <div>
+                      <p className="font-semibold text-sm">ওয়্যারহাউজ পিকআপ</p>
+                      <p className="text-xs text-muted-foreground">আমাদের ওয়্যারহাউজ থেকে নিয়ে যান</p>
+                    </div>
+                  </div>
+                </Label>
+              </div>
+            </RadioGroup>
+
+            {/* Address for delivery */}
+            {deliveryMethod === "delivery" && (
+              <div className="mt-3 border rounded-lg p-3 bg-muted/20">
+                {editingAddress ? (
+                  <div className="space-y-2">
+                    <Textarea
+                      value={addressDraft}
+                      onChange={(e) => setAddressDraft(e.target.value)}
+                      placeholder="আপনার সম্পূর্ণ ঠিকানা লিখুন..."
+                      className="text-sm min-h-[60px]"
+                    />
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={handleSaveAddress} disabled={!addressDraft.trim()}>
+                        সংরক্ষণ করুন
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => { setEditingAddress(false); setAddressDraft(profile.address); }}>
+                        বাতিল
+                      </Button>
+                    </div>
+                  </div>
+                ) : profile.address ? (
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-2 text-sm">
+                      <MapPin className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
+                      <span>{profile.address}</span>
+                    </div>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0" onClick={() => { setAddressDraft(profile.address); setEditingAddress(true); }}>
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-sm text-destructive">⚠ ডেলিভারি ঠিকানা যোগ করুন</p>
+                    <Textarea
+                      value={addressDraft}
+                      onChange={(e) => setAddressDraft(e.target.value)}
+                      placeholder="আপনার সম্পূর্ণ ঠিকানা লিখুন..."
+                      className="text-sm min-h-[60px]"
+                    />
+                    <Button size="sm" onClick={handleSaveAddress} disabled={!addressDraft.trim()}>
+                      ঠিকানা সংরক্ষণ করুন
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           <Separator />
 
