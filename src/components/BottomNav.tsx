@@ -89,8 +89,8 @@ const BottomNav = () => {
                   onClick={() => navigate("/")}
                   className="relative -mt-5 flex items-center justify-center"
                 >
-                  <div className="w-14 h-14 rounded-full bg-primary shadow-lg flex items-center justify-center border-4 border-background">
-                    <img src={logoIcon} alt="TradeOn" className="w-9 h-9 object-contain" />
+                  <div className="w-16 h-16 rounded-full bg-primary shadow-lg flex items-center justify-center border-4 border-background">
+                    <img src={logoIcon} alt="TradeOn" className="w-11 h-11 object-contain" />
                   </div>
                 </button>
               );

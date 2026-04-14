@@ -1396,7 +1396,7 @@ const SiteHeader = ({ query, setQuery, handleSearch, isLoading, handleImageButto
       {/* Top row: Logo + action icons */}
       <div className="flex items-center justify-between px-3 pt-2 pb-1">
         <button onClick={() => { setQuery(""); window.location.href = "/"; }} className="shrink-0">
-          <img src={logoFull} alt="TradeOn Global" className="h-8 object-contain" />
+          <img src={logoFull} alt="TradeOn Global" className="h-11 object-contain" />
         </button>
         <div className="flex items-center gap-1">
           <Button variant="ghost" size="icon" className="h-9 w-9 relative" onClick={() => navigate(user ? "/dashboard/cart" : "/auth")} title="Cart">
@@ -1435,7 +1435,7 @@ const SiteHeader = ({ query, setQuery, handleSearch, isLoading, handleImageButto
       <div className="px-3 sm:px-6">
         <div className="flex items-center gap-4 h-16">
           <button onClick={() => { setQuery(""); window.location.href = "/"; }} className="shrink-0">
-            <img src={logoFull} alt="TradeOn Global" className="h-9 object-contain" />
+            <img src={logoFull} alt="TradeOn Global" className="h-12 object-contain" />
           </button>
           <form onSubmit={handleSearch} className="flex-1 flex gap-2">
             <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />

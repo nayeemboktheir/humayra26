@@ -33,7 +33,7 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Company Info */}
           <div className="space-y-4">
-            <img src={logoFull} alt="TradeOn Global" className="h-10 object-contain" />
+            <img src={logoFull} alt="TradeOn Global" className="h-14 object-contain" />
 
             <div className="space-y-3 text-sm">
               <div>
