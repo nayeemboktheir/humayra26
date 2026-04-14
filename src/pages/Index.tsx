@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Search, Camera, ImageIcon, Loader2, ChevronLeft, ChevronRight, Star, BadgeCheck, Flame, Truck, Heart, ShoppingCart, User, Zap, SlidersHorizontal, Download, X, ArrowRight } from "lucide-react";
+import { useCart } from "@/contexts/CartContext";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -131,7 +132,7 @@ const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { settings } = useAppSettings();
-  
+  const { count: cartCount } = useCart();
   // Set dynamic exchange rate and markup from settings
   const rate = parseFloat(settings.cny_to_bdt_rate || "17.5");
   if (rate > 0) setCnyToBdtRate(rate);
@@ -948,7 +949,7 @@ const Index = () => {
     return (
       <div className="min-h-screen bg-background pb-20 md:pb-0">
         {imageSearchDialog}
-        <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} settings={settings} />
+        <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} settings={settings} cartCount={cartCount} />
         <ProductDetail product={selectedProduct || undefined} isLoading={isLoadingProduct || isTranslatingProduct} onBack={handleBackToSearch} />
         <Footer />
         <BottomNav />
@@ -964,7 +965,7 @@ const Index = () => {
     return (
       <div className="min-h-screen bg-background pb-20 md:pb-0">
         {imageSearchDialog}
-        <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} settings={settings} />
+        <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} settings={settings} cartCount={cartCount} />
         <div className="px-3 sm:px-6">
           <div className="flex gap-6 mt-4">
             {/* Category Sidebar - desktop only */}
@@ -1115,7 +1116,7 @@ const Index = () => {
       <div className="min-h-screen bg-background relative pb-20 md:pb-0" onDragEnter={handleDragEnter} onDragLeave={handleDragLeave} onDragOver={handleDragOver} onDrop={handleDrop}>
         {isDragging && <DragOverlay />}
         {imageSearchDialog}
-        <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} />
+        <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} cartCount={cartCount} />
         <div className="px-3 sm:px-6 py-6">
           <div className="flex gap-6">
             {/* Filter Sidebar */}
@@ -1216,7 +1217,7 @@ const Index = () => {
     <div className="min-h-screen bg-background relative pb-20 md:pb-0" onDragEnter={handleDragEnter} onDragLeave={handleDragLeave} onDragOver={handleDragOver} onDrop={handleDrop}>
       {isDragging && <DragOverlay />}
       {imageSearchDialog}
-      <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} settings={settings} />
+      <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} settings={settings} cartCount={cartCount} />
 
       {/* Main content */}
       <div className="flex gap-0 lg:gap-4">
@@ -1387,7 +1388,7 @@ const Index = () => {
 
 // Shared components
 
-const SiteHeader = ({ query, setQuery, handleSearch, isLoading, handleImageButtonClick, fileInputRef, handleFileChange, user, navigate, handleInstallClick, settings }: any) => (
+const SiteHeader = ({ query, setQuery, handleSearch, isLoading, handleImageButtonClick, fileInputRef, handleFileChange, user, navigate, handleInstallClick, settings, cartCount }: any) => (
   <header className="sticky top-0 z-50">
     {/* Mobile header */}
     <div className="md:hidden bg-card border-b">
@@ -1397,8 +1398,11 @@ const SiteHeader = ({ query, setQuery, handleSearch, isLoading, handleImageButto
           <h1 className="text-xl font-bold text-primary">{settings?.site_name || "TradeOn Global"}</h1>
         </button>
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => navigate("/dashboard/orders")} title="Orders">
+          <Button variant="ghost" size="icon" className="h-9 w-9 relative" onClick={() => navigate(user ? "/dashboard/cart" : "/auth")} title="Cart">
             <ShoppingCart className="h-5 w-5 text-foreground" />
+            {cartCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">{cartCount}</span>
+            )}
           </Button>
           <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => navigate("/dashboard/wishlist")} title="Wishlist">
             <Heart className="h-5 w-5 text-foreground" />
@@ -1448,7 +1452,12 @@ const SiteHeader = ({ query, setQuery, handleSearch, isLoading, handleImageButto
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" onClick={handleInstallClick} title="Install App"><Download className="h-5 w-5" /></Button>
             <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard/wishlist")} title="Wishlist"><Heart className="h-5 w-5" /></Button>
-            <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard/orders")} title="Orders"><ShoppingCart className="h-5 w-5" /></Button>
+            <Button variant="ghost" size="icon" className="relative" onClick={() => navigate(user ? "/dashboard/cart" : "/auth")} title="Cart">
+              <ShoppingCart className="h-5 w-5" />
+              {cartCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">{cartCount}</span>
+              )}
+            </Button>
             <Button variant="ghost" size="icon" onClick={() => navigate(user ? "/dashboard" : "/auth")} title={user ? "Dashboard" : "Sign In"}><User className="h-5 w-5" /></Button>
           </div>
         </div>
