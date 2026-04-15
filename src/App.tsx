@@ -70,13 +70,18 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const DashboardRoute = ({ children }: { children: React.ReactNode }) => (
-  <ProtectedRoute>
+const DashboardRoute = ({ children }: { children: React.ReactNode }) => {
+  const { user, loading: authLoading } = useAuth();
+  const { isStaff, loading: adminLoading } = useAdmin();
+  if (authLoading || adminLoading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  if (!user) return <Navigate to="/auth" replace />;
+  if (isStaff) return <Navigate to="/admin" replace />;
+  return (
     <Suspense fallback={<PageLoader />}>
       <DashboardLayout>{children}</DashboardLayout>
     </Suspense>
-  </ProtectedRoute>
-);
+  );
+};
 
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading: authLoading } = useAuth();
