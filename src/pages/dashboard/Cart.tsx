@@ -121,7 +121,7 @@ export default function Cart() {
           },
         });
 
-        if (psError || !psData?.success === false || !psData?.payment_url) {
+        if (psError || !psData?.success || !psData?.payment_url) {
           toast({ title: "Payment Error", description: psData?.error || "পেমেন্ট শুরু করতে সমস্যা হয়েছে।", variant: "destructive" });
           return;
         }
