@@ -104,17 +104,25 @@ export default function Cart() {
         const userEmail = user.email || "customer@example.com";
         const callbackUrl = `${window.location.origin}/payment/callback`;
 
+        // Fetch profile for cust_name and cust_phone
+        const { data: prof } = await supabase.from("profiles").select("full_name, phone").eq("user_id", user.id).maybeSingle();
+
         const { data: psData, error: psError } = await supabase.functions.invoke("paystation-init-payment", {
           body: {
-            amount: payableAmount,
-            invoiceNumber,
-            customerEmail: userEmail,
-            callbackUrl,
+            invoice_number: invoiceNumber,
+            payment_amount: payableAmount,
+            cust_name: prof?.full_name || "Customer",
+            cust_phone: prof?.phone || "01700000000",
+            cust_email: userEmail,
+            cust_address: opts.address || "",
+            callback_url: callbackUrl,
+            checkout_items: items.map(i => i.product_name).join(", "),
+            reference: invoiceNumber,
           },
         });
 
-        if (psError || !psData?.payment_url) {
-          toast({ title: "Payment Error", description: "পেমেন্ট শুরু করতে সমস্যা হয়েছে।", variant: "destructive" });
+        if (psError || !psData?.success === false || !psData?.payment_url) {
+          toast({ title: "Payment Error", description: psData?.error || "পেমেন্ট শুরু করতে সমস্যা হয়েছে।", variant: "destructive" });
           return;
         }
 
