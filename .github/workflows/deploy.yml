@@ -29,11 +29,14 @@ jobs:
           VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID }}
         run: bun run build
 
-      - name: Copy server to dist
+      - name: Verify .htaccess in dist
         run: |
-          cp server.cjs dist/server.cjs
-          echo "✅ server.cjs copied to dist"
-          ls -la dist/server.cjs
+          if [ -f dist/.htaccess ]; then
+            echo "✅ .htaccess found in dist"
+          else
+            echo "⚠️ .htaccess missing, copying from public"
+            cp public/.htaccess dist/.htaccess
+          fi
 
       - name: Deploy to Hostinger via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
