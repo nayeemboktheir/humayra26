@@ -5,11 +5,15 @@ import { supabase } from "@/integrations/supabase/client";
 export function useAdmin() {
   const { user } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isStaff, setIsStaff] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user) {
       setIsAdmin(false);
+      setIsStaff(false);
+      setUserRole(null);
       setLoading(false);
       return;
     }
@@ -19,15 +23,17 @@ export function useAdmin() {
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id)
-        .eq("role", "admin")
         .maybeSingle();
 
-      setIsAdmin(!!data && !error);
+      const role = data?.role || null;
+      setUserRole(role);
+      setIsAdmin(role === "admin");
+      setIsStaff(!!role && !error); // any role = staff
       setLoading(false);
     };
 
     checkAdmin();
   }, [user]);
 
-  return { isAdmin, loading };
+  return { isAdmin, isStaff, userRole, loading };
 }

@@ -59,6 +59,7 @@ const AdminAnalytics = lazy(() => import("./pages/admin/AdminAnalytics"));
 const AdminMessaging = lazy(() => import("./pages/admin/AdminMessaging"));
 const AdminSettings = lazy(() => import("./pages/admin/AdminSettings"));
 const AdminMarketing = lazy(() => import("./pages/admin/AdminMarketing"));
+const AdminPermissions = lazy(() => import("./pages/admin/AdminPermissions"));
 
 const queryClient = new QueryClient();
 
@@ -79,10 +80,10 @@ const DashboardRoute = ({ children }: { children: React.ReactNode }) => (
 
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading: authLoading } = useAuth();
-  const { isAdmin, loading: adminLoading } = useAdmin();
+  const { isStaff, loading: adminLoading } = useAdmin();
   if (authLoading || adminLoading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   if (!user) return <Navigate to="/auth" replace />;
-  if (!isAdmin) return <Navigate to="/dashboard" replace />;
+  if (!isStaff) return <Navigate to="/dashboard" replace />;
   return (
     <Suspense fallback={<PageLoader />}>
       <AdminLayout>{children}</AdminLayout>
@@ -141,6 +142,7 @@ const App = () => (
               <Route path="/admin/messaging" element={<AdminRoute><AdminMessaging /></AdminRoute>} />
               <Route path="/admin/settings" element={<AdminRoute><AdminSettings /></AdminRoute>} />
               <Route path="/admin/marketing" element={<AdminRoute><AdminMarketing /></AdminRoute>} />
+              <Route path="/admin/permissions" element={<AdminRoute><AdminPermissions /></AdminRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

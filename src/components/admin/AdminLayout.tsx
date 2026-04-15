@@ -1,11 +1,12 @@
 import { ReactNode, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useRolePermissions } from "@/hooks/useRolePermissions";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, ShoppingCart, Truck, Package, RefreshCcw,
   Receipt, Wallet, Bell, Heart, Users, Shield, LogOut, Menu, X,
-  ChevronDown, ChevronRight, BarChart3, MessageSquare, Settings, Megaphone
+  ChevronDown, ChevronRight, BarChart3, MessageSquare, Settings, Megaphone, Lock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -13,34 +14,38 @@ interface NavItem {
   label: string;
   icon: any;
   path?: string;
-  children?: { label: string; path: string; icon: any }[];
+  pageKey: string;
 }
 
 const navItems: NavItem[] = [
-  { label: "Dashboard", icon: LayoutDashboard, path: "/admin" },
-  { label: "Analytics", icon: BarChart3, path: "/admin/analytics" },
-  { label: "Customers", icon: Users, path: "/admin/customers" },
-  { label: "Users & Profiles", icon: Shield, path: "/admin/users" },
-  { label: "User Roles", icon: Shield, path: "/admin/roles" },
-  { label: "Orders", icon: ShoppingCart, path: "/admin/orders" },
-  { label: "Shipments", icon: Truck, path: "/admin/shipments" },
-  { label: "Messaging", icon: MessageSquare, path: "/admin/messaging" },
-  { label: "Refunds", icon: RefreshCcw, path: "/admin/refunds" },
-  { label: "Transactions", icon: Receipt, path: "/admin/transactions" },
-  { label: "Wallets", icon: Wallet, path: "/admin/wallets" },
-  { label: "Notifications", icon: Bell, path: "/admin/notifications" },
-  { label: "Wishlist", icon: Heart, path: "/admin/wishlist" },
-  { label: "Marketing", icon: Megaphone, path: "/admin/marketing" },
-  { label: "Settings", icon: Settings, path: "/admin/settings" },
+  { label: "Dashboard", icon: LayoutDashboard, path: "/admin", pageKey: "dashboard" },
+  { label: "Analytics", icon: BarChart3, path: "/admin/analytics", pageKey: "analytics" },
+  { label: "Customers", icon: Users, path: "/admin/customers", pageKey: "customers" },
+  { label: "Users & Profiles", icon: Shield, path: "/admin/users", pageKey: "users" },
+  { label: "User Roles", icon: Shield, path: "/admin/roles", pageKey: "roles" },
+  { label: "Orders", icon: ShoppingCart, path: "/admin/orders", pageKey: "orders" },
+  { label: "Shipments", icon: Truck, path: "/admin/shipments", pageKey: "shipments" },
+  { label: "Messaging", icon: MessageSquare, path: "/admin/messaging", pageKey: "messaging" },
+  { label: "Refunds", icon: RefreshCcw, path: "/admin/refunds", pageKey: "refunds" },
+  { label: "Transactions", icon: Receipt, path: "/admin/transactions", pageKey: "transactions" },
+  { label: "Wallets", icon: Wallet, path: "/admin/wallets", pageKey: "wallets" },
+  { label: "Notifications", icon: Bell, path: "/admin/notifications", pageKey: "notifications" },
+  { label: "Wishlist", icon: Heart, path: "/admin/wishlist", pageKey: "wishlist" },
+  { label: "Marketing", icon: Megaphone, path: "/admin/marketing", pageKey: "marketing" },
+  { label: "Settings", icon: Settings, path: "/admin/settings", pageKey: "settings" },
+  { label: "Permissions", icon: Lock, path: "/admin/permissions", pageKey: "permissions" },
 ];
 
 const AdminLayout = ({ children }: { children: ReactNode }) => {
   const { signOut, user } = useAuth();
+  const { hasAccess } = useRolePermissions();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const isActive = (path?: string) => path === location.pathname;
+
+  const filteredNav = navItems.filter((item) => hasAccess(item.pageKey));
 
   const sidebarContent = (
     <div className="flex flex-col h-full">
@@ -52,7 +57,7 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
         <p className="text-xs text-muted-foreground truncate mt-1">{user?.email}</p>
       </div>
       <nav className="flex-1 overflow-y-auto p-3 space-y-0.5">
-        {navItems.map((item) => (
+        {filteredNav.map((item) => (
           <button
             key={item.label}
             onClick={() => {
