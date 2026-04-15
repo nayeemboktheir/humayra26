@@ -400,6 +400,27 @@ export type Database = {
           },
         ]
       }
+      role_permissions: {
+        Row: {
+          can_access: boolean
+          id: string
+          page_key: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Insert: {
+          can_access?: boolean
+          id?: string
+          page_key: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Update: {
+          can_access?: boolean
+          id?: string
+          page_key?: string
+          role?: Database["public"]["Enums"]["app_role"]
+        }
+        Relationships: []
+      }
       search_cache: {
         Row: {
           created_at: string
