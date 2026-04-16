@@ -21,10 +21,11 @@ export default function AdminRoles() {
 
   const fetchData = async () => {
     setLoading(true);
-    const [{ data: roles }, { data: userEmails }] = await Promise.all([
+    const [{ data: roles, error: rolesErr }, { data: userEmails, error: emailsErr }] = await Promise.all([
       supabase.from("user_roles").select("*"),
       supabase.rpc("get_user_emails"),
     ]);
+    if (emailsErr) console.error("get_user_emails error:", emailsErr);
     setData(roles || []);
     setEmails(userEmails || []);
     setLoading(false);
