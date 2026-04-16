@@ -18,19 +18,24 @@ export function useAdmin() {
       return;
     }
 
+    let cancelled = false;
+    setLoading(true);
+
     const checkAdmin = async () => {
       try {
         const role = await resolveUserRole(user.id);
+        if (cancelled) return;
         setUserRole(role);
         setIsAdmin(role === "admin");
         setIsStaff(isStaffRole(role));
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     checkAdmin();
-  }, [user]);
+    return () => { cancelled = true; };
+  }, [user?.id]);
 
   return { isAdmin, isStaff, userRole, loading };
 }
