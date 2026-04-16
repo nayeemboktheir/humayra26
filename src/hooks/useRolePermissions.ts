@@ -17,8 +17,12 @@ export function useRolePermissions() {
       return;
     }
 
+    let cancelled = false;
+    setLoading(true);
+
     const fetchPermissions = async () => {
       const role = await resolveUserRole(user.id);
+      if (cancelled) return;
 
       if (!role) {
         setUserRole(null);
@@ -35,12 +39,14 @@ export function useRolePermissions() {
         .eq("role", role)
         .eq("can_access", true);
 
+      if (cancelled) return;
       setAllowedPages((perms || []).map((p) => p.page_key));
       setLoading(false);
     };
 
     fetchPermissions();
-  }, [user]);
+    return () => { cancelled = true; };
+  }, [user?.id]);
 
   const hasAccess = (pageKey: string) => allowedPages.includes(pageKey);
 
