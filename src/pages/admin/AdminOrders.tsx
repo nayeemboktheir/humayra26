@@ -135,7 +135,8 @@ export default function AdminOrders() {
     const matchesSearch =
       order.order_number.toLowerCase().includes(search.toLowerCase()) ||
       order.product_name.toLowerCase().includes(search.toLowerCase()) ||
-      (order.profile?.full_name || "").toLowerCase().includes(search.toLowerCase());
+      (order.profile?.full_name || "").toLowerCase().includes(search.toLowerCase()) ||
+      (order.profile?.phone || "").toLowerCase().includes(search.toLowerCase());
     if (statusFilter === "pending") {
       const matchesStatus = order.status === "pending";
       return matchesSearch && matchesStatus;
