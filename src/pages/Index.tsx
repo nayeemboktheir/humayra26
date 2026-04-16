@@ -424,6 +424,10 @@ const Index = () => {
       setVisibleCategoryCount(Infinity);
       setSearchParams({ category: categoryQuery }, { replace: true });
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      // Fallback: if no cached products, fetch from API
+      if (cachedProducts.length === 0) {
+        loadCategoryPage(categoryQuery, 1);
+      }
     } else {
       setQuery(categoryQuery);
       performSearch(categoryQuery);
