@@ -60,11 +60,11 @@ const BottomNav = () => {
   return (
     <>
       <Sheet open={catOpen} onOpenChange={setCatOpen}>
-        <SheetContent side="left" className="w-[280px] p-0">
-          <SheetHeader className="p-4 border-b">
+        <SheetContent side="left" className="w-[85vw] max-w-[320px] p-0 flex flex-col">
+          <SheetHeader className="p-4 border-b shrink-0">
             <SheetTitle className="text-left">Categories</SheetTitle>
           </SheetHeader>
-          <nav className="overflow-y-auto h-[calc(100%-60px)] p-2 space-y-0.5">
+          <nav className="flex-1 overflow-y-auto p-2 space-y-0.5 pb-8">
             {categories.map((cat) => (
               <button
                 key={cat.name}
