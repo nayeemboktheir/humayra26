@@ -38,7 +38,7 @@ export default function AdminRoles() {
   };
 
   const columns: Column[] = [
-    { key: "user_id", label: "User Email", render: (v) => <span className="text-sm">{getEmail(v)}</span> },
+    { key: "user_id", label: "User Email", render: (v) => <span className="text-sm font-medium">{getEmail(v)}</span> },
     { key: "role", label: "Role", editable: true, render: (v) => <Badge>{v}</Badge> },
   ];
 
