@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { resolveUserRole, type AppRole } from "@/lib/roles";
 
 export function useRolePermissions() {
   const { user } = useAuth();
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<AppRole>(null);
   const [allowedPages, setAllowedPages] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -17,27 +18,21 @@ export function useRolePermissions() {
     }
 
     const fetchPermissions = async () => {
-      // Get user's role
-      const { data: roleData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      const role = await resolveUserRole(user.id);
 
-      if (!roleData) {
+      if (!role) {
         setUserRole(null);
         setAllowedPages([]);
         setLoading(false);
         return;
       }
 
-      setUserRole(roleData.role);
+      setUserRole(role);
 
-      // Get permissions for this role
       const { data: perms } = await supabase
         .from("role_permissions")
         .select("page_key")
-        .eq("role", roleData.role)
+        .eq("role", role)
         .eq("can_access", true);
 
       setAllowedPages((perms || []).map((p) => p.page_key));

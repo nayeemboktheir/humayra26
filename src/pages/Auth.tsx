@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { toast } from "sonner";
 import { Loader2, Mail, Lock, User, Phone } from "lucide-react";
+import { isStaffRole, resolveUserRole } from "@/lib/roles";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -47,12 +48,8 @@ const Auth = () => {
         if (error) throw error;
         toast.success("সফলভাবে লগইন হয়েছে!");
 
-        const { data: isAdmin } = await supabase.rpc("has_role", {
-          _user_id: data.user.id,
-          _role: "admin",
-        });
-
-        navigate(isAdmin ? "/admin" : "/dashboard");
+          const role = await resolveUserRole(data.user.id);
+          navigate(isStaffRole(role) ? "/admin" : "/dashboard");
       } else {
         if (!signupPhoneVerified) {
           toast.error("আগে মোবাইল নাম্বার ভেরিফাই করুন");
