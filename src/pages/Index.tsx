@@ -399,9 +399,19 @@ const Index = () => {
     }
   };
 
+  const clearSearchStateForCategoryView = () => {
+    setSelectedProduct(null);
+    setHasSearched(false);
+    setProducts([]);
+    setTotalResults(null);
+    setCurrentPage(1);
+    setActiveSearch(null);
+  };
+
   const handleCategoryClick = (categoryQuery: string) => {
     const cat = categories.find(c => c.query === categoryQuery);
     if (cat) {
+      clearSearchStateForCategoryView();
       // Page 1 loads from cache
       const cachedRows = categoryProductsMap[categoryQuery] || [];
       const cachedProducts: Product1688[] = cachedRows.map((row: any) => ({
@@ -422,6 +432,7 @@ const Index = () => {
       setCategoryPage(1);
       setCategoryTotal(null);
       setVisibleCategoryCount(Infinity);
+      setIsCategoryLoading(cachedProducts.length === 0);
       setSearchParams({ category: categoryQuery }, { replace: true });
       window.scrollTo({ top: 0, behavior: 'smooth' });
       // Fallback: if no cached products, fetch from API
@@ -802,9 +813,11 @@ const Index = () => {
   const handleBackToSearch = () => {
     setSelectedProduct(null);
     setActiveCategoryView(null);
+    setIsCategoryLoading(false);
     // Remove product param from URL but keep search query
     const newParams = new URLSearchParams(searchParams);
     newParams.delete('product');
+    newParams.delete('category');
     setSearchParams(newParams);
   };
 
