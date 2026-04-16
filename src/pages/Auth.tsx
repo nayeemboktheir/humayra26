@@ -173,7 +173,14 @@ const Auth = () => {
           });
           if (verifyError) throw verifyError;
           toast.success("সফলভাবে লগইন হয়েছে!");
-          navigate("/dashboard");
+          // Check role to redirect admin/staff to admin panel
+          const { data: { user: loggedInUser } } = await supabase.auth.getUser();
+          if (loggedInUser) {
+            const role = await resolveUserRole(loggedInUser.id);
+            navigate(isStaffRole(role) ? "/admin" : "/dashboard");
+          } else {
+            navigate("/dashboard");
+          }
         }
       }
     } catch (error: any) {
