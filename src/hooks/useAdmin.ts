@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { isStaffRole, resolveUserRole, type AppRole } from "@/lib/roles";
 
 export function useAdmin() {
   const { user } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
   const [isStaff, setIsStaff] = useState(false);
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<AppRole>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -19,17 +19,14 @@ export function useAdmin() {
     }
 
     const checkAdmin = async () => {
-      const { data, error } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      const role = data?.role || null;
-      setUserRole(role);
-      setIsAdmin(role === "admin");
-      setIsStaff(!!role && !error); // any role = staff
-      setLoading(false);
+      try {
+        const role = await resolveUserRole(user.id);
+        setUserRole(role);
+        setIsAdmin(role === "admin");
+        setIsStaff(isStaffRole(role));
+      } finally {
+        setLoading(false);
+      }
     };
 
     checkAdmin();
