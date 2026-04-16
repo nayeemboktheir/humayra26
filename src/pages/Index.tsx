@@ -844,8 +844,23 @@ const Index = () => {
       setCategoryProducts([]);
       setCategoryPage(1);
       setCategoryTotal(null);
+      return;
     }
-  }, [searchParams, activeCategoryView]);
+    // Handle category param added or changed (e.g. from mobile bottom-nav)
+    if (catParam && catParam !== activeCategoryView?.query) {
+      const cat = categories.find(c => c.query === catParam);
+      if (cat) {
+        const catPageParam = searchParams.get('page');
+        const catPage = catPageParam ? parseInt(catPageParam) : 1;
+        if (catPage > 1) {
+          setActiveCategoryView({ query: catParam, name: cat.name, icon: cat.icon });
+          loadCategoryPage(catParam, catPage);
+        } else {
+          handleCategoryClick(catParam);
+        }
+      }
+    }
+  }, [searchParams, activeCategoryView, categoryProductsMap]);
 
   const getDisplayTitle = (product: Product1688) => product.title;
 
