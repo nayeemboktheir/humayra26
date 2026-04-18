@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { setCnyToBdtRate, setMarkupPercentage } from "@/lib/currency";
 
 export type AppSettings = Record<string, string>;
 
@@ -56,6 +57,11 @@ async function loadSettings(): Promise<AppSettings> {
       settings[row.key] = row.value;
     }
   }
+  // Apply currency settings globally so convertToBDT works everywhere
+  const rate = parseFloat(settings.cny_to_bdt_rate || "17.5");
+  if (rate > 0) setCnyToBdtRate(rate);
+  const markup = parseFloat(settings.price_markup_percentage || "15");
+  if (markup >= 0) setMarkupPercentage(markup);
   cachedSettings = settings;
   return settings;
 }
