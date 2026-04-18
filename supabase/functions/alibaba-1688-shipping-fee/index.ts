@@ -47,10 +47,17 @@ Deno.serve(async (req) => {
       const data = await response.json();
 
       if (!response.ok || data?.code !== 200) {
-        console.error('TMAPI shipping fee error:', JSON.stringify(data));
+        // TMAPI often returns "Get data error" for unsupported provinces.
+        // Return success with null data so the client can fall back to another province
+        // without surfacing a 400/runtime error.
+        console.warn('TMAPI shipping fee unavailable for province:', province, JSON.stringify(data));
         return new Response(
-          JSON.stringify({ success: false, error: data?.msg || 'Failed to get shipping fee' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({
+            success: true,
+            data: null,
+            warning: data?.msg || 'Shipping fee unavailable for this province',
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
