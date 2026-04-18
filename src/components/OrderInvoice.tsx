@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Printer, X } from "lucide-react";
+import { Printer, X, Download } from "lucide-react";
 import { useAppSettings } from "@/hooks/useAppSettings";
 import { toast } from "@/hooks/use-toast";
 
@@ -270,6 +270,27 @@ export default function OrderInvoice({ order, orders: ordersProp, open, onOpenCh
     }
   };
 
+  const handleDownload = () => {
+    try {
+      const html = buildPrintHTML(orders, settings);
+      const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Invoice-${invoiceNumber}.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast({
+        title: "Invoice downloaded",
+        description: "Open the file and use Print → Save as PDF for a PDF copy.",
+      });
+    } catch {
+      toast({ title: "Download failed", description: "Please try again.", variant: "destructive" });
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0">
@@ -279,7 +300,11 @@ export default function OrderInvoice({ order, orders: ordersProp, open, onOpenCh
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" className="gap-1.5" onClick={handlePrint}>
                 <Printer className="h-3.5 w-3.5" />
-                Print / Download
+                Print / PDF
+              </Button>
+              <Button size="sm" className="gap-1.5" onClick={handleDownload}>
+                <Download className="h-3.5 w-3.5" />
+                Download
               </Button>
               <Button variant="ghost" size="sm" className="gap-1" onClick={() => onOpenChange(false)}>
                 <X className="h-3.5 w-3.5" />
