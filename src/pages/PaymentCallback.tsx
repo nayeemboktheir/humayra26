@@ -29,32 +29,56 @@ export default function PaymentCallback() {
       return;
     }
 
-    // Verify payment server-side
-    const verify = async () => {
-      try {
-        const { data } = await supabase.functions.invoke("paystation-verify-payment", {
-          body: { invoice_number: invoiceNumber },
-        });
+    // Verify payment server-side with polling (PayStation may take a few seconds to settle)
+    let cancelled = false;
 
-        if (data?.trx_status === "success") {
-          setStatus("success");
-        } else {
-          setStatus("failed");
-        }
-      } catch {
-        setStatus("failed");
-      }
-
-      // Get order number for display
+    const fetchOrderNumber = async () => {
       const { data: order } = await supabase
         .from("orders")
         .select("order_number")
         .eq("payment_invoice", invoiceNumber)
         .maybeSingle();
-      if (order) setOrderNumber(order.order_number);
+      if (order && !cancelled) setOrderNumber(order.order_number);
+    };
+
+    const verify = async () => {
+      const maxAttempts = 6;
+      let lastStatus = "";
+
+      for (let i = 0; i < maxAttempts; i++) {
+        if (cancelled) return;
+        try {
+          const { data } = await supabase.functions.invoke("paystation-verify-payment", {
+            body: { invoice_number: invoiceNumber },
+          });
+          lastStatus = data?.trx_status || "";
+
+          if (lastStatus === "success") {
+            if (!cancelled) setStatus("success");
+            await fetchOrderNumber();
+            return;
+          }
+          if (lastStatus === "failed" || lastStatus === "canceled") {
+            if (!cancelled) setStatus(lastStatus === "canceled" ? "canceled" : "failed");
+            await fetchOrderNumber();
+            return;
+          }
+        } catch {
+          // keep polling
+        }
+        // Wait 2s before next attempt (initiated/pending state)
+        await new Promise((r) => setTimeout(r, 2000));
+      }
+
+      if (!cancelled) setStatus("failed");
+      await fetchOrderNumber();
     };
 
     verify();
+
+    return () => {
+      cancelled = true;
+    };
   }, [invoiceNumber, paymentStatus]);
 
   return (
