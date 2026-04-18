@@ -597,7 +597,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                       <span className="text-primary text-sm font-medium">{selectedColorName}</span>
                     </div>
                     <div className="flex flex-wrap gap-1.5">
-                      {uniqueColors.filter(([key]) => key !== colorGroups.entries().next().value?.[0] || colorGroups.get(key)?.[0]?.imageUrl).map(([colorKey, skus]) => {
+                      {uniqueColors.filter(([, skus]) => skus![0]?.imageUrl).map(([colorKey, skus]) => {
                         const firstSku = skus![0];
                         if (!firstSku.imageUrl) return null;
                         const totalQtyForColor = skus!.reduce((sum, s) => sum + (skuQuantities[s.id] || 0), 0);
