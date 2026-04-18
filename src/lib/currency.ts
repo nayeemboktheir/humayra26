@@ -21,7 +21,8 @@ export function getMarkupPercentage(): number {
 }
 
 export function convertToBDT(cny: number): number {
-  const base = Math.round(cny * getCnyToBdtRate());
+  const rate = getCnyToBdtRate();
   const markup = getMarkupPercentage();
-  return Math.round(base * (1 + markup / 100));
+  // Round only once at the end to avoid compounding rounding errors
+  return Math.round(cny * rate * (1 + markup / 100));
 }
