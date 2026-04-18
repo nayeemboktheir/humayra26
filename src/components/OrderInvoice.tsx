@@ -270,23 +270,57 @@ export default function OrderInvoice({ order, orders: ordersProp, open, onOpenCh
     }
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     try {
-      const html = buildPrintHTML(orders, settings);
-      const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `Invoice-${invoiceNumber}.html`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-      toast({
-        title: "Invoice downloaded",
-        description: "Open the file and use Print → Save as PDF for a PDF copy.",
-      });
-    } catch {
+      // Render the print HTML in a hidden iframe, then snapshot to PDF
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "fixed";
+      iframe.style.left = "-10000px";
+      iframe.style.top = "0";
+      iframe.style.width = "820px";
+      iframe.style.height = "1200px";
+      iframe.style.border = "0";
+      document.body.appendChild(iframe);
+
+      const doc = iframe.contentDocument!;
+      doc.open();
+      doc.write(buildPrintHTML(orders, settings));
+      doc.close();
+
+      // Wait for fonts/images to load
+      await new Promise((r) => setTimeout(r, 350));
+
+      const target = doc.body;
+      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+        import("html2canvas"),
+        import("jspdf"),
+      ]);
+
+      const canvas = await html2canvas(target, { scale: 2, useCORS: true, backgroundColor: "#ffffff", logging: false });
+      const imgData = canvas.toDataURL("image/png");
+
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pageWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      let heightLeft = imgHeight;
+      let position = 0;
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+      pdf.save(`Invoice-${invoiceNumber}.pdf`);
+
+      document.body.removeChild(iframe);
+      toast({ title: "Invoice downloaded", description: "PDF saved successfully." });
+    } catch (e) {
+      console.error("PDF download failed", e);
       toast({ title: "Download failed", description: "Please try again.", variant: "destructive" });
     }
   };
