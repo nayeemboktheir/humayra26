@@ -57,6 +57,11 @@ async function loadSettings(): Promise<AppSettings> {
       settings[row.key] = row.value;
     }
   }
+  // Apply currency settings globally so convertToBDT works everywhere
+  const rate = parseFloat(settings.cny_to_bdt_rate || "17.5");
+  if (rate > 0) setCnyToBdtRate(rate);
+  const markup = parseFloat(settings.price_markup_percentage || "15");
+  if (markup >= 0) setMarkupPercentage(markup);
   cachedSettings = settings;
   return settings;
 }
