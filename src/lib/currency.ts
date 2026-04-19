@@ -13,7 +13,7 @@ export function setMarkupPercentage(markup: number) {
 }
 
 export function getCnyToBdtRate(): number {
-  return _cachedRate ?? 17.5; // fallback default
+  return _cachedRate ?? 19; // fallback default (matches current admin setting)
 }
 
 export function getMarkupPercentage(): number {
