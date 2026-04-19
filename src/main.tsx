@@ -52,4 +52,6 @@ if ("serviceWorker" in navigator) {
   });
 }
 
-createRoot(document.getElementById("root")!).render(<App />);
+preloadCurrencySettings().finally(() => {
+  createRoot(document.getElementById("root")!).render(<App />);
+});
