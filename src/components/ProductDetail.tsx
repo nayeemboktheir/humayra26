@@ -78,7 +78,8 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
             const first = d.first_unit_fee ?? d.total_fee ?? null;
             if (first != null && first > 0) {
               setDomesticShippingFirst(first);
-              setDomesticShippingNext(d.next_unit_fee ?? first);
+              const next = d.next_unit_fee;
+              setDomesticShippingNext(next != null && next > 0 ? next : first);
               setDomesticShippingLoading(false);
               return;
             }
