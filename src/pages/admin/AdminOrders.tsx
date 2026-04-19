@@ -378,7 +378,7 @@ export default function AdminOrders() {
         <TabsList className="flex-wrap h-auto gap-1 bg-transparent p-0">
           {statuses.map((s) => (
             <TabsTrigger key={s} value={s} className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full px-4 py-1.5 text-xs capitalize border border-border">
-              {s === "all" ? "All" : s} ({statusCounts[s]})
+              {statusLabels[s] || s} ({statusCounts[s] || 0})
             </TabsTrigger>
           ))}
         </TabsList>
