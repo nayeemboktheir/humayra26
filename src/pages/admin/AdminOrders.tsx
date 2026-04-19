@@ -46,6 +46,7 @@ interface OrderWithProfile {
 }
 
 const statusConfig: Record<string, { color: string; label: string }> = {
+  awaiting_payment: { color: "bg-amber-100 text-amber-800 border-amber-200", label: "Awaiting Payment" },
   pending: { color: "bg-amber-100 text-amber-800 border-amber-200", label: "Pending" },
   "Ordered": { color: "bg-amber-100 text-amber-800 border-amber-200", label: "Ordered" },
   "Purchased from 1688": { color: "bg-blue-100 text-blue-800 border-blue-200", label: "Purchased from 1688" },
@@ -148,6 +149,7 @@ export default function AdminOrders() {
 
     let matchesStatus = true;
     if (statusFilter === "pending") matchesStatus = order.status === "pending";
+    else if (statusFilter === "awaiting_payment") matchesStatus = order.status === "awaiting_payment";
     else if (statusFilter !== "all") {
       const shipment = shipmentMap[order.id];
       matchesStatus = (shipment ? shipment.status : "") === statusFilter;
@@ -270,10 +272,16 @@ export default function AdminOrders() {
   };
 
   const SHIPMENT_STAGES = ["Ordered", "Purchased from 1688", "Shipped to Warehouse", "Arrived at Warehouse", "Shipped to Bangladesh", "In Customs", "Out for Delivery", "Delivered"];
-  const statuses = ["pending", ...SHIPMENT_STAGES, "all"];
+  const statuses = ["all", "awaiting_payment", "pending", ...SHIPMENT_STAGES];
+  const statusLabels: Record<string, string> = {
+    all: "All",
+    awaiting_payment: "Awaiting Payment",
+    pending: "Pending (Paid)",
+  };
   const statusCounts = statuses.reduce((acc, s) => {
-    if (s === "all") { acc[s] = data.length; }
-    else if (s === "pending") { acc[s] = data.filter((o) => o.status === "pending").length; }
+    if (s === "all") acc[s] = data.length;
+    else if (s === "awaiting_payment") acc[s] = data.filter((o) => o.status === "awaiting_payment").length;
+    else if (s === "pending") acc[s] = data.filter((o) => o.status === "pending").length;
     else {
       acc[s] = data.filter((o) => {
         const shipment = shipmentMap[o.id];
@@ -371,7 +379,7 @@ export default function AdminOrders() {
         <TabsList className="flex-wrap h-auto gap-1 bg-transparent p-0">
           {statuses.map((s) => (
             <TabsTrigger key={s} value={s} className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full px-4 py-1.5 text-xs capitalize border border-border">
-              {s === "all" ? "All" : s} ({statusCounts[s]})
+              {statusLabels[s] || s} ({statusCounts[s] || 0})
             </TabsTrigger>
           ))}
         </TabsList>
@@ -396,21 +404,35 @@ export default function AdminOrders() {
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {filtered.map((order) => {
             const shipment = shipmentMap[order.id];
-            const shipmentStatus = shipment ? shipment.status : "Ordered";
-            const sc = statusConfig[shipmentStatus] || statusConfig["Ordered"];
+            const displayStatus = shipment ? shipment.status : (order.status || "Ordered");
+            const sc = statusConfig[displayStatus] || { color: "bg-muted text-foreground border-border", label: displayStatus };
             const isSelected = selectedIds.has(order.id);
+            const ps = (order as any).payment_status || "unpaid";
+            const payLabel =
+              ps === "paid" || ps === "completed" ? "Paid"
+              : ps === "partial" || ps === "deposit" || ps === "partially_paid" ? "70% Deposit"
+              : ps === "failed" ? "Failed"
+              : "Unpaid";
+            const payColor =
+              payLabel === "Paid" ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+              : payLabel === "70% Deposit" ? "bg-blue-100 text-blue-800 border-blue-200"
+              : payLabel === "Failed" ? "bg-red-100 text-red-800 border-red-200"
+              : "bg-amber-100 text-amber-800 border-amber-200";
             return (
               <Card key={order.id} className={`overflow-hidden hover:shadow-lg transition-shadow border-border/60 ${isSelected ? "ring-2 ring-primary" : ""}`}>
                 {/* Card Header */}
-                <div className="flex items-center justify-between px-4 py-3 bg-muted/40 border-b border-border/40">
-                  <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between px-4 py-3 bg-muted/40 border-b border-border/40 gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
                     <button onClick={() => toggleSelect(order.id)} className="shrink-0">
                       {isSelected ? <CheckSquare className="h-4 w-4 text-primary" /> : <Square className="h-4 w-4 text-muted-foreground" />}
                     </button>
-                    <Hash className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="font-mono text-sm font-semibold">{order.order_number}</span>
+                    <Hash className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="font-mono text-sm font-semibold truncate">{order.order_number}</span>
                   </div>
-                  <Badge className={`${sc.color} border text-[10px] font-medium px-2 py-0.5`}>{sc.label}</Badge>
+                  <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
+                    <Badge className={`${payColor} border text-[10px] font-medium px-2 py-0.5`}>{payLabel}</Badge>
+                    <Badge className={`${sc.color} border text-[10px] font-medium px-2 py-0.5`}>{sc.label}</Badge>
+                  </div>
                 </div>
 
                 {/* Product Info */}
