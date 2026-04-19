@@ -59,10 +59,25 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     if (trxStatus === 'success') {
+      // Fetch all orders tied to this invoice so we can detect partial vs full
+      const { data: invoiceOrders } = await supabase
+        .from('orders')
+        .select('id, user_id, order_number, payment_amount, total_price, domestic_courier_charge, shipping_charges, commission')
+        .eq('payment_invoice', invoice_number);
+
+      const orders = invoiceOrders || [];
+      const sumGrand = orders.reduce((s: number, o: any) =>
+        s + Number(o.total_price || 0) + Number(o.domestic_courier_charge || 0) + Number(o.shipping_charges || 0) + Number(o.commission || 0), 0);
+      const sumPayable = orders.reduce((s: number, o: any) => s + Number(o.payment_amount || 0), 0);
+
+      // If the payable amount is less than the true grand total, this is a 70% deposit
+      const isPartial = sumPayable > 0 && sumPayable < Math.round(sumGrand * 0.99);
+      const newPaymentStatus = isPartial ? 'partial' : 'paid';
+
       const { error } = await supabase
         .from('orders')
         .update({
-          payment_status: 'paid',
+          payment_status: newPaymentStatus,
           payment_trx_id: trxId,
           payment_method: paymentMethod,
           status: 'pending',
@@ -73,28 +88,21 @@ Deno.serve(async (req) => {
         console.error('DB update error:', error);
       }
 
-      // Also create a transaction record
-      const { data: orderData } = await supabase
-        .from('orders')
-        .select('user_id, payment_amount, order_number')
-        .eq('payment_invoice', invoice_number)
-        .maybeSingle();
-
-      if (orderData) {
+      const firstOrder = orders[0];
+      if (firstOrder) {
         await supabase.from('transactions').insert({
-          user_id: orderData.user_id,
-          amount: orderData.payment_amount,
-          type: 'payment',
-          description: `Payment for order #${orderData.order_number} via ${paymentMethod}`,
+          user_id: firstOrder.user_id,
+          amount: sumPayable,
+          type: isPartial ? 'partial_payment' : 'payment',
+          description: `${isPartial ? '70% deposit' : 'Full payment'} for invoice ${invoice_number} via ${paymentMethod}`,
           reference_id: trxId,
           status: 'completed',
         });
 
-        // Notify user
         await supabase.from('notifications').insert({
-          user_id: orderData.user_id,
-          title: 'Payment Successful',
-          message: `Your payment of ৳${orderData.payment_amount} for order #${orderData.order_number} was successful.`,
+          user_id: firstOrder.user_id,
+          title: isPartial ? 'Deposit Received' : 'Payment Successful',
+          message: `Your ${isPartial ? '70% advance' : 'full'} payment of ৳${sumPayable} for invoice ${invoice_number} was successful.`,
           type: 'payment',
         });
       }
