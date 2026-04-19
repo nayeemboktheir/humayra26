@@ -138,15 +138,21 @@ export default function AdminOrders() {
       order.product_name.toLowerCase().includes(search.toLowerCase()) ||
       (order.profile?.full_name || "").toLowerCase().includes(search.toLowerCase()) ||
       (order.profile?.phone || "").toLowerCase().includes(search.toLowerCase());
-    if (statusFilter === "pending") {
-      const matchesStatus = order.status === "pending";
-      return matchesSearch && matchesStatus;
+
+    const ps = (order as any).payment_status || "unpaid";
+    const matchesPayment =
+      paymentFilter === "all" ||
+      (paymentFilter === "paid" && (ps === "paid" || ps === "completed")) ||
+      (paymentFilter === "unpaid" && (ps === "unpaid" || ps === "pending" || !ps)) ||
+      (paymentFilter === "partial" && (ps === "partial" || ps === "deposit" || ps === "partially_paid"));
+
+    let matchesStatus = true;
+    if (statusFilter === "pending") matchesStatus = order.status === "pending";
+    else if (statusFilter !== "all") {
+      const shipment = shipmentMap[order.id];
+      matchesStatus = (shipment ? shipment.status : "") === statusFilter;
     }
-    if (statusFilter === "all") return matchesSearch;
-    const shipment = shipmentMap[order.id];
-    const shipmentStatus = shipment ? shipment.status : "";
-    const matchesStatus = shipmentStatus === statusFilter;
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesPayment && matchesStatus;
   });
 
   const handleEdit = (order: OrderWithProfile) => {
