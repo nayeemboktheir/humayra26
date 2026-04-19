@@ -333,6 +333,39 @@ export default function AdminOrders() {
         </div>
       )}
 
+      {/* Payment Status Filter */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-medium text-muted-foreground mr-1">Payment:</span>
+        {([
+          { key: "all", label: "All" },
+          { key: "paid", label: "Paid" },
+          { key: "unpaid", label: "Unpaid" },
+          { key: "partial", label: "Partial / Deposit" },
+        ] as const).map((p) => {
+          const count = data.filter((o) => {
+            const ps = (o as any).payment_status || "unpaid";
+            if (p.key === "all") return true;
+            if (p.key === "paid") return ps === "paid" || ps === "completed";
+            if (p.key === "unpaid") return ps === "unpaid" || ps === "pending" || !ps;
+            return ps === "partial" || ps === "deposit" || ps === "partially_paid";
+          }).length;
+          const active = paymentFilter === p.key;
+          return (
+            <button
+              key={p.key}
+              onClick={() => setPaymentFilter(p.key)}
+              className={`rounded-full px-3 py-1 text-xs border transition-colors ${
+                active
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-background text-foreground border-border hover:bg-muted"
+              }`}
+            >
+              {p.label} ({count})
+            </button>
+          );
+        })}
+      </div>
+
       {/* Status Tabs */}
       <Tabs value={statusFilter} onValueChange={setStatusFilter}>
         <TabsList className="flex-wrap h-auto gap-1 bg-transparent p-0">
