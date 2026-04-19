@@ -67,6 +67,7 @@ export default function AdminOrders() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [paymentFilter, setPaymentFilter] = useState<"all" | "paid" | "unpaid" | "partial">("all");
   const [selectedProfile, setSelectedProfile] = useState<OrderWithProfile | null>(null);
   const [editOrder, setEditOrder] = useState<OrderWithProfile | null>(null);
   const [editValues, setEditValues] = useState<Record<string, any>>({});
@@ -137,15 +138,21 @@ export default function AdminOrders() {
       order.product_name.toLowerCase().includes(search.toLowerCase()) ||
       (order.profile?.full_name || "").toLowerCase().includes(search.toLowerCase()) ||
       (order.profile?.phone || "").toLowerCase().includes(search.toLowerCase());
-    if (statusFilter === "pending") {
-      const matchesStatus = order.status === "pending";
-      return matchesSearch && matchesStatus;
+
+    const ps = (order as any).payment_status || "unpaid";
+    const matchesPayment =
+      paymentFilter === "all" ||
+      (paymentFilter === "paid" && (ps === "paid" || ps === "completed")) ||
+      (paymentFilter === "unpaid" && (ps === "unpaid" || ps === "pending" || !ps)) ||
+      (paymentFilter === "partial" && (ps === "partial" || ps === "deposit" || ps === "partially_paid"));
+
+    let matchesStatus = true;
+    if (statusFilter === "pending") matchesStatus = order.status === "pending";
+    else if (statusFilter !== "all") {
+      const shipment = shipmentMap[order.id];
+      matchesStatus = (shipment ? shipment.status : "") === statusFilter;
     }
-    if (statusFilter === "all") return matchesSearch;
-    const shipment = shipmentMap[order.id];
-    const shipmentStatus = shipment ? shipment.status : "";
-    const matchesStatus = shipmentStatus === statusFilter;
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesPayment && matchesStatus;
   });
 
   const handleEdit = (order: OrderWithProfile) => {
@@ -325,6 +332,39 @@ export default function AdminOrders() {
           <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>Clear</Button>
         </div>
       )}
+
+      {/* Payment Status Filter */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-medium text-muted-foreground mr-1">Payment:</span>
+        {([
+          { key: "all", label: "All" },
+          { key: "paid", label: "Paid" },
+          { key: "unpaid", label: "Unpaid" },
+          { key: "partial", label: "Partial / Deposit" },
+        ] as const).map((p) => {
+          const count = data.filter((o) => {
+            const ps = (o as any).payment_status || "unpaid";
+            if (p.key === "all") return true;
+            if (p.key === "paid") return ps === "paid" || ps === "completed";
+            if (p.key === "unpaid") return ps === "unpaid" || ps === "pending" || !ps;
+            return ps === "partial" || ps === "deposit" || ps === "partially_paid";
+          }).length;
+          const active = paymentFilter === p.key;
+          return (
+            <button
+              key={p.key}
+              onClick={() => setPaymentFilter(p.key)}
+              className={`rounded-full px-3 py-1 text-xs border transition-colors ${
+                active
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-background text-foreground border-border hover:bg-muted"
+              }`}
+            >
+              {p.label} ({count})
+            </button>
+          );
+        })}
+      </div>
 
       {/* Status Tabs */}
       <Tabs value={statusFilter} onValueChange={setStatusFilter}>
