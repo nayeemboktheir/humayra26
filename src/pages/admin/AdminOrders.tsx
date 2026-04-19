@@ -148,6 +148,7 @@ export default function AdminOrders() {
 
     let matchesStatus = true;
     if (statusFilter === "pending") matchesStatus = order.status === "pending";
+    else if (statusFilter === "awaiting_payment") matchesStatus = order.status === "awaiting_payment";
     else if (statusFilter !== "all") {
       const shipment = shipmentMap[order.id];
       matchesStatus = (shipment ? shipment.status : "") === statusFilter;
