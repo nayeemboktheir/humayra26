@@ -403,21 +403,35 @@ export default function AdminOrders() {
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {filtered.map((order) => {
             const shipment = shipmentMap[order.id];
-            const shipmentStatus = shipment ? shipment.status : "Ordered";
-            const sc = statusConfig[shipmentStatus] || statusConfig["Ordered"];
+            const displayStatus = shipment ? shipment.status : (order.status || "Ordered");
+            const sc = statusConfig[displayStatus] || { color: "bg-muted text-foreground border-border", label: displayStatus };
             const isSelected = selectedIds.has(order.id);
+            const ps = (order as any).payment_status || "unpaid";
+            const payLabel =
+              ps === "paid" || ps === "completed" ? "Paid"
+              : ps === "partial" || ps === "deposit" || ps === "partially_paid" ? "70% Deposit"
+              : ps === "failed" ? "Failed"
+              : "Unpaid";
+            const payColor =
+              payLabel === "Paid" ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+              : payLabel === "70% Deposit" ? "bg-blue-100 text-blue-800 border-blue-200"
+              : payLabel === "Failed" ? "bg-red-100 text-red-800 border-red-200"
+              : "bg-amber-100 text-amber-800 border-amber-200";
             return (
               <Card key={order.id} className={`overflow-hidden hover:shadow-lg transition-shadow border-border/60 ${isSelected ? "ring-2 ring-primary" : ""}`}>
                 {/* Card Header */}
-                <div className="flex items-center justify-between px-4 py-3 bg-muted/40 border-b border-border/40">
-                  <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between px-4 py-3 bg-muted/40 border-b border-border/40 gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
                     <button onClick={() => toggleSelect(order.id)} className="shrink-0">
                       {isSelected ? <CheckSquare className="h-4 w-4 text-primary" /> : <Square className="h-4 w-4 text-muted-foreground" />}
                     </button>
-                    <Hash className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="font-mono text-sm font-semibold">{order.order_number}</span>
+                    <Hash className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="font-mono text-sm font-semibold truncate">{order.order_number}</span>
                   </div>
-                  <Badge className={`${sc.color} border text-[10px] font-medium px-2 py-0.5`}>{sc.label}</Badge>
+                  <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
+                    <Badge className={`${payColor} border text-[10px] font-medium px-2 py-0.5`}>{payLabel}</Badge>
+                    <Badge className={`${sc.color} border text-[10px] font-medium px-2 py-0.5`}>{sc.label}</Badge>
+                  </div>
                 </div>
 
                 {/* Product Info */}
