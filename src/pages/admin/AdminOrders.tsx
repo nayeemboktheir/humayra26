@@ -270,10 +270,16 @@ export default function AdminOrders() {
   };
 
   const SHIPMENT_STAGES = ["Ordered", "Purchased from 1688", "Shipped to Warehouse", "Arrived at Warehouse", "Shipped to Bangladesh", "In Customs", "Out for Delivery", "Delivered"];
-  const statuses = ["pending", ...SHIPMENT_STAGES, "all"];
+  const statuses = ["all", "awaiting_payment", "pending", ...SHIPMENT_STAGES];
+  const statusLabels: Record<string, string> = {
+    all: "All",
+    awaiting_payment: "Awaiting Payment",
+    pending: "Pending (Paid)",
+  };
   const statusCounts = statuses.reduce((acc, s) => {
-    if (s === "all") { acc[s] = data.length; }
-    else if (s === "pending") { acc[s] = data.filter((o) => o.status === "pending").length; }
+    if (s === "all") acc[s] = data.length;
+    else if (s === "awaiting_payment") acc[s] = data.filter((o) => o.status === "awaiting_payment").length;
+    else if (s === "pending") acc[s] = data.filter((o) => o.status === "pending").length;
     else {
       acc[s] = data.filter((o) => {
         const shipment = shipmentMap[o.id];
