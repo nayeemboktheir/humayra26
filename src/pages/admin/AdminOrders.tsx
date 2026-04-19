@@ -46,6 +46,7 @@ interface OrderWithProfile {
 }
 
 const statusConfig: Record<string, { color: string; label: string }> = {
+  awaiting_payment: { color: "bg-amber-100 text-amber-800 border-amber-200", label: "Awaiting Payment" },
   pending: { color: "bg-amber-100 text-amber-800 border-amber-200", label: "Pending" },
   "Ordered": { color: "bg-amber-100 text-amber-800 border-amber-200", label: "Ordered" },
   "Purchased from 1688": { color: "bg-blue-100 text-blue-800 border-blue-200", label: "Purchased from 1688" },
