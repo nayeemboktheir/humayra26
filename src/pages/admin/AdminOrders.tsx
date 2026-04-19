@@ -67,6 +67,7 @@ export default function AdminOrders() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [paymentFilter, setPaymentFilter] = useState<"all" | "paid" | "unpaid" | "partial">("all");
   const [selectedProfile, setSelectedProfile] = useState<OrderWithProfile | null>(null);
   const [editOrder, setEditOrder] = useState<OrderWithProfile | null>(null);
   const [editValues, setEditValues] = useState<Record<string, any>>({});
