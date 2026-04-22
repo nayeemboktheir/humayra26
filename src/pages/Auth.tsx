@@ -437,8 +437,17 @@ const Auth = () => {
                       {phoneLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                       ভেরিফাই করুন
                     </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      onClick={handleSendOtp}
+                      disabled={phoneLoading || otpCooldown > 0}
+                    >
+                      {otpCooldown > 0 ? `আবার পাঠান (${otpCooldown}s)` : "OTP আবার পাঠান"}
+                    </Button>
                     <Button variant="ghost" className="w-full" onClick={resetPhoneFlow}>
-                      আবার চেষ্টা করুন
+                      নাম্বার পরিবর্তন করুন
                     </Button>
                   </div>
                 )}
