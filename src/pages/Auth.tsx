@@ -38,6 +38,30 @@ const Auth = () => {
   const [signupPhoneVerified, setSignupPhoneVerified] = useState(false);
   const [signupLoading, setSignupLoading] = useState(false);
 
+  const normalizePhone = (value: string) => {
+    let normalizedPhone = value.replace(/[^0-9]/g, "");
+    if (normalizedPhone.startsWith("0")) {
+      normalizedPhone = "880" + normalizedPhone.substring(1);
+    }
+    if (normalizedPhone && !normalizedPhone.startsWith("880")) {
+      normalizedPhone = "880" + normalizedPhone;
+    }
+    return normalizedPhone;
+  };
+
+  const syncProfileDetails = async (userId: string, payload: { full_name?: string; phone?: string }) => {
+    const updates = Object.fromEntries(
+      Object.entries(payload).filter(([, value]) => value && value.trim() !== "")
+    );
+
+    if (Object.keys(updates).length === 0) return;
+
+    const { error } = await supabase.from("profiles").update(updates).eq("user_id", userId);
+    if (error) {
+      console.error("Failed to sync profile details", error);
+    }
+  };
+
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -51,30 +75,33 @@ const Auth = () => {
           const role = await resolveUserRole(data.user.id);
           navigate(isStaffRole(role) ? "/admin" : "/dashboard");
       } else {
-        if (!signupPhoneVerified) {
-          toast.error("আগে মোবাইল নাম্বার ভেরিফাই করুন");
-          setLoading(false);
-          return;
-        }
-        // Normalize signup phone
-        let normalizedPhone = signupPhone.replace(/[^0-9]/g, "");
-        if (normalizedPhone.startsWith("0")) {
-          normalizedPhone = "880" + normalizedPhone.substring(1);
-        }
-        if (!normalizedPhone.startsWith("880")) {
-          normalizedPhone = "880" + normalizedPhone;
-        }
+        const normalizedPhone = signupPhone ? normalizePhone(signupPhone) : "";
 
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            data: { full_name: fullName, phone: normalizedPhone },
+            data: { full_name: fullName, phone: normalizedPhone || null },
             emailRedirectTo: window.location.origin,
           },
         });
         if (error) throw error;
-        toast.success("ইমেইল ভেরিফাই করতে আপনার মেইল চেক করুন!");
+
+        if (data.user?.id) {
+          await syncProfileDetails(data.user.id, {
+            full_name: fullName,
+            phone: normalizedPhone,
+          });
+        }
+
+        if (data.session) {
+          toast.success("একাউন্ট তৈরি হয়েছে! আপনি এখন লগইন আছেন।");
+          const role = data.user?.id ? await resolveUserRole(data.user.id) : null;
+          navigate(isStaffRole(role) ? "/admin" : "/dashboard");
+          return;
+        }
+
+        toast.success("একাউন্ট তৈরি হয়েছে! এখন লগইন করুন।");
       }
     } catch (error: any) {
       toast.error(error.message);
@@ -194,7 +221,7 @@ const Auth = () => {
     e.preventDefault();
     setPhoneLoading(true);
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email: phoneEmail,
         password: phonePassword,
         options: {
@@ -203,12 +230,23 @@ const Auth = () => {
         },
       });
       if (error) throw error;
-      toast.success("একাউন্ট তৈরি হয়েছে! ইমেইল ভেরিফাই করুন।");
+
+      if (data.user?.id) {
+        await syncProfileDetails(data.user.id, {
+          full_name: phoneFullName,
+          phone: verifiedPhone,
+        });
+      }
+
+      toast.success("একাউন্ট তৈরি হয়েছে! এখনই লগইন হয়েছে।");
       // Reset states
       setIsNewPhoneUser(false);
       setOtpSent(false);
       setOtp("");
       setPhone("");
+
+      const role = data.user?.id ? await resolveUserRole(data.user.id) : null;
+      navigate(isStaffRole(role) ? "/admin" : "/dashboard");
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -413,7 +451,7 @@ const Auth = () => {
               <div className="space-y-2 border rounded-lg p-3 bg-muted/30">
                 <p className="text-sm font-medium flex items-center gap-1">
                   <Phone className="h-4 w-4" />
-                  মোবাইল ভেরিফিকেশন
+                  মোবাইল নাম্বার (অপশনাল ভেরিফিকেশন)
                   {signupPhoneVerified && <span className="text-green-600 text-xs ml-auto">✓ ভেরিফাইড</span>}
                 </p>
                 {signupPhoneVerified ? (
@@ -462,7 +500,7 @@ const Auth = () => {
                 )}
               </div>
 
-              <Button type="submit" className="w-full" disabled={loading || !signupPhoneVerified}>
+              <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 সাইন আপ
               </Button>
