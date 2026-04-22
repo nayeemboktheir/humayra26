@@ -56,7 +56,22 @@ const Auth = () => {
 
     if (Object.keys(updates).length === 0) return;
 
-    const { error } = await supabase.from("profiles").update(updates).eq("user_id", userId);
+    const { data: existingProfile, error: profileLookupError } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (profileLookupError) {
+      console.error("Failed to check profile details", profileLookupError);
+      return;
+    }
+
+    const query = existingProfile
+      ? supabase.from("profiles").update(updates).eq("user_id", userId)
+      : supabase.from("profiles").insert({ user_id: userId, ...updates });
+
+    const { error } = await query;
     if (error) {
       console.error("Failed to sync profile details", error);
     }
