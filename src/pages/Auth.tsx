@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,22 @@ const Auth = () => {
   const [signupOtp, setSignupOtp] = useState("");
   const [signupPhoneVerified, setSignupPhoneVerified] = useState(false);
   const [signupLoading, setSignupLoading] = useState(false);
+
+  // Resend cooldown timers (seconds)
+  const [otpCooldown, setOtpCooldown] = useState(0);
+  const [signupOtpCooldown, setSignupOtpCooldown] = useState(0);
+
+  useEffect(() => {
+    if (otpCooldown <= 0) return;
+    const t = setTimeout(() => setOtpCooldown((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [otpCooldown]);
+
+  useEffect(() => {
+    if (signupOtpCooldown <= 0) return;
+    const t = setTimeout(() => setSignupOtpCooldown((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [signupOtpCooldown]);
 
   const normalizePhone = (value: string) => {
     let normalizedPhone = value.replace(/[^0-9]/g, "");
@@ -138,6 +154,7 @@ const Auth = () => {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setSignupOtpSent(true);
+      setSignupOtpCooldown(60);
       toast.success("OTP পাঠানো হয়েছে!");
     } catch (error: any) {
       toast.error(error.message || "OTP পাঠাতে সমস্যা হয়েছে");
@@ -180,6 +197,7 @@ const Auth = () => {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setOtpSent(true);
+      setOtpCooldown(60);
       toast.success("OTP পাঠানো হয়েছে!");
     } catch (error: any) {
       toast.error(error.message || "OTP পাঠাতে সমস্যা হয়েছে");
@@ -419,8 +437,17 @@ const Auth = () => {
                       {phoneLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                       ভেরিফাই করুন
                     </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      onClick={handleSendOtp}
+                      disabled={phoneLoading || otpCooldown > 0}
+                    >
+                      {otpCooldown > 0 ? `আবার পাঠান (${otpCooldown}s)` : "OTP আবার পাঠান"}
+                    </Button>
                     <Button variant="ghost" className="w-full" onClick={resetPhoneFlow}>
-                      আবার চেষ্টা করুন
+                      নাম্বার পরিবর্তন করুন
                     </Button>
                   </div>
                 )}
@@ -507,8 +534,17 @@ const Auth = () => {
                       <Button type="button" onClick={handleSignupVerifyOtp} disabled={signupLoading} size="sm" className="flex-1">
                         {signupLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "ভেরিফাই"}
                       </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleSignupSendOtp}
+                        disabled={signupLoading || signupOtpCooldown > 0}
+                      >
+                        {signupOtpCooldown > 0 ? `${signupOtpCooldown}s` : "আবার পাঠান"}
+                      </Button>
                       <Button type="button" variant="ghost" size="sm" onClick={() => { setSignupOtpSent(false); setSignupOtp(""); }}>
-                        আবার চেষ্টা
+                        পরিবর্তন
                       </Button>
                     </div>
                   </div>
