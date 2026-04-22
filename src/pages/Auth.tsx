@@ -534,8 +534,17 @@ const Auth = () => {
                       <Button type="button" onClick={handleSignupVerifyOtp} disabled={signupLoading} size="sm" className="flex-1">
                         {signupLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "ভেরিফাই"}
                       </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleSignupSendOtp}
+                        disabled={signupLoading || signupOtpCooldown > 0}
+                      >
+                        {signupOtpCooldown > 0 ? `${signupOtpCooldown}s` : "আবার পাঠান"}
+                      </Button>
                       <Button type="button" variant="ghost" size="sm" onClick={() => { setSignupOtpSent(false); setSignupOtp(""); }}>
-                        আবার চেষ্টা
+                        পরিবর্তন
                       </Button>
                     </div>
                   </div>
