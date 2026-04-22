@@ -154,6 +154,7 @@ const Auth = () => {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setSignupOtpSent(true);
+      setSignupOtpCooldown(60);
       toast.success("OTP পাঠানো হয়েছে!");
     } catch (error: any) {
       toast.error(error.message || "OTP পাঠাতে সমস্যা হয়েছে");
@@ -196,6 +197,7 @@ const Auth = () => {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setOtpSent(true);
+      setOtpCooldown(60);
       toast.success("OTP পাঠানো হয়েছে!");
     } catch (error: any) {
       toast.error(error.message || "OTP পাঠাতে সমস্যা হয়েছে");
