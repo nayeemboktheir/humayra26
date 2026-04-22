@@ -38,6 +38,22 @@ const Auth = () => {
   const [signupPhoneVerified, setSignupPhoneVerified] = useState(false);
   const [signupLoading, setSignupLoading] = useState(false);
 
+  // Resend cooldown timers (seconds)
+  const [otpCooldown, setOtpCooldown] = useState(0);
+  const [signupOtpCooldown, setSignupOtpCooldown] = useState(0);
+
+  useEffect(() => {
+    if (otpCooldown <= 0) return;
+    const t = setTimeout(() => setOtpCooldown((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [otpCooldown]);
+
+  useEffect(() => {
+    if (signupOtpCooldown <= 0) return;
+    const t = setTimeout(() => setSignupOtpCooldown((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [signupOtpCooldown]);
+
   const normalizePhone = (value: string) => {
     let normalizedPhone = value.replace(/[^0-9]/g, "");
     if (normalizedPhone.startsWith("0")) {
