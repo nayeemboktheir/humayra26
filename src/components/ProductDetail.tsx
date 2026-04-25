@@ -119,6 +119,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
     return domesticShippingFirst + (qty > 1 ? (qty - 1) * next : 0);
   };
 
+  const handleToggleWishlist = async () => {
     if (!product) return;
     if (!user) {
       toast({ title: "Please login first", description: "You need to be logged in to add to wishlist.", variant: "destructive" });
