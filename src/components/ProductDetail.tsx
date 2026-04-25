@@ -48,7 +48,11 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [domesticShippingFirst, setDomesticShippingFirst] = useState<number | null>(null);
   const [domesticShippingNext, setDomesticShippingNext] = useState<number | null>(null);
+  const [domesticShippingUnit, setDomesticShippingUnit] = useState<'qty' | 'kg'>('qty');
   const [domesticShippingLoading, setDomesticShippingLoading] = useState(false);
+  // Fallback flat rate (CNY) when TMAPI doesn't return a fee for this product
+  const FALLBACK_FIRST_CNY = 6;
+  const FALLBACK_NEXT_CNY = 2;
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutData, setCheckoutData] = useState<any>(null);
   const { user } = useAuth();
@@ -61,6 +65,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
     if (!product?.num_iid) return;
     setDomesticShippingFirst(null);
     setDomesticShippingNext(null);
+    setDomesticShippingUnit('qty');
     setDomesticShippingLoading(true);
 
     const provinces = ['Guangdong', 'Zhejiang', 'Shanghai'];
@@ -80,17 +85,39 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
               setDomesticShippingFirst(first);
               const next = d.next_unit_fee;
               setDomesticShippingNext(next != null && next > 0 ? next : first);
+              setDomesticShippingUnit(d.unit === 'kg' ? 'kg' : 'qty');
               setDomesticShippingLoading(false);
               return;
             }
           }
         } catch {}
       }
-      setDomesticShippingLoading(false);
+      // Fallback: use a sensible flat per-piece rate so the user always sees a charge
+      if (!cancelled) {
+        setDomesticShippingFirst(FALLBACK_FIRST_CNY);
+        setDomesticShippingNext(FALLBACK_NEXT_CNY);
+        setDomesticShippingUnit('qty');
+        setDomesticShippingLoading(false);
+      }
     })();
 
     return () => { cancelled = true; };
   }, [product?.num_iid]);
+
+  // Calculate domestic shipping in CNY supporting both per-piece (qty) and per-kg pricing
+  const calcDomesticShippingCNY = (qty: number): number => {
+    if (!domesticShippingFirst || domesticShippingFirst <= 0 || qty <= 0) return 0;
+    const next = domesticShippingNext ?? domesticShippingFirst;
+    if (domesticShippingUnit === 'kg') {
+      // first_unit/next_unit are kg tiers; multiply per-kg fee by total weight
+      const weightPerItem = product?.item_weight && product.item_weight > 0 ? product.item_weight : 0.5;
+      const totalWeight = weightPerItem * qty;
+      // Tier 1 covers up to ~1kg by default; charge first_unit_fee + extra kg * next
+      if (totalWeight <= 1) return domesticShippingFirst;
+      return domesticShippingFirst + (totalWeight - 1) * next;
+    }
+    return domesticShippingFirst + (qty > 1 ? (qty - 1) * next : 0);
+  };
 
   const handleToggleWishlist = async () => {
     if (!product) return;
@@ -167,9 +194,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
       : convertToBDT(product.price) * quantity;
     const unitPrice = Math.round(totalPrice / totalQty);
 
-    const calcDomesticCNY = domesticShippingFirst != null && domesticShippingFirst > 0
-      ? domesticShippingFirst + (totalQty > 1 ? (totalQty - 1) * (domesticShippingNext ?? domesticShippingFirst) : 0)
-      : 0;
+    const calcDomesticCNY = calcDomesticShippingCNY(totalQty);
     const domesticChargeBDT = calcDomesticCNY > 0 ? Math.round(convertToBDT(calcDomesticCNY)) : 0;
 
     const skuDetails = hasSkus
@@ -242,9 +267,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
     }
 
     // Calculate domestic shipping: first_unit_fee + (qty-1) * next_unit_fee
-    const calcDomesticCNY = domesticShippingFirst != null && domesticShippingFirst > 0
-      ? domesticShippingFirst + (totalQty > 1 ? (totalQty - 1) * (domesticShippingNext ?? domesticShippingFirst) : 0)
-      : 0;
+    const calcDomesticCNY = calcDomesticShippingCNY(totalQty);
     const domesticChargeBDT = calcDomesticCNY > 0 ? Math.round(convertToBDT(calcDomesticCNY)) : 0;
 
     setCheckoutData({
@@ -814,10 +837,25 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
 
                   <Separator />
 
-                  {domesticShippingFirst != null && domesticShippingFirst > 0 && (() => {
+                  {(() => {
                     const qty = totalSelectedQty || 1;
-                    const totalCNY = domesticShippingFirst + (qty > 1 ? (qty - 1) * (domesticShippingNext ?? domesticShippingFirst) : 0);
-                    const domesticBDT = Math.round(convertToBDT(totalCNY));
+                    if (domesticShippingLoading && (!domesticShippingFirst || domesticShippingFirst <= 0)) {
+                      return (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">{qty} {qty === 1 ? 'Piece' : 'Pieces'}</span>
+                            <span className="font-semibold">৳—</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-base font-semibold">China Local Delivery</span>
+                            <span className="text-sm text-muted-foreground flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Loading...</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">China warehouse delivery charge will be added to the order.</p>
+                        </div>
+                      );
+                    }
+                    const totalCNY = calcDomesticShippingCNY(qty);
+                    const domesticBDT = totalCNY > 0 ? Math.round(convertToBDT(totalCNY)) : 0;
                     return (
                       <div className="space-y-2">
                         <div className="flex items-center justify-between text-sm">
@@ -832,24 +870,6 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                       </div>
                     );
                   })()}
-
-                  {!domesticShippingFirst && (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">{totalSelectedQty || 1} {(totalSelectedQty || 1) === 1 ? 'Piece' : 'Pieces'}</span>
-                        <span className="font-semibold">৳—</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-base font-semibold">China Local Delivery</span>
-                        {domesticShippingLoading ? (
-                          <span className="text-sm text-muted-foreground flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Loading...</span>
-                        ) : (
-                          <span className="text-base font-bold text-primary">৳—</span>
-                        )}
-                      </div>
-                      <p className="text-xs text-muted-foreground">China warehouse delivery charge will be added on the cart page.</p>
-                    </div>
-                  )}
 
                   <Separator />
 
