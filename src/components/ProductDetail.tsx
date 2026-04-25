@@ -48,7 +48,11 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [domesticShippingFirst, setDomesticShippingFirst] = useState<number | null>(null);
   const [domesticShippingNext, setDomesticShippingNext] = useState<number | null>(null);
+  const [domesticShippingUnit, setDomesticShippingUnit] = useState<'qty' | 'kg'>('qty');
   const [domesticShippingLoading, setDomesticShippingLoading] = useState(false);
+  // Fallback flat rate (CNY) when TMAPI doesn't return a fee for this product
+  const FALLBACK_FIRST_CNY = 6;
+  const FALLBACK_NEXT_CNY = 2;
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutData, setCheckoutData] = useState<any>(null);
   const { user } = useAuth();
