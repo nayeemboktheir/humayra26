@@ -59,6 +59,7 @@ const AdminAnalytics = lazy(() => import("./pages/admin/AdminAnalytics"));
 const AdminMessaging = lazy(() => import("./pages/admin/AdminMessaging"));
 const AdminSettings = lazy(() => import("./pages/admin/AdminSettings"));
 const AdminMarketing = lazy(() => import("./pages/admin/AdminMarketing"));
+const AdminSMS = lazy(() => import("./pages/admin/AdminSMS"));
 const AdminPermissions = lazy(() => import("./pages/admin/AdminPermissions"));
 
 const queryClient = new QueryClient();
