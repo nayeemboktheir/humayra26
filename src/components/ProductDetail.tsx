@@ -831,7 +831,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
 
                   {(() => {
                     const qty = totalSelectedQty || 1;
-                    if (domesticShippingLoading && (!domesticShippingFirst || domesticShippingFirst <= 0)) {
+                    if (domesticShippingLoading || domesticShippingQty !== qty || domesticShippingFeeCNY == null) {
                       return (
                         <div className="space-y-2">
                           <div className="flex items-center justify-between text-sm">
@@ -846,7 +846,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                         </div>
                       );
                     }
-                    const totalCNY = calcDomesticShippingCNY(qty);
+                    const totalCNY = domesticShippingFeeCNY;
                     const domesticBDT = totalCNY > 0 ? Math.round(convertToBDT(totalCNY)) : 0;
                     return (
                       <div className="space-y-2">
