@@ -104,7 +104,21 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
     return () => { cancelled = true; };
   }, [product?.num_iid]);
 
-  const handleToggleWishlist = async () => {
+  // Calculate domestic shipping in CNY supporting both per-piece (qty) and per-kg pricing
+  const calcDomesticShippingCNY = (qty: number): number => {
+    if (!domesticShippingFirst || domesticShippingFirst <= 0 || qty <= 0) return 0;
+    const next = domesticShippingNext ?? domesticShippingFirst;
+    if (domesticShippingUnit === 'kg') {
+      // first_unit/next_unit are kg tiers; multiply per-kg fee by total weight
+      const weightPerItem = product?.item_weight && product.item_weight > 0 ? product.item_weight : 0.5;
+      const totalWeight = weightPerItem * qty;
+      // Tier 1 covers up to ~1kg by default; charge first_unit_fee + extra kg * next
+      if (totalWeight <= 1) return domesticShippingFirst;
+      return domesticShippingFirst + (totalWeight - 1) * next;
+    }
+    return domesticShippingFirst + (qty > 1 ? (qty - 1) * next : 0);
+  };
+
     if (!product) return;
     if (!user) {
       toast({ title: "Please login first", description: "You need to be logged in to add to wishlist.", variant: "destructive" });
