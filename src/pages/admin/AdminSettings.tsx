@@ -22,6 +22,8 @@ const settingsKeys = [
   "footer_copyright_text", "footer_developer_name", "footer_developer_url",
   "footer_prohibited_title", "footer_prohibited_text",
   "bulksms_bd_api_key", "bulksms_bd_sender_id",
+  "sms_tpl_ordered", "sms_tpl_purchased", "sms_tpl_china_warehouse",
+  "sms_tpl_shipped_bd", "sms_tpl_customs", "sms_tpl_bd_warehouse",
 ];
 
 const tabs = [
