@@ -104,18 +104,12 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
     return () => { cancelled = true; };
   }, [product?.num_iid]);
 
-  // Calculate domestic shipping in CNY supporting both per-piece (qty) and per-kg pricing
+  // Calculate domestic shipping in CNY: first_unit_fee + (qty-1) * next_unit_fee
+  // TMAPI returns per-piece scaled values when called with total_quantity=1,
+  // so we always use the per-piece formula regardless of the `unit` field.
   const calcDomesticShippingCNY = (qty: number): number => {
     if (!domesticShippingFirst || domesticShippingFirst <= 0 || qty <= 0) return 0;
     const next = domesticShippingNext ?? domesticShippingFirst;
-    if (domesticShippingUnit === 'kg') {
-      // first_unit/next_unit are kg tiers; multiply per-kg fee by total weight
-      const weightPerItem = product?.item_weight && product.item_weight > 0 ? product.item_weight : 0.5;
-      const totalWeight = weightPerItem * qty;
-      // Tier 1 covers up to ~1kg by default; charge first_unit_fee + extra kg * next
-      if (totalWeight <= 1) return domesticShippingFirst;
-      return domesticShippingFirst + (totalWeight - 1) * next;
-    }
     return domesticShippingFirst + (qty > 1 ? (qty - 1) * next : 0);
   };
 
