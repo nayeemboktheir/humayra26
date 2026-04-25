@@ -83,6 +83,31 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
     return FALLBACK_FIRST_CNY + Math.max(0, qty - 1) * FALLBACK_NEXT_CNY;
   };
 
+  const selectedDomesticQty = product?.configuredItems && product.configuredItems.length > 0
+    ? Object.values(skuQuantities).reduce((a, b) => a + b, 0)
+    : quantity;
+
+  useEffect(() => {
+    if (!product?.num_iid) return;
+    const qty = Math.max(1, selectedDomesticQty || 1);
+    let cancelled = false;
+
+    setDomesticShippingLoading(true);
+    const timer = window.setTimeout(async () => {
+      const fee = await fetchDomesticShippingFee(qty);
+      if (!cancelled) {
+        setDomesticShippingFeeCNY(fee);
+        setDomesticShippingQty(qty);
+        setDomesticShippingLoading(false);
+      }
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [product?.num_iid, selectedDomesticQty]);
+
   const handleToggleWishlist = async () => {
     if (!product) return;
     if (!user) {
