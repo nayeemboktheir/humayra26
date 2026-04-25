@@ -109,7 +109,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
   // so we always use the per-piece formula regardless of the `unit` field.
   const calcDomesticShippingCNY = (qty: number): number => {
     if (!domesticShippingFirst || domesticShippingFirst <= 0 || qty <= 0) return 0;
-    const next = domesticShippingNext ?? domesticShippingFirst;
+    const next = domesticShippingNext != null ? domesticShippingNext : 0;
     return domesticShippingFirst + (qty > 1 ? (qty - 1) * next : 0);
   };
 

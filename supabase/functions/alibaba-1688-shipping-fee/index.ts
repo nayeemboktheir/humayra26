@@ -62,6 +62,10 @@ Deno.serve(async (req) => {
       }
 
       const result = data?.data;
+      // Some already-deployed clients treat `0` as missing and multiply the
+      // first fee by quantity. Send a tiny positive value instead so flat-rate
+      // products still calculate as a single local delivery charge.
+      const nextUnitFee = result?.next_unit_fee === 0 ? 0.000001 : (result?.next_unit_fee ?? null);
       console.log('Shipping fee fetched:', JSON.stringify(result));
 
       return new Response(
@@ -70,7 +74,7 @@ Deno.serve(async (req) => {
           data: {
             total_fee: result?.total_fee ?? null,
             first_unit_fee: result?.first_unit_fee ?? null,
-            next_unit_fee: result?.next_unit_fee ?? null,
+            next_unit_fee: nextUnitFee,
             unit: result?.unit || 'kg',
             shipping_to: result?.shipping_to || province,
           },
