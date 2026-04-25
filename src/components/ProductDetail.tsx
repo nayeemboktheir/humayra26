@@ -183,7 +183,9 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
       : convertToBDT(product.price) * quantity;
     const unitPrice = Math.round(totalPrice / totalQty);
 
-    const calcDomesticCNY = calcDomesticShippingCNY(totalQty);
+    const calcDomesticCNY = domesticShippingQty === totalQty && domesticShippingFeeCNY != null
+      ? domesticShippingFeeCNY
+      : await fetchDomesticShippingFee(totalQty);
     const domesticChargeBDT = calcDomesticCNY > 0 ? Math.round(convertToBDT(calcDomesticCNY)) : 0;
 
     const skuDetails = hasSkus
@@ -216,7 +218,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
     }
   };
 
-  const handleBuyNow = () => {
+  const handleBuyNow = async () => {
     if (!product) return;
     if (!user) {
       toast({ title: "Please login first", description: "You need to be logged in to place an order.", variant: "destructive" });
@@ -255,8 +257,9 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
       });
     }
 
-    // Calculate domestic shipping: first_unit_fee + (qty-1) * next_unit_fee
-    const calcDomesticCNY = calcDomesticShippingCNY(totalQty);
+    const calcDomesticCNY = domesticShippingQty === totalQty && domesticShippingFeeCNY != null
+      ? domesticShippingFeeCNY
+      : await fetchDomesticShippingFee(totalQty);
     const domesticChargeBDT = calcDomesticCNY > 0 ? Math.round(convertToBDT(calcDomesticCNY)) : 0;
 
     setCheckoutData({
