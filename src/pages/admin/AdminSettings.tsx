@@ -22,6 +22,8 @@ const settingsKeys = [
   "footer_copyright_text", "footer_developer_name", "footer_developer_url",
   "footer_prohibited_title", "footer_prohibited_text",
   "bulksms_bd_api_key", "bulksms_bd_sender_id",
+  "sms_tpl_ordered", "sms_tpl_purchased", "sms_tpl_china_warehouse",
+  "sms_tpl_shipped_bd", "sms_tpl_customs", "sms_tpl_bd_warehouse",
 ];
 
 const tabs = [
@@ -291,18 +293,50 @@ export default function AdminSettings() {
 
       {/* SMS */}
       {activeTab === "sms" && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-sm"><MessageSquare className="h-4 w-4 text-primary" /> SMS Gateway (BulkSMS BD)</CardTitle>
-            <p className="text-xs text-muted-foreground">Configure BulkSMS BD API credentials for OTP-based mobile login.</p>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
-              <Field label="API Key" span={2} hint="bulksmsbd.net dashboard থেকে API Key কপি করুন">{inp("bulksms_bd_api_key", "Your BulkSMS BD API Key")}</Field>
-              <Field label="Sender ID" hint="Approved Sender ID (e.g. 8809617618686)">{inp("bulksms_bd_sender_id", "8809617618686")}</Field>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="space-y-5">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm"><MessageSquare className="h-4 w-4 text-primary" /> SMS Gateway (BulkSMS BD)</CardTitle>
+              <p className="text-xs text-muted-foreground">Configure BulkSMS BD API credentials for OTP-based mobile login and shipment alerts.</p>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
+                <Field label="API Key" span={2} hint="bulksmsbd.net dashboard থেকে API Key কপি করুন">{inp("bulksms_bd_api_key", "Your BulkSMS BD API Key")}</Field>
+                <Field label="Sender ID" hint="Approved Sender ID (e.g. 8809617618686)">{inp("bulksms_bd_sender_id", "8809617618686")}</Field>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm"><MessageSquare className="h-4 w-4 text-primary" /> Shipment Stage SMS Templates</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                These messages are sent automatically to the customer's phone when a shipment stage is updated in the admin panel.
+                Use <code className="px-1 rounded bg-muted">{"{order}"}</code> for order number and <code className="px-1 rounded bg-muted">{"{name}"}</code> for customer name.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {[
+                { key: "sms_tpl_ordered", label: "1️⃣ Order Confirmation (Stage: Ordered)" },
+                { key: "sms_tpl_purchased", label: "2️⃣ Purchasing from Supplier (Stage: Purchased from 1688)" },
+                { key: "sms_tpl_china_warehouse", label: "3️⃣ Arrived at China Warehouse" },
+                { key: "sms_tpl_shipped_bd", label: "4️⃣ Shipped to Bangladesh" },
+                { key: "sms_tpl_customs", label: "5️⃣ In Customs Clearance" },
+                { key: "sms_tpl_bd_warehouse", label: "6️⃣ Arrived at BD Warehouse / Out for Delivery / Delivered" },
+              ].map((t) => (
+                <Field key={t.key} label={t.label} span={2}>
+                  <Textarea
+                    value={settings[t.key] || ""}
+                    onChange={(e) => update(t.key, e.target.value)}
+                    rows={3}
+                    className="text-sm"
+                    placeholder="Enter SMS message in Bengali or English..."
+                  />
+                </Field>
+              ))}
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {/* Bottom save */}

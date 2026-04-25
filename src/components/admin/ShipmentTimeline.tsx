@@ -59,6 +59,18 @@ export default function ShipmentTimeline({ orderId, userId, shipment, onUpdate }
       }
       // Sync order status
       await supabase.from("orders").update({ status: orderStatus }).eq("id", orderId);
+
+      // Fire-and-await SMS notification (non-blocking errors)
+      try {
+        const { data: orderRow } = await supabase
+          .from("orders").select("order_number").eq("id", orderId).maybeSingle();
+        await supabase.functions.invoke("send-shipment-sms", {
+          body: { userId, stage: newStatus, orderNumber: orderRow?.order_number },
+        });
+      } catch (smsErr) {
+        console.warn("SMS notification failed:", smsErr);
+      }
+
       toast({ title: `Stage updated to "${newStatus}"` });
       onUpdate();
     } catch (e: any) {
