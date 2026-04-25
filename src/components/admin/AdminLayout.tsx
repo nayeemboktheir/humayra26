@@ -32,6 +32,7 @@ const navItems: NavItem[] = [
   { label: "Notifications", icon: Bell, path: "/admin/notifications", pageKey: "notifications" },
   { label: "Wishlist", icon: Heart, path: "/admin/wishlist", pageKey: "wishlist" },
   { label: "Marketing", icon: Megaphone, path: "/admin/marketing", pageKey: "marketing" },
+  { label: "SMS Center", icon: MessageSquare, path: "/admin/sms", pageKey: "sms" },
   { label: "Settings", icon: Settings, path: "/admin/settings", pageKey: "settings" },
   { label: "Permissions", icon: Lock, path: "/admin/permissions", pageKey: "permissions" },
 ];
