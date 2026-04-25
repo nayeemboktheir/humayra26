@@ -65,6 +65,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
     if (!product?.num_iid) return;
     setDomesticShippingFirst(null);
     setDomesticShippingNext(null);
+    setDomesticShippingUnit('qty');
     setDomesticShippingLoading(true);
 
     const provinces = ['Guangdong', 'Zhejiang', 'Shanghai'];
@@ -84,13 +85,20 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
               setDomesticShippingFirst(first);
               const next = d.next_unit_fee;
               setDomesticShippingNext(next != null && next > 0 ? next : first);
+              setDomesticShippingUnit(d.unit === 'kg' ? 'kg' : 'qty');
               setDomesticShippingLoading(false);
               return;
             }
           }
         } catch {}
       }
-      setDomesticShippingLoading(false);
+      // Fallback: use a sensible flat per-piece rate so the user always sees a charge
+      if (!cancelled) {
+        setDomesticShippingFirst(FALLBACK_FIRST_CNY);
+        setDomesticShippingNext(FALLBACK_NEXT_CNY);
+        setDomesticShippingUnit('qty');
+        setDomesticShippingLoading(false);
+      }
     })();
 
     return () => { cancelled = true; };
