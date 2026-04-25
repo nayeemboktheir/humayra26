@@ -102,6 +102,16 @@ serve(async (req) => {
     const smsResult = await smsResponse.text();
     console.log(`[send-shipment-sms] phone=${phone} stage="${stage}" response=${smsResult}`);
 
+    // Log to sms_logs
+    await supabase.from("sms_logs").insert({
+      phone,
+      message,
+      sms_type: "shipment",
+      status: smsResponse.ok ? "sent" : "failed",
+      response: smsResult.slice(0, 500),
+      user_id: userId,
+    });
+
     return new Response(
       JSON.stringify({ success: true, phone, stage, response: smsResult }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
