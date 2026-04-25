@@ -78,6 +78,17 @@ serve(async (req) => {
 
     console.log("BulkSMS BD response:", smsResult);
 
+    // Log to sms_logs (best-effort, do not fail the OTP request if logging fails)
+    try {
+      await supabase.from("sms_logs").insert({
+        phone: normalizedPhone,
+        message: "Your login OTP is: ****** (redacted)",
+        sms_type: "otp",
+        status: smsResponse.ok ? "sent" : "failed",
+        response: smsResult.slice(0, 500),
+      });
+    } catch (_) { /* ignore */ }
+
     return new Response(
       JSON.stringify({ success: true, message: "OTP sent successfully" }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }

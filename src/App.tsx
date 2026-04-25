@@ -59,6 +59,7 @@ const AdminAnalytics = lazy(() => import("./pages/admin/AdminAnalytics"));
 const AdminMessaging = lazy(() => import("./pages/admin/AdminMessaging"));
 const AdminSettings = lazy(() => import("./pages/admin/AdminSettings"));
 const AdminMarketing = lazy(() => import("./pages/admin/AdminMarketing"));
+const AdminSMS = lazy(() => import("./pages/admin/AdminSMS"));
 const AdminPermissions = lazy(() => import("./pages/admin/AdminPermissions"));
 
 const queryClient = new QueryClient();
@@ -147,6 +148,7 @@ const App = () => (
               <Route path="/admin/messaging" element={<AdminRoute><AdminMessaging /></AdminRoute>} />
               <Route path="/admin/settings" element={<AdminRoute><AdminSettings /></AdminRoute>} />
               <Route path="/admin/marketing" element={<AdminRoute><AdminMarketing /></AdminRoute>} />
+              <Route path="/admin/sms" element={<AdminRoute><AdminSMS /></AdminRoute>} />
               <Route path="/admin/permissions" element={<AdminRoute><AdminPermissions /></AdminRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
