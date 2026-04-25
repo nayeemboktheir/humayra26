@@ -9,7 +9,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { numIid, province = 'Guangdong' } = await req.json();
+    const { numIid, province = 'Guangdong', quantity, totalQuantity } = await req.json();
 
     if (!numIid) {
       return new Response(
@@ -29,9 +29,11 @@ Deno.serve(async (req) => {
     // Strip abb- prefix if present
     const itemId = String(numIid).replace(/^abb-/, '');
 
-    console.log('Fetching 1688 shipping fee via TMAPI for item:', itemId, 'province:', province);
+    const requestedQuantity = Math.max(1, Math.floor(Number(totalQuantity ?? quantity ?? 1) || 1));
 
-    const url = `http://api.tmapi.top/1688/item/shipping?apiToken=${encodeURIComponent(apiToken)}&item_id=${encodeURIComponent(itemId)}&province=${encodeURIComponent(province)}&total_quantity=1`;
+    console.log('Fetching 1688 shipping fee via TMAPI for item:', itemId, 'province:', province, 'quantity:', requestedQuantity);
+
+    const url = `http://api.tmapi.top/1688/item/shipping?apiToken=${encodeURIComponent(apiToken)}&item_id=${encodeURIComponent(itemId)}&province=${encodeURIComponent(province)}&total_quantity=${encodeURIComponent(String(requestedQuantity))}`;
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
@@ -77,6 +79,7 @@ Deno.serve(async (req) => {
             next_unit_fee: nextUnitFee,
             unit: result?.unit || 'kg',
             shipping_to: result?.shipping_to || province,
+            total_quantity: requestedQuantity,
           },
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

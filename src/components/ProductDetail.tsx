@@ -46,10 +46,10 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
   const [shippingMethod, setShippingMethod] = useState<'air' | 'sea'>('air');
   const [addingToWishlist, setAddingToWishlist] = useState(false);
   const [isWishlisted, setIsWishlisted] = useState(false);
-  const [domesticShippingFirst, setDomesticShippingFirst] = useState<number | null>(null);
-  const [domesticShippingNext, setDomesticShippingNext] = useState<number | null>(null);
+  const [domesticShippingFeeCNY, setDomesticShippingFeeCNY] = useState<number | null>(null);
   const [domesticShippingUnit, setDomesticShippingUnit] = useState<'qty' | 'kg'>('qty');
   const [domesticShippingLoading, setDomesticShippingLoading] = useState(false);
+  const [domesticShippingQty, setDomesticShippingQty] = useState(0);
   // Fallback flat rate (CNY) when TMAPI doesn't return a fee for this product
   const FALLBACK_FIRST_CNY = 6;
   const FALLBACK_NEXT_CNY = 2;
@@ -60,58 +60,53 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
   const [addingToCart, setAddingToCart] = useState(false);
   const navigate = useNavigate();
 
-  // Fetch 1688 domestic shipping fee – try multiple provinces on failure
+  const fetchDomesticShippingFee = async (qty: number): Promise<number> => {
+    if (!product?.num_iid || qty <= 0) return 0;
+    const provinces = ['Guangdong', 'Zhejiang', 'Shanghai'];
+
+    for (const province of provinces) {
+      try {
+        const { data, error } = await supabase.functions.invoke('alibaba-1688-shipping-fee', {
+          body: { numIid: String(product.num_iid), province, totalQuantity: qty },
+        });
+        if (!error && data?.success && data?.data) {
+          const d = data.data;
+          const fee = d.total_fee ?? d.first_unit_fee ?? null;
+          if (fee != null && fee > 0) {
+            setDomesticShippingUnit(d.unit === 'kg' ? 'kg' : 'qty');
+            return fee;
+          }
+        }
+      } catch {}
+    }
+
+    return FALLBACK_FIRST_CNY + Math.max(0, qty - 1) * FALLBACK_NEXT_CNY;
+  };
+
+  const selectedDomesticQty = product?.configuredItems && product.configuredItems.length > 0
+    ? Object.values(skuQuantities).reduce((a, b) => a + b, 0)
+    : quantity;
+
   useEffect(() => {
     if (!product?.num_iid) return;
-    setDomesticShippingFirst(null);
-    setDomesticShippingNext(null);
-    setDomesticShippingUnit('qty');
-    setDomesticShippingLoading(true);
-
-    const provinces = ['Guangdong', 'Zhejiang', 'Shanghai'];
+    const qty = Math.max(1, selectedDomesticQty || 1);
     let cancelled = false;
 
-    (async () => {
-      for (const province of provinces) {
-        if (cancelled) return;
-        try {
-          const { data, error } = await supabase.functions.invoke('alibaba-1688-shipping-fee', {
-            body: { numIid: String(product.num_iid), province },
-          });
-          if (!error && data?.success && data?.data) {
-            const d = data.data;
-            const first = d.first_unit_fee ?? d.total_fee ?? null;
-            if (first != null && first > 0) {
-              setDomesticShippingFirst(first);
-              const next = d.next_unit_fee;
-              setDomesticShippingNext(next != null && next >= 0 ? next : FALLBACK_NEXT_CNY);
-              setDomesticShippingUnit(d.unit === 'kg' ? 'kg' : 'qty');
-              setDomesticShippingLoading(false);
-              return;
-            }
-          }
-        } catch {}
-      }
-      // Fallback: use a sensible flat per-piece rate so the user always sees a charge
+    setDomesticShippingLoading(true);
+    const timer = window.setTimeout(async () => {
+      const fee = await fetchDomesticShippingFee(qty);
       if (!cancelled) {
-        setDomesticShippingFirst(FALLBACK_FIRST_CNY);
-        setDomesticShippingNext(FALLBACK_NEXT_CNY);
-        setDomesticShippingUnit('qty');
+        setDomesticShippingFeeCNY(fee);
+        setDomesticShippingQty(qty);
         setDomesticShippingLoading(false);
       }
-    })();
+    }, 250);
 
-    return () => { cancelled = true; };
-  }, [product?.num_iid]);
-
-  // Calculate domestic shipping in CNY: first_unit_fee + (qty-1) * next_unit_fee
-  // TMAPI returns per-piece scaled values when called with total_quantity=1,
-  // so we always use the per-piece formula regardless of the `unit` field.
-  const calcDomesticShippingCNY = (qty: number): number => {
-    if (!domesticShippingFirst || domesticShippingFirst <= 0 || qty <= 0) return 0;
-    const next = domesticShippingNext != null ? domesticShippingNext : 0;
-    return domesticShippingFirst + (qty > 1 ? (qty - 1) * next : 0);
-  };
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [product?.num_iid, selectedDomesticQty]);
 
   const handleToggleWishlist = async () => {
     if (!product) return;
@@ -188,7 +183,9 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
       : convertToBDT(product.price) * quantity;
     const unitPrice = Math.round(totalPrice / totalQty);
 
-    const calcDomesticCNY = calcDomesticShippingCNY(totalQty);
+    const calcDomesticCNY = domesticShippingQty === totalQty && domesticShippingFeeCNY != null
+      ? domesticShippingFeeCNY
+      : await fetchDomesticShippingFee(totalQty);
     const domesticChargeBDT = calcDomesticCNY > 0 ? Math.round(convertToBDT(calcDomesticCNY)) : 0;
 
     const skuDetails = hasSkus
@@ -221,7 +218,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
     }
   };
 
-  const handleBuyNow = () => {
+  const handleBuyNow = async () => {
     if (!product) return;
     if (!user) {
       toast({ title: "Please login first", description: "You need to be logged in to place an order.", variant: "destructive" });
@@ -260,8 +257,9 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
       });
     }
 
-    // Calculate domestic shipping: first_unit_fee + (qty-1) * next_unit_fee
-    const calcDomesticCNY = calcDomesticShippingCNY(totalQty);
+    const calcDomesticCNY = domesticShippingQty === totalQty && domesticShippingFeeCNY != null
+      ? domesticShippingFeeCNY
+      : await fetchDomesticShippingFee(totalQty);
     const domesticChargeBDT = calcDomesticCNY > 0 ? Math.round(convertToBDT(calcDomesticCNY)) : 0;
 
     setCheckoutData({
@@ -833,7 +831,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
 
                   {(() => {
                     const qty = totalSelectedQty || 1;
-                    if (domesticShippingLoading && (!domesticShippingFirst || domesticShippingFirst <= 0)) {
+                    if (domesticShippingLoading || domesticShippingQty !== qty || domesticShippingFeeCNY == null) {
                       return (
                         <div className="space-y-2">
                           <div className="flex items-center justify-between text-sm">
@@ -848,7 +846,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                         </div>
                       );
                     }
-                    const totalCNY = calcDomesticShippingCNY(qty);
+                    const totalCNY = domesticShippingFeeCNY;
                     const domesticBDT = totalCNY > 0 ? Math.round(convertToBDT(totalCNY)) : 0;
                     return (
                       <div className="space-y-2">
