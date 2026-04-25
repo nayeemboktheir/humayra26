@@ -84,7 +84,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
             if (first != null && first > 0) {
               setDomesticShippingFirst(first);
               const next = d.next_unit_fee;
-              setDomesticShippingNext(next != null && next > 0 ? next : first);
+              setDomesticShippingNext(next != null && next >= 0 ? next : FALLBACK_NEXT_CNY);
               setDomesticShippingUnit(d.unit === 'kg' ? 'kg' : 'qty');
               setDomesticShippingLoading(false);
               return;
