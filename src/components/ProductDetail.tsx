@@ -63,11 +63,14 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
   const fetchDomesticShippingFee = async (qty: number): Promise<number> => {
     if (!product?.num_iid || qty <= 0) return 0;
     const provinces = ['Guangdong', 'Zhejiang', 'Shanghai'];
+    const totalWeight = product.item_weight && product.item_weight > 0
+      ? Math.max(0.001, product.item_weight * qty)
+      : undefined;
 
     for (const province of provinces) {
       try {
         const { data, error } = await supabase.functions.invoke('alibaba-1688-shipping-fee', {
-          body: { numIid: String(product.num_iid), province, totalQuantity: qty },
+          body: { numIid: String(product.num_iid), province, totalQuantity: qty, totalWeight },
         });
         if (!error && data?.success && data?.data) {
           const d = data.data;
@@ -80,7 +83,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
       } catch {}
     }
 
-    return FALLBACK_FIRST_CNY + Math.max(0, qty - 1) * FALLBACK_NEXT_CNY;
+    return FALLBACK_FIRST_CNY;
   };
 
   const selectedDomesticQty = product?.configuredItems && product.configuredItems.length > 0

@@ -9,7 +9,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { numIid, province = 'Guangdong', quantity, totalQuantity } = await req.json();
+    const { numIid, province = 'Guangdong', quantity, totalQuantity, totalWeight } = await req.json();
 
     if (!numIid) {
       return new Response(
@@ -30,10 +30,21 @@ Deno.serve(async (req) => {
     const itemId = String(numIid).replace(/^abb-/, '');
 
     const requestedQuantity = Math.max(1, Math.floor(Number(totalQuantity ?? quantity ?? 1) || 1));
+    const requestedWeight = Number(totalWeight);
+    const hasValidWeight = Number.isFinite(requestedWeight) && requestedWeight > 0;
 
-    console.log('Fetching 1688 shipping fee via TMAPI for item:', itemId, 'province:', province, 'quantity:', requestedQuantity);
+    console.log('Fetching 1688 shipping fee via TMAPI for item:', itemId, 'province:', province, 'quantity:', requestedQuantity, 'weight:', hasValidWeight ? requestedWeight : 'none');
 
-    const url = `http://api.tmapi.top/1688/item/shipping?apiToken=${encodeURIComponent(apiToken)}&item_id=${encodeURIComponent(itemId)}&province=${encodeURIComponent(province)}&total_quantity=${encodeURIComponent(String(requestedQuantity))}`;
+    const params = new URLSearchParams({
+      apiToken,
+      item_id: itemId,
+      province,
+      total_quantity: String(requestedQuantity),
+    });
+    if (hasValidWeight) {
+      params.set('total_weight', requestedWeight.toFixed(3));
+    }
+    const url = `http://api.tmapi.top/1688/item/shipping?${params.toString()}`;
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
@@ -64,6 +75,16 @@ Deno.serve(async (req) => {
       }
 
       const result = data?.data;
+      const unit = result?.unit || 'kg';
+      const firstUnit = Number(result?.first_unit ?? 1) || 1;
+      const nextUnit = Number(result?.next_unit ?? firstUnit) || firstUnit;
+      const firstFee = Number(result?.first_unit_fee ?? 0) || 0;
+      const rawNextFee = Number(result?.next_unit_fee ?? 0) || 0;
+      const chargeableAmount = unit === 'kg' && hasValidWeight ? requestedWeight : requestedQuantity;
+      const calculatedTotalFee = firstFee + Math.max(0, Math.ceil((chargeableAmount - firstUnit) / nextUnit)) * rawNextFee;
+      const totalFee = unit === 'kg' && hasValidWeight && firstFee > 0
+        ? calculatedTotalFee
+        : (result?.total_fee ?? null);
       // Some already-deployed clients treat `0` as missing and multiply the
       // first fee by quantity. Send a tiny positive value instead so flat-rate
       // products still calculate as a single local delivery charge.
@@ -74,12 +95,17 @@ Deno.serve(async (req) => {
         JSON.stringify({
           success: true,
           data: {
-            total_fee: result?.total_fee ?? null,
+            total_fee: totalFee,
+            original_total_fee: result?.total_fee ?? null,
+            first_unit: result?.first_unit ?? null,
             first_unit_fee: result?.first_unit_fee ?? null,
+            next_unit: result?.next_unit ?? null,
             next_unit_fee: nextUnitFee,
-            unit: result?.unit || 'kg',
+            unit,
             shipping_to: result?.shipping_to || province,
             total_quantity: requestedQuantity,
+            total_weight: hasValidWeight ? requestedWeight : (result?.total_weight ?? null),
+            calculation_basis: unit === 'kg' && hasValidWeight ? 'weight' : 'api_total_fee',
           },
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
