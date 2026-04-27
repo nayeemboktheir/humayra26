@@ -9,7 +9,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { numIid, province = 'Guangdong', quantity, totalQuantity } = await req.json();
+    const { numIid, province = 'Guangdong', quantity, totalQuantity, totalWeight } = await req.json();
 
     if (!numIid) {
       return new Response(
@@ -30,10 +30,21 @@ Deno.serve(async (req) => {
     const itemId = String(numIid).replace(/^abb-/, '');
 
     const requestedQuantity = Math.max(1, Math.floor(Number(totalQuantity ?? quantity ?? 1) || 1));
+    const requestedWeight = Number(totalWeight);
+    const hasValidWeight = Number.isFinite(requestedWeight) && requestedWeight > 0;
 
-    console.log('Fetching 1688 shipping fee via TMAPI for item:', itemId, 'province:', province, 'quantity:', requestedQuantity);
+    console.log('Fetching 1688 shipping fee via TMAPI for item:', itemId, 'province:', province, 'quantity:', requestedQuantity, 'weight:', hasValidWeight ? requestedWeight : 'none');
 
-    const url = `http://api.tmapi.top/1688/item/shipping?apiToken=${encodeURIComponent(apiToken)}&item_id=${encodeURIComponent(itemId)}&province=${encodeURIComponent(province)}&total_quantity=${encodeURIComponent(String(requestedQuantity))}`;
+    const params = new URLSearchParams({
+      apiToken,
+      item_id: itemId,
+      province,
+      total_quantity: String(requestedQuantity),
+    });
+    if (hasValidWeight) {
+      params.set('total_weight', requestedWeight.toFixed(3));
+    }
+    const url = `http://api.tmapi.top/1688/item/shipping?${params.toString()}`;
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
@@ -80,6 +91,7 @@ Deno.serve(async (req) => {
             unit: result?.unit || 'kg',
             shipping_to: result?.shipping_to || province,
             total_quantity: requestedQuantity,
+            total_weight: hasValidWeight ? requestedWeight : (result?.total_weight ?? null),
           },
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
