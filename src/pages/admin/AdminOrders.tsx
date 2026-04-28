@@ -316,74 +316,102 @@ export default function AdminOrders() {
         </div>
       </div>
 
-      {/* Bulk Actions Bar */}
-      {selectedIds.size > 0 && (
-        <div className="flex flex-wrap items-center gap-3 p-3 rounded-lg border bg-primary/5">
+      {/* Selection / Filters Panel */}
+      <div className="rounded-lg border bg-card p-3 space-y-3">
+        {/* Bulk Actions Row */}
+        <div className="flex flex-wrap items-center gap-3">
           <span className="text-sm font-medium">{selectedIds.size} selected</span>
-          <select value={bulkStatus} onChange={(e) => setBulkStatus(e.target.value)} className="text-sm border rounded px-2 py-1 bg-background">
+          <select
+            value={bulkStatus}
+            onChange={(e) => setBulkStatus(e.target.value)}
+            disabled={selectedIds.size === 0}
+            className="text-sm border rounded px-2 py-1 bg-background disabled:opacity-50"
+          >
             <option value="">Change status...</option>
             <option value="pending">Pending</option>
             <option value="processing">Processing</option>
             <option value="delivered">Delivered</option>
             <option value="cancelled">Cancelled</option>
           </select>
-          <Button size="sm" disabled={!bulkStatus || saving} onClick={handleBulkStatusUpdate}>
+          <Button size="sm" disabled={!bulkStatus || saving || selectedIds.size === 0} onClick={handleBulkStatusUpdate}>
             {saving ? "Updating..." : "Apply"}
           </Button>
-          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => {
-            const selectedOrders = filtered.filter(o => selectedIds.has(o.id));
-            if (selectedOrders.length === 0) return;
-            setCombinedInvoiceOrders(selectedOrders);
-          }}>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5"
+            disabled={selectedIds.size === 0}
+            onClick={() => {
+              const selectedOrders = filtered.filter(o => selectedIds.has(o.id));
+              if (selectedOrders.length === 0) return;
+              setCombinedInvoiceOrders(selectedOrders);
+            }}
+          >
             <FileText className="h-3.5 w-3.5" /> Combined Invoice
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>Clear</Button>
+          {selectedIds.size > 0 && (
+            <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>Clear</Button>
+          )}
         </div>
-      )}
 
-      {/* Payment Status Filter */}
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-medium text-muted-foreground mr-1">Payment:</span>
-        {([
-          { key: "all", label: "All" },
-          { key: "paid", label: "Paid" },
-          { key: "unpaid", label: "Unpaid" },
-          { key: "partial", label: "Partial / Deposit" },
-        ] as const).map((p) => {
-          const count = data.filter((o) => {
-            const ps = (o as any).payment_status || "unpaid";
-            if (p.key === "all") return true;
-            if (p.key === "paid") return ps === "paid" || ps === "completed";
-            if (p.key === "unpaid") return ps === "unpaid" || ps === "pending" || !ps;
-            return ps === "partial" || ps === "deposit" || ps === "partially_paid";
-          }).length;
-          const active = paymentFilter === p.key;
-          return (
-            <button
-              key={p.key}
-              onClick={() => setPaymentFilter(p.key)}
-              className={`rounded-full px-3 py-1 text-xs border transition-colors ${
-                active
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-background text-foreground border-border hover:bg-muted"
-              }`}
-            >
-              {p.label} ({count})
-            </button>
-          );
-        })}
+        {/* Payment Status Filter */}
+        <div className="flex flex-wrap items-center gap-2 pt-1 border-t">
+          <span className="text-xs font-medium text-muted-foreground mr-1 mt-2">Payment:</span>
+          {([
+            { key: "all", label: "All" },
+            { key: "paid", label: "Paid" },
+            { key: "unpaid", label: "Unpaid" },
+            { key: "partial", label: "Partial / Deposit" },
+          ] as const).map((p) => {
+            const count = data.filter((o) => {
+              const ps = (o as any).payment_status || "unpaid";
+              if (p.key === "all") return true;
+              if (p.key === "paid") return ps === "paid" || ps === "completed";
+              if (p.key === "unpaid") return ps === "unpaid" || ps === "pending" || !ps;
+              return ps === "partial" || ps === "deposit" || ps === "partially_paid";
+            }).length;
+            const active = paymentFilter === p.key;
+            return (
+              <button
+                key={p.key}
+                onClick={() => setPaymentFilter(p.key)}
+                className={`rounded-full px-3 py-1 text-xs border transition-colors mt-2 ${
+                  active
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background text-foreground border-border hover:bg-muted"
+                }`}
+              >
+                {p.label} ({count})
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Tracking Status Tabs */}
+        <Tabs value={statusFilter} onValueChange={setStatusFilter}>
+          <TabsList className="flex-wrap h-auto gap-1 bg-transparent p-0 justify-start">
+            {statuses.map((s) => (
+              <TabsTrigger
+                key={s}
+                value={s}
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full px-4 py-1.5 text-xs capitalize border border-border"
+              >
+                {statusLabels[s] || s} ({statusCounts[s] || 0})
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+
+        {/* Select All */}
+        <div className="flex items-center gap-2 pt-1 border-t">
+          <Button variant="ghost" size="sm" onClick={toggleSelectAll} className="text-xs mt-2">
+            {selectedIds.size === filtered.length && filtered.length > 0
+              ? <CheckSquare className="h-4 w-4 mr-1" />
+              : <Square className="h-4 w-4 mr-1" />}
+            {selectedIds.size === filtered.length && filtered.length > 0 ? "Deselect All" : "Select All"}
+          </Button>
+        </div>
       </div>
-
-      {/* Status Tabs */}
-      <Tabs value={statusFilter} onValueChange={setStatusFilter}>
-        <TabsList className="flex-wrap h-auto gap-1 bg-transparent p-0">
-          {statuses.map((s) => (
-            <TabsTrigger key={s} value={s} className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full px-4 py-1.5 text-xs capitalize border border-border">
-              {statusLabels[s] || s} ({statusCounts[s] || 0})
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
 
       {/* Orders Grid */}
       {loading ? (
@@ -395,7 +423,7 @@ export default function AdminOrders() {
         </div>
       ) : (
         <>
-          <div className="flex items-center gap-2 mb-2">
+          <div className="hidden">
             <Button variant="ghost" size="sm" onClick={toggleSelectAll} className="text-xs">
               {selectedIds.size === filtered.length ? <CheckSquare className="h-4 w-4 mr-1" /> : <Square className="h-4 w-4 mr-1" />}
               {selectedIds.size === filtered.length ? "Deselect All" : "Select All"}
