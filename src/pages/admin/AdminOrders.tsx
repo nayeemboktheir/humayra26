@@ -381,11 +381,17 @@ export default function AdminOrders() {
             disabled={selectedIds.size === 0}
             className="text-sm border rounded px-2 py-1 bg-background disabled:opacity-50"
           >
-            <option value="">Change status...</option>
-            <option value="pending">Pending</option>
-            <option value="processing">Processing</option>
-            <option value="delivered">Delivered</option>
-            <option value="cancelled">Cancelled</option>
+            <option value="">Change status / send SMS...</option>
+            <optgroup label="Order status only">
+              {ORDER_STATUS_OPTIONS.map((status) => (
+                <option key={status.value} value={status.value}>{status.label}</option>
+              ))}
+            </optgroup>
+            <optgroup label="Shipment status + SMS">
+              {SHIPMENT_STAGES.map((stage) => (
+                <option key={stage} value={stage}>{stage}</option>
+              ))}
+            </optgroup>
           </select>
           <Button size="sm" disabled={!bulkStatus || saving || selectedIds.size === 0} onClick={handleBulkStatusUpdate}>
             {saving ? "Updating..." : "Apply"}
