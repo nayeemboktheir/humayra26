@@ -63,6 +63,20 @@ const statusConfig: Record<string, { color: string; label: string }> = {
   cancelled: { color: "bg-red-100 text-red-800 border-red-200", label: "Cancelled" },
 };
 
+const SHIPMENT_STAGES = ["Ordered", "Purchased from 1688", "Shipped to Warehouse", "Arrived at Warehouse", "Shipped to Bangladesh", "In Customs", "Out for Delivery", "Delivered"];
+
+const ORDER_STATUS_OPTIONS = [
+  { value: "awaiting_payment", label: "Awaiting Payment" },
+  { value: "pending", label: "Pending (Paid)" },
+  { value: "cancelled", label: "Cancelled" },
+];
+
+const getOrderStatusForShipmentStage = (stage: string) => {
+  if (stage === "Delivered") return "delivered";
+  if (stage === "Ordered") return "pending";
+  return "processing";
+};
+
 export default function AdminOrders() {
   const [data, setData] = useState<OrderWithProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -226,10 +240,51 @@ export default function AdminOrders() {
     if (!bulkStatus || selectedIds.size === 0) return;
     setSaving(true);
     try {
-      const ids = Array.from(selectedIds);
-      const { error } = await supabase.from("orders").update({ status: bulkStatus }).in("id", ids);
-      if (error) throw error;
-      toast({ title: `${ids.length} orders updated to "${bulkStatus}"` });
+      const selectedOrders = filtered.filter((order) => selectedIds.has(order.id));
+      const ids = selectedOrders.map((order) => order.id);
+      const isShipmentStage = SHIPMENT_STAGES.includes(bulkStatus);
+
+      if (isShipmentStage) {
+        const existingShipmentIds = selectedOrders
+          .map((order) => shipmentMap[order.id]?.id)
+          .filter(Boolean);
+        const missingShipments = selectedOrders
+          .filter((order) => !shipmentMap[order.id]?.id)
+          .map((order) => ({ order_id: order.id, user_id: order.user_id, status: bulkStatus }));
+
+        if (existingShipmentIds.length > 0) {
+          const { error } = await supabase.from("shipments").update({ status: bulkStatus }).in("id", existingShipmentIds);
+          if (error) throw error;
+        }
+        if (missingShipments.length > 0) {
+          const { error } = await supabase.from("shipments").insert(missingShipments as any);
+          if (error) throw error;
+        }
+
+        const { error: orderError } = await supabase
+          .from("orders")
+          .update({ status: getOrderStatusForShipmentStage(bulkStatus) })
+          .in("id", ids);
+        if (orderError) throw orderError;
+
+        const smsResults = await Promise.allSettled(
+          selectedOrders.map((order) =>
+            supabase.functions.invoke("send-shipment-sms", {
+              body: { userId: order.user_id, stage: bulkStatus, orderNumber: order.order_number },
+            })
+          )
+        );
+        const smsSent = smsResults.filter((result) => result.status === "fulfilled" && !(result.value.data as any)?.skipped && !(result.value.data as any)?.error && !result.value.error).length;
+        const smsSkipped = smsResults.length - smsSent;
+        toast({
+          title: `${ids.length} orders moved to "${bulkStatus}"`,
+          description: `${smsSent} SMS sent${smsSkipped ? `, ${smsSkipped} skipped/failed` : ""}.`,
+        });
+      } else {
+        const { error } = await supabase.from("orders").update({ status: bulkStatus }).in("id", ids);
+        if (error) throw error;
+        toast({ title: `${ids.length} orders updated to "${bulkStatus}"` });
+      }
       setSelectedIds(new Set());
       setBulkStatus("");
       fetchOrders();
@@ -271,7 +326,6 @@ export default function AdminOrders() {
     setCombinedInvoiceOrders(filtered);
   };
 
-  const SHIPMENT_STAGES = ["Ordered", "Purchased from 1688", "Shipped to Warehouse", "Arrived at Warehouse", "Shipped to Bangladesh", "In Customs", "Out for Delivery", "Delivered"];
   const statuses = ["all", "awaiting_payment", "pending", ...SHIPMENT_STAGES];
   const statusLabels: Record<string, string> = {
     all: "All",
@@ -327,11 +381,17 @@ export default function AdminOrders() {
             disabled={selectedIds.size === 0}
             className="text-sm border rounded px-2 py-1 bg-background disabled:opacity-50"
           >
-            <option value="">Change status...</option>
-            <option value="pending">Pending</option>
-            <option value="processing">Processing</option>
-            <option value="delivered">Delivered</option>
-            <option value="cancelled">Cancelled</option>
+            <option value="">Change status / send SMS...</option>
+            <optgroup label="Order status only">
+              {ORDER_STATUS_OPTIONS.map((status) => (
+                <option key={status.value} value={status.value}>{status.label}</option>
+              ))}
+            </optgroup>
+            <optgroup label="Shipment status + SMS">
+              {SHIPMENT_STAGES.map((stage) => (
+                <option key={stage} value={stage}>{stage}</option>
+              ))}
+            </optgroup>
           </select>
           <Button size="sm" disabled={!bulkStatus || saving || selectedIds.size === 0} onClick={handleBulkStatusUpdate}>
             {saving ? "Updating..." : "Apply"}
