@@ -106,7 +106,12 @@ const Auth = () => {
           const role = await resolveUserRole(data.user.id);
           navigate(isStaffRole(role) ? "/admin" : "/dashboard");
       } else {
-        const normalizedPhone = signupPhone ? normalizePhone(signupPhone) : "";
+        if (!signupPhoneVerified || !signupPhone) {
+          toast.error("সাইন আপ করতে মোবাইল নাম্বার ভেরিফাই করুন");
+          setLoading(false);
+          return;
+        }
+        const normalizedPhone = normalizePhone(signupPhone);
 
         const { data, error } = await supabase.auth.signUp({
           email,
@@ -493,7 +498,7 @@ const Auth = () => {
               <div className="space-y-2 border rounded-lg p-3 bg-muted/30">
                 <p className="text-sm font-medium flex items-center gap-1">
                   <Phone className="h-4 w-4" />
-                  মোবাইল নাম্বার (অপশনাল ভেরিফিকেশন)
+                  মোবাইল নাম্বার ভেরিফাই করুন <span className="text-destructive">*</span>
                   {signupPhoneVerified && <span className="text-green-600 text-xs ml-auto">✓ ভেরিফাইড</span>}
                 </p>
                 {signupPhoneVerified ? (
