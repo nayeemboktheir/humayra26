@@ -106,7 +106,12 @@ const Auth = () => {
           const role = await resolveUserRole(data.user.id);
           navigate(isStaffRole(role) ? "/admin" : "/dashboard");
       } else {
-        const normalizedPhone = signupPhone ? normalizePhone(signupPhone) : "";
+        if (!signupPhoneVerified || !signupPhone) {
+          toast.error("সাইন আপ করতে মোবাইল নাম্বার ভেরিফাই করুন");
+          setLoading(false);
+          return;
+        }
+        const normalizedPhone = normalizePhone(signupPhone);
 
         const { data, error } = await supabase.auth.signUp({
           email,
