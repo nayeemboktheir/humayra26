@@ -797,8 +797,8 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-semibold leading-tight line-clamp-2">{sku.title}</p>
                               <div className="flex items-baseline gap-2 mt-1">
-                                <span className="text-lg font-bold text-primary">৳{convertToBDT(sku.price).toLocaleString()}</span>
-                                <span className="text-xs text-muted-foreground line-through">৳{Math.round(convertToBDT(sku.price) * 1.05).toLocaleString()}</span>
+                                <span className="text-lg font-bold text-primary">৳{skuTierBdt(sku.price, tierQtyForDisplay).toLocaleString()}</span>
+                                <span className="text-xs text-muted-foreground line-through">৳{Math.round(skuTierBdt(sku.price, tierQtyForDisplay) * 1.05).toLocaleString()}</span>
                               </div>
                             </div>
                           </div>
