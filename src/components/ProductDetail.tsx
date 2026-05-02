@@ -90,6 +90,14 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
     ? Object.values(skuQuantities).reduce((a, b) => a + b, 0)
     : quantity;
 
+  // Tier-aware CNY price helpers — 1688 returns LOWEST (bulk) tier price by default,
+  // so we must scale up to the correct tier price for the customer's actual quantity.
+  const tierUnitCny = (qty: number) => getTierCnyPrice(product?.price ?? 0, qty, product?.priceRange);
+  const skuTierCny = (skuPrice: number, qty: number) =>
+    getSkuTierCnyPrice(skuPrice, product?.price ?? 0, qty, product?.priceRange);
+  const tierBdtUnit = (qty: number) => convertToBDT(tierUnitCny(qty));
+  const skuTierBdt = (skuPrice: number, qty: number) => convertToBDT(skuTierCny(skuPrice, qty));
+
   useEffect(() => {
     if (!product?.num_iid) return;
     const qty = Math.max(1, selectedDomesticQty || 1);
