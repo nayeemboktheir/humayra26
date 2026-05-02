@@ -22,7 +22,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useCart } from "@/contexts/CartContext";
 
-import { convertToBDT } from "@/lib/currency";
+import { convertToBDT, getTierCnyPrice, getSkuTierCnyPrice } from "@/lib/currency";
 import CheckoutDialog from "@/components/CheckoutDialog";
 
 const translateLocation = (location: string): string => {
