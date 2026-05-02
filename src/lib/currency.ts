@@ -28,31 +28,26 @@ export function convertToBDT(cny: number): number {
 }
 
 /**
- * 1688 quantity-tier pricing.
+ * 1688 REAL (non-discount) checkout price.
  * `priceRange` is an array of [minQty, cnyPrice] pairs from OTAPI QuantityRanges.
- * Returns the CNY price applicable for `qty`, falling back to `basePrice` if no tier matches.
  *
- * IMPORTANT: OTAPI's `ConfiguredItems[].Price.OriginalPrice` (and `Item.Price.OriginalPrice`)
- * usually reflect the LOWEST tier (bulk) price. For a customer ordering 2 pcs we must use
- * the higher per-unit tier price instead, otherwise we under-charge.
+ * Business rule (Tradeon): we ALWAYS charge customers the real 1688 retail price —
+ * never any bulk/promo discount. The real price is the HIGHEST per-unit price across
+ * all quantity tiers and basePrice (smallest tier = highest unit price = real price).
+ * This guarantees we never under-charge regardless of qty.
  */
 export function getTierCnyPrice(
   basePrice: number,
-  qty: number,
+  _qty: number,
   priceRange?: number[][]
 ): number {
-  if (!priceRange || priceRange.length === 0 || qty <= 0) return basePrice;
-  // Sort ascending by minQty
-  const tiers = [...priceRange].sort((a, b) => (a[0] || 0) - (b[0] || 0));
-  // Find the highest tier whose minQty <= qty. If qty is below the smallest
-  // tier's minQty, use the smallest tier (highest unit price) — never the bulk one.
-  let chosen = tiers[0]?.[1] ?? basePrice;
-  for (const [minQty, price] of tiers) {
-    if (qty >= minQty) chosen = price;
+  let realPrice = basePrice || 0;
+  if (Array.isArray(priceRange) && priceRange.length > 0) {
+    for (const [, price] of priceRange) {
+      if (typeof price === 'number' && price > realPrice) realPrice = price;
+    }
   }
-  // Defensive: if any tier price is HIGHER than basePrice, basePrice was the bulk
-  // price. Otherwise return whichever is higher to avoid undercharging.
-  return Math.max(chosen, 0) || basePrice;
+  return realPrice || basePrice;
 }
 
 /** CNY tier price for a SKU, scaled by the SKU's relative price vs the item's base price. */
