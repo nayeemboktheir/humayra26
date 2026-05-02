@@ -670,7 +670,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                             return (
                               <tr key={sku.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
                                 <td className="py-3 px-3 font-medium">{sizePart}</td>
-                                <td className="py-3 px-3 text-center font-semibold text-primary whitespace-nowrap">৳ {convertToBDT(sku.price).toLocaleString()}</td>
+                                <td className="py-3 px-3 text-center font-semibold text-primary whitespace-nowrap">৳ {skuTierBdt(sku.price, tierQtyForDisplay).toLocaleString()}</td>
                                 <td className="py-3 px-3">
                                   <div className="flex flex-col items-center gap-1">
                                     {qty > 0 ? (
