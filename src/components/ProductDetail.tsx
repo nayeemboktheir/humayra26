@@ -420,9 +420,11 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
   const totalSelectedQty = hasSkus
     ? Object.values(skuQuantities).reduce((a, b) => a + b, 0)
     : quantity;
+  // Use the selected total qty for tier pricing; fall back to qty=1 (highest unit-price tier)
+  const tierQtyForDisplay = Math.max(1, totalSelectedQty);
   const totalSelectedPrice = hasSkus
-    ? product.configuredItems!.reduce((sum, sku) => sum + convertToBDT(sku.price) * (skuQuantities[sku.id] || 0), 0)
-    : convertToBDT(product.price) * quantity;
+    ? product.configuredItems!.reduce((sum, sku) => sum + skuTierBdt(sku.price, tierQtyForDisplay) * (skuQuantities[sku.id] || 0), 0)
+    : tierBdtUnit(tierQtyForDisplay) * quantity;
 
   // Get selected SKU's title for display
   const selectedSkuItem = hasSkus && selectedSkuId
@@ -430,8 +432,8 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
     : null;
 
   const baseUnitPrice = hasSkus
-    ? convertToBDT(selectedSkuItem?.price ?? product.configuredItems?.[0]?.price ?? product.price)
-    : convertToBDT(product.price);
+    ? skuTierBdt(selectedSkuItem?.price ?? product.configuredItems?.[0]?.price ?? product.price, tierQtyForDisplay)
+    : tierBdtUnit(tierQtyForDisplay);
   // displayCnyPrice removed — no longer showing Yuan
 
   return (
