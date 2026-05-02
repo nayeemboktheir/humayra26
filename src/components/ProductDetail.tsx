@@ -138,7 +138,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
           product_id: String(product.num_iid),
           product_name: product.title,
           product_image: product.pic_url,
-          product_price: convertToBDT(product.price),
+          product_price: tierBdtUnit(1),
           product_url: `${window.location.origin}/?product=${product.num_iid}`,
         });
         setIsWishlisted(true);
