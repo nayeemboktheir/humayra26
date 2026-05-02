@@ -754,8 +754,8 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold leading-tight line-clamp-2">{selectedSkuItem.title}</p>
                             <div className="flex items-baseline gap-2 mt-1">
-                              <span className="text-lg font-bold text-primary">৳{convertToBDT(selectedSkuItem.price).toLocaleString()}</span>
-                              <span className="text-xs text-muted-foreground line-through">৳{Math.round(convertToBDT(selectedSkuItem.price) * 1.05).toLocaleString()}</span>
+                              <span className="text-lg font-bold text-primary">৳{skuTierBdt(selectedSkuItem.price, tierQtyForDisplay).toLocaleString()}</span>
+                              <span className="text-xs text-muted-foreground line-through">৳{Math.round(skuTierBdt(selectedSkuItem.price, tierQtyForDisplay) * 1.05).toLocaleString()}</span>
                             </div>
                           </div>
                         </div>
