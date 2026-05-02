@@ -190,8 +190,8 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
       return;
     }
     const totalPrice = hasSkus
-      ? product.configuredItems!.reduce((sum, sku) => sum + convertToBDT(sku.price) * (skuQuantities[sku.id] || 0), 0)
-      : convertToBDT(product.price) * quantity;
+      ? product.configuredItems!.reduce((sum, sku) => sum + skuTierBdt(sku.price, totalQty) * (skuQuantities[sku.id] || 0), 0)
+      : tierBdtUnit(totalQty) * quantity;
     const unitPrice = Math.round(totalPrice / totalQty);
 
     const calcDomesticCNY = domesticShippingQty === totalQty && domesticShippingFeeCNY != null
@@ -201,7 +201,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
 
     const skuDetails = hasSkus
       ? product.configuredItems!.filter(sku => (skuQuantities[sku.id] || 0) > 0).map(sku => ({
-          name: sku.title, qty: skuQuantities[sku.id], unitPrice: convertToBDT(sku.price),
+          name: sku.title, qty: skuQuantities[sku.id], unitPrice: skuTierBdt(sku.price, totalQty),
         }))
       : [];
 
