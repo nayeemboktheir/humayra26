@@ -22,7 +22,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useCart } from "@/contexts/CartContext";
 
-import { convertToBDT } from "@/lib/currency";
+import { convertToBDT, getTierCnyPrice, getSkuTierCnyPrice } from "@/lib/currency";
 import CheckoutDialog from "@/components/CheckoutDialog";
 
 const translateLocation = (location: string): string => {
@@ -90,6 +90,14 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
     ? Object.values(skuQuantities).reduce((a, b) => a + b, 0)
     : quantity;
 
+  // Tier-aware CNY price helpers — 1688 returns LOWEST (bulk) tier price by default,
+  // so we must scale up to the correct tier price for the customer's actual quantity.
+  const tierUnitCny = (qty: number) => getTierCnyPrice(product?.price ?? 0, qty, product?.priceRange);
+  const skuTierCny = (skuPrice: number, qty: number) =>
+    getSkuTierCnyPrice(skuPrice, product?.price ?? 0, qty, product?.priceRange);
+  const tierBdtUnit = (qty: number) => convertToBDT(tierUnitCny(qty));
+  const skuTierBdt = (skuPrice: number, qty: number) => convertToBDT(skuTierCny(skuPrice, qty));
+
   useEffect(() => {
     if (!product?.num_iid) return;
     const qty = Math.max(1, selectedDomesticQty || 1);
@@ -130,7 +138,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
           product_id: String(product.num_iid),
           product_name: product.title,
           product_image: product.pic_url,
-          product_price: convertToBDT(product.price),
+          product_price: tierBdtUnit(1),
           product_url: `${window.location.origin}/?product=${product.num_iid}`,
         });
         setIsWishlisted(true);
@@ -182,8 +190,8 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
       return;
     }
     const totalPrice = hasSkus
-      ? product.configuredItems!.reduce((sum, sku) => sum + convertToBDT(sku.price) * (skuQuantities[sku.id] || 0), 0)
-      : convertToBDT(product.price) * quantity;
+      ? product.configuredItems!.reduce((sum, sku) => sum + skuTierBdt(sku.price, totalQty) * (skuQuantities[sku.id] || 0), 0)
+      : tierBdtUnit(totalQty) * quantity;
     const unitPrice = Math.round(totalPrice / totalQty);
 
     const calcDomesticCNY = domesticShippingQty === totalQty && domesticShippingFeeCNY != null
@@ -193,7 +201,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
 
     const skuDetails = hasSkus
       ? product.configuredItems!.filter(sku => (skuQuantities[sku.id] || 0) > 0).map(sku => ({
-          name: sku.title, qty: skuQuantities[sku.id], unitPrice: convertToBDT(sku.price),
+          name: sku.title, qty: skuQuantities[sku.id], unitPrice: skuTierBdt(sku.price, totalQty),
         }))
       : [];
 
@@ -240,22 +248,22 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
     }
 
     const totalPrice = hasSkus
-      ? product.configuredItems!.reduce((sum, sku) => sum + convertToBDT(sku.price) * (skuQuantities[sku.id] || 0), 0)
-      : convertToBDT(product.price) * quantity;
+      ? product.configuredItems!.reduce((sum, sku) => sum + skuTierBdt(sku.price, totalQty) * (skuQuantities[sku.id] || 0), 0)
+      : tierBdtUnit(totalQty) * quantity;
 
     // Build line items for checkout
     const lines: { name: string; qty: number; unitPrice: number; total: number; imageUrl?: string }[] = [];
     if (hasSkus) {
       product.configuredItems!.filter(sku => (skuQuantities[sku.id] || 0) > 0).forEach(sku => {
         const qty = skuQuantities[sku.id];
-        const price = convertToBDT(sku.price);
+        const price = skuTierBdt(sku.price, totalQty);
         lines.push({ name: sku.title, qty, unitPrice: price, total: price * qty, imageUrl: sku.imageUrl });
       });
     } else {
       lines.push({
         name: product.title,
         qty: quantity,
-        unitPrice: convertToBDT(product.price),
+        unitPrice: tierBdtUnit(totalQty),
         total: totalPrice,
       });
     }
@@ -282,7 +290,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
         let variantId = '';
         if (hasSkus) {
           const selectedSkus = product.configuredItems!.filter(sku => (skuQuantities[sku.id] || 0) > 0);
-          const skuNotes = selectedSkus.map(sku => `${sku.title}: ${skuQuantities[sku.id]} pcs × ৳${convertToBDT(sku.price)}`).join('\n');
+          const skuNotes = selectedSkus.map(sku => `${sku.title}: ${skuQuantities[sku.id]} pcs × ৳${skuTierBdt(sku.price, totalQty)}`).join('\n');
           notes = skuNotes;
           variantName = selectedSkus.map(sku => sku.title).join(', ');
           variantId = selectedSkus.map(sku => sku.id).join(', ');
@@ -412,9 +420,11 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
   const totalSelectedQty = hasSkus
     ? Object.values(skuQuantities).reduce((a, b) => a + b, 0)
     : quantity;
+  // Use the selected total qty for tier pricing; fall back to qty=1 (highest unit-price tier)
+  const tierQtyForDisplay = Math.max(1, totalSelectedQty);
   const totalSelectedPrice = hasSkus
-    ? product.configuredItems!.reduce((sum, sku) => sum + convertToBDT(sku.price) * (skuQuantities[sku.id] || 0), 0)
-    : convertToBDT(product.price) * quantity;
+    ? product.configuredItems!.reduce((sum, sku) => sum + skuTierBdt(sku.price, tierQtyForDisplay) * (skuQuantities[sku.id] || 0), 0)
+    : tierBdtUnit(tierQtyForDisplay) * quantity;
 
   // Get selected SKU's title for display
   const selectedSkuItem = hasSkus && selectedSkuId
@@ -422,8 +432,8 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
     : null;
 
   const baseUnitPrice = hasSkus
-    ? convertToBDT(selectedSkuItem?.price ?? product.configuredItems?.[0]?.price ?? product.price)
-    : convertToBDT(product.price);
+    ? skuTierBdt(selectedSkuItem?.price ?? product.configuredItems?.[0]?.price ?? product.price, tierQtyForDisplay)
+    : tierBdtUnit(tierQtyForDisplay);
   // displayCnyPrice removed — no longer showing Yuan
 
   return (
@@ -660,7 +670,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                             return (
                               <tr key={sku.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
                                 <td className="py-3 px-3 font-medium">{sizePart}</td>
-                                <td className="py-3 px-3 text-center font-semibold text-primary whitespace-nowrap">৳ {convertToBDT(sku.price).toLocaleString()}</td>
+                                <td className="py-3 px-3 text-center font-semibold text-primary whitespace-nowrap">৳ {skuTierBdt(sku.price, tierQtyForDisplay).toLocaleString()}</td>
                                 <td className="py-3 px-3">
                                   <div className="flex flex-col items-center gap-1">
                                     {qty > 0 ? (
@@ -701,7 +711,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
               <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 rounded-xl p-4">
                 <div className="flex items-baseline gap-1">
                   <span className="text-sm font-medium text-primary">৳</span>
-                  <span className="text-3xl md:text-5xl font-extrabold text-primary tracking-tight">{convertToBDT(product.price).toLocaleString()}</span>
+                  <span className="text-3xl md:text-5xl font-extrabold text-primary tracking-tight">{tierBdtUnit(tierQtyForDisplay).toLocaleString()}</span>
                 </div>
               </div>
             )}
@@ -744,8 +754,8 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold leading-tight line-clamp-2">{selectedSkuItem.title}</p>
                             <div className="flex items-baseline gap-2 mt-1">
-                              <span className="text-lg font-bold text-primary">৳{convertToBDT(selectedSkuItem.price).toLocaleString()}</span>
-                              <span className="text-xs text-muted-foreground line-through">৳{Math.round(convertToBDT(selectedSkuItem.price) * 1.05).toLocaleString()}</span>
+                              <span className="text-lg font-bold text-primary">৳{skuTierBdt(selectedSkuItem.price, tierQtyForDisplay).toLocaleString()}</span>
+                              <span className="text-xs text-muted-foreground line-through">৳{Math.round(skuTierBdt(selectedSkuItem.price, tierQtyForDisplay) * 1.05).toLocaleString()}</span>
                             </div>
                           </div>
                         </div>
@@ -787,8 +797,8 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-semibold leading-tight line-clamp-2">{sku.title}</p>
                               <div className="flex items-baseline gap-2 mt-1">
-                                <span className="text-lg font-bold text-primary">৳{convertToBDT(sku.price).toLocaleString()}</span>
-                                <span className="text-xs text-muted-foreground line-through">৳{Math.round(convertToBDT(sku.price) * 1.05).toLocaleString()}</span>
+                                <span className="text-lg font-bold text-primary">৳{skuTierBdt(sku.price, tierQtyForDisplay).toLocaleString()}</span>
+                                <span className="text-xs text-muted-foreground line-through">৳{Math.round(skuTierBdt(sku.price, tierQtyForDisplay) * 1.05).toLocaleString()}</span>
                               </div>
                             </div>
                           </div>
