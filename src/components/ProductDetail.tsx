@@ -248,22 +248,22 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
     }
 
     const totalPrice = hasSkus
-      ? product.configuredItems!.reduce((sum, sku) => sum + convertToBDT(sku.price) * (skuQuantities[sku.id] || 0), 0)
-      : convertToBDT(product.price) * quantity;
+      ? product.configuredItems!.reduce((sum, sku) => sum + skuTierBdt(sku.price, totalQty) * (skuQuantities[sku.id] || 0), 0)
+      : tierBdtUnit(totalQty) * quantity;
 
     // Build line items for checkout
     const lines: { name: string; qty: number; unitPrice: number; total: number; imageUrl?: string }[] = [];
     if (hasSkus) {
       product.configuredItems!.filter(sku => (skuQuantities[sku.id] || 0) > 0).forEach(sku => {
         const qty = skuQuantities[sku.id];
-        const price = convertToBDT(sku.price);
+        const price = skuTierBdt(sku.price, totalQty);
         lines.push({ name: sku.title, qty, unitPrice: price, total: price * qty, imageUrl: sku.imageUrl });
       });
     } else {
       lines.push({
         name: product.title,
         qty: quantity,
-        unitPrice: convertToBDT(product.price),
+        unitPrice: tierBdtUnit(totalQty),
         total: totalPrice,
       });
     }
