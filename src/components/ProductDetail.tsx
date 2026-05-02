@@ -290,7 +290,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
         let variantId = '';
         if (hasSkus) {
           const selectedSkus = product.configuredItems!.filter(sku => (skuQuantities[sku.id] || 0) > 0);
-          const skuNotes = selectedSkus.map(sku => `${sku.title}: ${skuQuantities[sku.id]} pcs × ৳${convertToBDT(sku.price)}`).join('\n');
+          const skuNotes = selectedSkus.map(sku => `${sku.title}: ${skuQuantities[sku.id]} pcs × ৳${skuTierBdt(sku.price, totalQty)}`).join('\n');
           notes = skuNotes;
           variantName = selectedSkus.map(sku => sku.title).join(', ');
           variantId = selectedSkus.map(sku => sku.id).join(', ');
