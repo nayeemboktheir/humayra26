@@ -711,7 +711,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
               <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 rounded-xl p-4">
                 <div className="flex items-baseline gap-1">
                   <span className="text-sm font-medium text-primary">৳</span>
-                  <span className="text-3xl md:text-5xl font-extrabold text-primary tracking-tight">{convertToBDT(product.price).toLocaleString()}</span>
+                  <span className="text-3xl md:text-5xl font-extrabold text-primary tracking-tight">{tierBdtUnit(tierQtyForDisplay).toLocaleString()}</span>
                 </div>
               </div>
             )}
