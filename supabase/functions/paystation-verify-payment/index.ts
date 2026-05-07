@@ -111,17 +111,20 @@ Deno.serve(async (req) => {
           type: 'payment',
         });
       }
-    } else if (trxStatus === 'failed') {
+    } else if (isFailed || isCanceled) {
       await supabase
         .from('orders')
-        .update({ payment_status: 'failed' })
+        .update({ payment_status: isCanceled ? 'canceled' : 'failed' })
         .eq('payment_invoice', invoice_number);
     }
+
+    // Normalize trx_status for client
+    const normalizedStatus = isSuccess ? 'success' : isFailed ? 'failed' : isCanceled ? 'canceled' : trxStatus;
 
     return new Response(
       JSON.stringify({
         success: true,
-        trx_status: trxStatus,
+        trx_status: normalizedStatus,
         trx_id: trxId,
         payment_method: paymentMethod,
         payment_amount: data.data?.payment_amount,
