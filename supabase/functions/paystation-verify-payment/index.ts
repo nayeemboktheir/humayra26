@@ -45,9 +45,10 @@ Deno.serve(async (req) => {
     console.log('PayStation verify response:', JSON.stringify(data));
 
     if (data.status_code !== '200') {
+      // Transient/unknown — let client keep polling instead of marking failed
       return new Response(
-        JSON.stringify({ success: false, error: data.message || 'Verification failed', trx_status: 'failed' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, error: data.message || 'Verification pending', trx_status: 'pending' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
