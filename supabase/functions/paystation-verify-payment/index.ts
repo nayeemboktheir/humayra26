@@ -59,7 +59,11 @@ Deno.serve(async (req) => {
     // Update order in database using service role
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    if (trxStatus === 'success') {
+    const isSuccess = trxStatus === 'success' || trxStatus === 'successful' || trxStatus === 'completed';
+    const isFailed = trxStatus === 'failed' || trxStatus === 'failure';
+    const isCanceled = trxStatus === 'canceled' || trxStatus === 'cancelled';
+
+    if (isSuccess) {
       // Fetch all orders tied to this invoice so we can detect partial vs full
       const { data: invoiceOrders } = await supabase
         .from('orders')
