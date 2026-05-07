@@ -45,9 +45,10 @@ Deno.serve(async (req) => {
     console.log('PayStation verify response:', JSON.stringify(data));
 
     if (data.status_code !== '200') {
+      // Transient/unknown — let client keep polling instead of marking failed
       return new Response(
-        JSON.stringify({ success: false, error: data.message || 'Verification failed', trx_status: 'failed' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, error: data.message || 'Verification pending', trx_status: 'pending' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -58,7 +59,11 @@ Deno.serve(async (req) => {
     // Update order in database using service role
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    if (trxStatus === 'success') {
+    const isSuccess = trxStatus === 'success' || trxStatus === 'successful' || trxStatus === 'completed';
+    const isFailed = trxStatus === 'failed' || trxStatus === 'failure';
+    const isCanceled = trxStatus === 'canceled' || trxStatus === 'cancelled';
+
+    if (isSuccess) {
       // Fetch all orders tied to this invoice so we can detect partial vs full
       const { data: invoiceOrders } = await supabase
         .from('orders')
@@ -106,17 +111,20 @@ Deno.serve(async (req) => {
           type: 'payment',
         });
       }
-    } else if (trxStatus === 'failed') {
+    } else if (isFailed || isCanceled) {
       await supabase
         .from('orders')
-        .update({ payment_status: 'failed' })
+        .update({ payment_status: isCanceled ? 'canceled' : 'failed' })
         .eq('payment_invoice', invoice_number);
     }
+
+    // Normalize trx_status for client
+    const normalizedStatus = isSuccess ? 'success' : isFailed ? 'failed' : isCanceled ? 'canceled' : trxStatus;
 
     return new Response(
       JSON.stringify({
         success: true,
-        trx_status: trxStatus,
+        trx_status: normalizedStatus,
         trx_id: trxId,
         payment_method: paymentMethod,
         payment_amount: data.data?.payment_amount,

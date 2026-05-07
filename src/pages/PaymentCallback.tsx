@@ -42,7 +42,8 @@ export default function PaymentCallback() {
     };
 
     const verify = async () => {
-      const maxAttempts = 6;
+      // Poll up to 90s (30 × 3s) — mobile banking (bKash/Nagad/Rocket) can take 20-40s to settle
+      const maxAttempts = 30;
       let lastStatus = "";
 
       for (let i = 0; i < maxAttempts; i++) {
@@ -51,26 +52,33 @@ export default function PaymentCallback() {
           const { data } = await supabase.functions.invoke("paystation-verify-payment", {
             body: { invoice_number: invoiceNumber },
           });
-          lastStatus = data?.trx_status || "";
+          lastStatus = (data?.trx_status || "").toLowerCase();
 
           if (lastStatus === "success") {
             if (!cancelled) setStatus("success");
             await fetchOrderNumber();
             return;
           }
-          if (lastStatus === "failed" || lastStatus === "canceled") {
-            if (!cancelled) setStatus(lastStatus === "canceled" ? "canceled" : "failed");
+          if (lastStatus === "failed") {
+            if (!cancelled) setStatus("failed");
             await fetchOrderNumber();
             return;
           }
+          if (lastStatus === "canceled" || lastStatus === "cancelled") {
+            if (!cancelled) setStatus("canceled");
+            await fetchOrderNumber();
+            return;
+          }
+          // initiated / pending / processing / unknown → keep polling
         } catch {
-          // keep polling
+          // network blip — keep polling
         }
-        // Wait 2s before next attempt (initiated/pending state)
-        await new Promise((r) => setTimeout(r, 2000));
+        await new Promise((r) => setTimeout(r, 3000));
       }
 
-      if (!cancelled) setStatus("failed");
+      // Timed out without a definitive answer — DO NOT mark as failed.
+      // Payment may still complete on gateway side. Show a "still verifying" state.
+      if (!cancelled) setStatus("loading");
       await fetchOrderNumber();
     };
 
