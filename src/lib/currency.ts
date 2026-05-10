@@ -41,16 +41,20 @@ export function getTierCnyPrice(
   _qty: number,
   priceRange?: number[][]
 ): number {
-  let realPrice = basePrice || 0;
+  // Real retail price = highest tier in QuantityRanges (qty=1 tier).
+  // If priceRange exists, prefer it over basePrice (OTAPI basePrice can be inflated by margin).
   if (Array.isArray(priceRange) && priceRange.length > 0) {
+    let highest = 0;
     for (const [, price] of priceRange) {
-      if (typeof price === 'number' && price > realPrice) realPrice = price;
+      if (typeof price === 'number' && price > highest) highest = price;
     }
+    if (highest > 0) return highest;
   }
-  return realPrice || basePrice;
+  return basePrice || 0;
 }
 
-/** CNY tier price for a SKU, scaled by the SKU's relative price vs the item's base price. */
+/** CNY tier price for a SKU. SKU price is FLOORED to the real retail tier price
+ *  so bulk-discounted variant prices never under-charge the customer. */
 export function getSkuTierCnyPrice(
   skuPrice: number,
   itemBasePrice: number,
@@ -58,9 +62,7 @@ export function getSkuTierCnyPrice(
   priceRange?: number[][]
 ): number {
   const tierBase = getTierCnyPrice(itemBasePrice, qty, priceRange);
-  if (!itemBasePrice || itemBasePrice <= 0) return tierBase || skuPrice;
-  // Scale SKU price proportionally to the tier price (SKUs may have small price deltas).
-  const ratio = tierBase / itemBasePrice;
-  return skuPrice * ratio;
+  // Always charge at least the real retail tier price, even if SKU shows a lower bulk price.
+  return Math.max(skuPrice || 0, tierBase || 0);
 }
 
