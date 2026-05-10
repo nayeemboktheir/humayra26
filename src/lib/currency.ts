@@ -41,16 +41,16 @@ export function getTierCnyPrice(
   _qty: number,
   priceRange?: number[][]
 ): number {
-  // Real retail price = highest tier in QuantityRanges (qty=1 tier).
-  // If priceRange exists, prefer it over basePrice (OTAPI basePrice can be inflated by margin).
+  // Real retail price = MAX of basePrice and the highest QuantityRanges tier.
+  // We always take the maximum so customers are NEVER under-charged when 1688/OTAPI
+  // returns inconsistent or discounted tier data.
+  let highest = 0;
   if (Array.isArray(priceRange) && priceRange.length > 0) {
-    let highest = 0;
     for (const [, price] of priceRange) {
       if (typeof price === 'number' && price > highest) highest = price;
     }
-    if (highest > 0) return highest;
   }
-  return basePrice || 0;
+  return Math.max(highest, basePrice || 0);
 }
 
 /** CNY tier price for a SKU. SKU price is FLOORED to the real retail tier price
