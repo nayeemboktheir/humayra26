@@ -737,7 +737,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                   <Plane className="h-6 w-6 mb-1.5 text-primary" />
                   <div className="ml-2">
                     <span className="text-sm font-bold text-primary">By Air</span>
-                    <span className="text-xs text-muted-foreground ml-2">৳750/ ৳1150 Per Kg</span>
+                    <span className="text-xs text-muted-foreground ml-2">৳780/ ৳1050 Per Kg</span>
                   </div>
                 </div>
 
@@ -908,7 +908,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                         <span className="text-xs text-primary font-semibold cursor-pointer hover:underline">বিস্তারিত</span>
                       </ShippingRatesModal>
                     </div>
-                    <p className="text-xs text-muted-foreground">৳750/ ৳1150 Per Kg</p>
+                    <p className="text-xs text-muted-foreground">৳780/ ৳1050 Per Kg</p>
                   </div>
 
                   {/* Weight Disclaimer */}
