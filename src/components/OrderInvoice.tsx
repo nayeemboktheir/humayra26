@@ -421,7 +421,7 @@ export default function OrderInvoice({ order, orders: ordersProp, open, onOpenCh
                     )}
                     {lines.map((line, li) => (
                       <tr key={`${oi}-${li}`} className={li % 2 === 1 ? "bg-muted/30" : ""}>
-                        <td className="py-2.5 px-3.5 text-xs font-medium">{line.name}</td>
+                        <td className="py-2.5 px-3.5 text-xs font-medium whitespace-pre-line">{line.name}</td>
                         <td className="py-2.5 px-3.5 text-xs text-center">{line.qty}</td>
                         <td className="py-2.5 px-3.5 text-xs text-right">৳{line.unitPrice.toLocaleString()}</td>
                         <td className="py-2.5 px-3.5 text-xs text-right font-semibold">৳{line.total.toLocaleString()}</td>
