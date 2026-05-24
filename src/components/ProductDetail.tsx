@@ -189,6 +189,11 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
       toast({ title: "Select quantity", description: "Please select at least 1 item.", variant: "destructive" });
       return;
     }
+    const minOrder = product.min_num || 1;
+    if (totalQty < minOrder) {
+      toast({ title: "ন্যূনতম অর্ডার পরিমাণ", description: `এই পণ্যের ন্যূনতম অর্ডার ${minOrder} পিস। অনুগ্রহ করে কমপক্ষে ${minOrder} পিস নির্বাচন করুন।`, variant: "destructive" });
+      return;
+    }
     const totalPrice = hasSkus
       ? product.configuredItems!.reduce((sum, sku) => sum + skuTierBdt(sku.price, totalQty) * (skuQuantities[sku.id] || 0), 0)
       : tierBdtUnit(totalQty) * quantity;
@@ -244,6 +249,11 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
 
     if (totalQty <= 0) {
       toast({ title: "Select quantity", description: "Please select at least 1 item.", variant: "destructive" });
+      return;
+    }
+    const minOrder = product.min_num || 1;
+    if (totalQty < minOrder) {
+      toast({ title: "ন্যূনতম অর্ডার পরিমাণ", description: `এই পণ্যের ন্যূনতম অর্ডার ${minOrder} পিস। অনুগ্রহ করে কমপক্ষে ${minOrder} পিস নির্বাচন করুন।`, variant: "destructive" });
       return;
     }
 
