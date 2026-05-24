@@ -1,5 +1,6 @@
 import { useNavigate, Link } from "react-router-dom";
 import logoFull from "@/assets/logo-full.png";
+import otcommerceLogo from "@/assets/otcommerce-logo.png";
 import { MapPin, Mail, Phone, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import PaymentLogos from "@/components/PaymentLogos";
