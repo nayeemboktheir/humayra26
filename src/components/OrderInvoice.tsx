@@ -35,18 +35,24 @@ interface OrderInvoiceProps {
 }
 
 function parseOrderLines(order: OrderData) {
+  const productTitle = order.product_name || "";
   if (order.notes) {
     const lines = order.notes.split("\n").filter(Boolean).map((line) => {
       const match = line.match(/^(.+?):\s*(\d+)\s*pcs\s*×\s*৳([\d,]+)/);
       if (!match) return null;
       const [, name, qty, price] = match;
       const unitPrice = Number(price.replace(/,/g, ""));
-      return { name: name.trim(), qty: Number(qty), unitPrice, total: Number(qty) * unitPrice };
+      const variant = name.trim();
+      // Always show full product title, with variant/SKU as a sub-detail
+      const fullName = productTitle && variant && variant !== productTitle
+        ? `${productTitle}\n— ${variant}`
+        : (productTitle || variant);
+      return { name: fullName, qty: Number(qty), unitPrice, total: Number(qty) * unitPrice };
     }).filter(Boolean);
     if (lines.length > 0) return lines as { name: string; qty: number; unitPrice: number; total: number }[];
   }
   return [{
-    name: order.product_name + (order.variant_name ? ` (${order.variant_name})` : ""),
+    name: productTitle + (order.variant_name ? `\n— ${order.variant_name}` : ""),
     qty: order.quantity,
     unitPrice: Number(order.unit_price),
     total: Number(order.total_price),
@@ -95,7 +101,7 @@ function buildPrintHTML(orders: OrderData[], settings: Record<string, string>) {
     lines.forEach((line, i) => {
       const bg = i % 2 === 1 ? "background:#f9fafb;" : "";
       tableRows += `<tr style="${bg}">
-        <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;font-size:13px;">${line.name}</td>
+        <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;font-size:13px;white-space:pre-line;">${line.name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</td>
         <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:center;">${line.qty}</td>
         <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:right;">৳${line.unitPrice.toLocaleString()}</td>
         <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:right;font-weight:600;">৳${line.total.toLocaleString()}</td>
@@ -415,7 +421,7 @@ export default function OrderInvoice({ order, orders: ordersProp, open, onOpenCh
                     )}
                     {lines.map((line, li) => (
                       <tr key={`${oi}-${li}`} className={li % 2 === 1 ? "bg-muted/30" : ""}>
-                        <td className="py-2.5 px-3.5 text-xs font-medium">{line.name}</td>
+                        <td className="py-2.5 px-3.5 text-xs font-medium whitespace-pre-line">{line.name}</td>
                         <td className="py-2.5 px-3.5 text-xs text-center">{line.qty}</td>
                         <td className="py-2.5 px-3.5 text-xs text-right">৳{line.unitPrice.toLocaleString()}</td>
                         <td className="py-2.5 px-3.5 text-xs text-right font-semibold">৳{line.total.toLocaleString()}</td>
