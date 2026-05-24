@@ -35,18 +35,24 @@ interface OrderInvoiceProps {
 }
 
 function parseOrderLines(order: OrderData) {
+  const productTitle = order.product_name || "";
   if (order.notes) {
     const lines = order.notes.split("\n").filter(Boolean).map((line) => {
       const match = line.match(/^(.+?):\s*(\d+)\s*pcs\s*×\s*৳([\d,]+)/);
       if (!match) return null;
       const [, name, qty, price] = match;
       const unitPrice = Number(price.replace(/,/g, ""));
-      return { name: name.trim(), qty: Number(qty), unitPrice, total: Number(qty) * unitPrice };
+      const variant = name.trim();
+      // Always show full product title, with variant/SKU as a sub-detail
+      const fullName = productTitle && variant && variant !== productTitle
+        ? `${productTitle}\n— ${variant}`
+        : (productTitle || variant);
+      return { name: fullName, qty: Number(qty), unitPrice, total: Number(qty) * unitPrice };
     }).filter(Boolean);
     if (lines.length > 0) return lines as { name: string; qty: number; unitPrice: number; total: number }[];
   }
   return [{
-    name: order.product_name + (order.variant_name ? ` (${order.variant_name})` : ""),
+    name: productTitle + (order.variant_name ? `\n— ${order.variant_name}` : ""),
     qty: order.quantity,
     unitPrice: Number(order.unit_price),
     total: Number(order.total_price),
