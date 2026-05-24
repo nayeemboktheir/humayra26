@@ -101,7 +101,7 @@ function buildPrintHTML(orders: OrderData[], settings: Record<string, string>) {
     lines.forEach((line, i) => {
       const bg = i % 2 === 1 ? "background:#f9fafb;" : "";
       tableRows += `<tr style="${bg}">
-        <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;font-size:13px;">${line.name}</td>
+        <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;font-size:13px;white-space:pre-line;">${line.name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</td>
         <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:center;">${line.qty}</td>
         <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:right;">৳${line.unitPrice.toLocaleString()}</td>
         <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:right;font-weight:600;">৳${line.total.toLocaleString()}</td>
