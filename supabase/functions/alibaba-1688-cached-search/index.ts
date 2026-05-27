@@ -8,22 +8,40 @@ const corsHeaders = {
 const CACHE_TTL_HOURS = 12;
 const TMAPI_BASE = 'http://api.tmapi.top/1688';
 
+function normalizeImg(u: string): string {
+  if (!u) return '';
+  if (u.startsWith('//')) return `https:${u}`;
+  return u;
+}
+
 function mapTmapiItem(item: any) {
   const numIid = parseInt(String(item?.item_id || '0'), 10) || 0;
-  const pics: string[] = [];
-  if (item?.img) pics.push(String(item.img).startsWith('//') ? `https:${item.img}` : item.img);
-  const sale = item?.sale_info?.sale_quantity_int ?? parseInt(String(item?.sale_info?.orders_count || '0'), 10) ?? 0;
-  const areaFrom = Array.isArray(item?.delivery_info?.area_from) ? item.delivery_info.area_from.join(' ') : '';
+  const pic = normalizeImg(item?.img || '');
+  const sale =
+    item?.sale_info?.sale_quantity_int ??
+    item?.sale_info?.sale_quantity_90days ??
+    parseInt(String(item?.sale_info?.orders_count || '0'), 10) ??
+    0;
+  const areaFrom = Array.isArray(item?.delivery_info?.area_from)
+    ? item.delivery_info.area_from.join(' ')
+    : (item?.delivery_info?.location || '');
+  const price =
+    parseFloat(String(item?.price_info?.sale_price || item?.price_info?.price || item?.price || '0')) || 0;
   return {
     num_iid: numIid,
-    title: item?.title || '',
-    pic_url: pics[0] || '',
-    price: parseFloat(String(item?.price_info?.sale_price || item?.price || '0')) || 0,
-    sales: sale || undefined,
+    title: item?.title || item?.title_origin || '',
+    pic_url: pic,
+    price,
+    sales: sale ? Number(sale) : undefined,
     detail_url: item?.product_url || `https://detail.1688.com/offer/${numIid}.html`,
     location: areaFrom,
-    extra_images: pics,
-    vendor_name: item?.shop_info?.company_name || item?.shop_info?.login_id || '',
+    extra_images: pic ? [pic] : [],
+    vendor_name:
+      item?.shop_info?.company_name ||
+      item?.shop_info?.shop_name ||
+      item?.shop_info?.login_id ||
+      item?.shop_info?.seller_login_id ||
+      '',
     stock: undefined,
     weight: undefined,
   };
@@ -62,14 +80,13 @@ Deno.serve(async (req) => {
     }
 
     if (isImageSearch) {
-      // Image search is handled by alibaba-1688-image-search edge function (TMAPI image_url).
-      // This branch shouldn't normally be hit, but keep a safe empty response.
       return new Response(JSON.stringify({ success: true, data: { items: [], total: 0 } }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const url = `${TMAPI_BASE}/search/items?apiToken=${encodeURIComponent(apiToken)}&keyword=${encodeURIComponent(query)}&page=${page}&page_size=${effectivePageSize}&sort=default`;
-    console.log(`TMAPI search: "${query}" page=${page}`);
+    // Multilingual cross-border search — TMAPI returns titles already translated to English.
+    const url = `${TMAPI_BASE}/global/search/items?apiToken=${encodeURIComponent(apiToken)}&keyword=${encodeURIComponent(query)}&language=en&page=${page}&page_size=${effectivePageSize}&sort=default`;
+    console.log(`TMAPI global search: "${query}" page=${page}`);
 
     const resp = await fetch(url, { headers: { Accept: 'application/json' } });
     const data = await resp.json();
@@ -80,47 +97,13 @@ Deno.serve(async (req) => {
 
     const result = data?.data || {};
     const rawItems: any[] = Array.isArray(result?.items) ? result.items : [];
-    const totalCount = result?.total_count || rawItems.length;
+    const totalCount = result?.total_count || (result?.has_next_page ? (page * effectivePageSize + 1) : rawItems.length);
     const items = rawItems.map(mapTmapiItem);
-
-    // Batch translate Chinese titles to English via Lovable AI
-    try {
-      const lovableKey = Deno.env.get('LOVABLE_API_KEY');
-      const chineseRe = /[\u4e00-\u9fff]/;
-      const titles = items.map(i => i.title || '');
-      const needsTranslation = titles.some(t => chineseRe.test(t));
-      if (lovableKey && needsTranslation && titles.length > 0) {
-        const joined = titles.join('\n---SEPARATOR---\n');
-        const aiResp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${lovableKey}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: 'google/gemini-2.5-flash-lite',
-            messages: [
-              { role: 'system', content: 'Translate each input line from Chinese to natural English for e-commerce product titles. Inputs are separated by ---SEPARATOR---. Return ONLY translated lines in the same order, separated by ---SEPARATOR---. No numbering, no quotes. Keep brand names, model numbers, units as-is. If already English, return unchanged.' },
-              { role: 'user', content: joined },
-            ],
-            max_tokens: 2000,
-            temperature: 0.2,
-          }),
-        });
-        if (aiResp.ok) {
-          const aiData = await aiResp.json();
-          const out = (aiData?.choices?.[0]?.message?.content || '').split('---SEPARATOR---').map((s: string) => s.trim());
-          if (out.length === titles.length) {
-            items.forEach((it, i) => { if (out[i]) it.title = out[i]; });
-          }
-        }
-      }
-    } catch (e) {
-      console.log('Title translation skipped:', e instanceof Error ? e.message : String(e));
-    }
 
     await supabase.from('search_cache').upsert(
       { query_key: queryKey, page, total_results: totalCount, items, translated: true },
       { onConflict: 'query_key,page' }
     );
-
 
     return new Response(JSON.stringify({ success: true, data: { items, total: totalCount }, cached: false, translated: true }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
