@@ -8,6 +8,18 @@ const TMAPI_BASE = "http://api.tmapi.top/1688";
 function normalizeImg(u: string): string {
   if (!u) return ""; if (u.startsWith("//")) return `https:${u}`; return u;
 }
+function parseSold(v: any): number {
+  if (v == null) return 0;
+  const s = String(v).trim().toLowerCase().replace(/\+|,/g, "");
+  const m = s.match(/^([\d.]+)\s*(k|w|万)?/);
+  if (!m) return 0;
+  const n = parseFloat(m[1]) || 0;
+  const u = m[2];
+  if (u === "k") return Math.round(n * 1000);
+  if (u === "w" || u === "万") return Math.round(n * 10000);
+  return Math.round(n);
+}
+
 
 // Multilingual cross-border search returns English titles directly — no AI translation needed.
 
@@ -40,7 +52,7 @@ Deno.serve(async (req) => {
           const picUrl = normalizeImg(item?.img || "");
           if (!picUrl) continue;
           const price = parseFloat(String(item?.price_info?.sale_price || item?.price_info?.price || item?.price || "0")) || 0;
-          const sold = item?.sale_info?.sale_quantity_int || item?.sale_info?.sale_quantity_90days || 0;
+          const sold = parseSold(item?.sale_info?.sale_quantity_int ?? item?.sale_info?.sale_quantity_90days ?? 0);
           seenIds.add(id);
           allProducts.push({ product_id: id, title: item?.title || item?.title_origin || "", image_url: picUrl, price, old_price: null, sold });
         }

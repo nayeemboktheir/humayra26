@@ -14,14 +14,26 @@ function normalizeImg(u: string): string {
   return u;
 }
 
+function parseSold(v: any): number | null {
+  if (v == null || v === '') return null;
+  const s = String(v).trim().toLowerCase().replace(/\+|,/g, '');
+  const m = s.match(/^([\d.]+)\s*(k|w|万)?/);
+  if (!m) return null;
+  const n = parseFloat(m[1]) || 0;
+  const u = m[2];
+  if (u === 'k') return Math.round(n * 1000);
+  if (u === 'w' || u === '万') return Math.round(n * 10000);
+  return Math.round(n);
+}
+
 function mapTmapiItem(item: any) {
   const numIid = parseInt(String(item?.item_id || '0'), 10) || 0;
   const pic = normalizeImg(item?.img || '');
-  const sale =
+  const sale = parseSold(
     item?.sale_info?.sale_quantity_int ??
     item?.sale_info?.sale_quantity_90days ??
-    parseInt(String(item?.sale_info?.orders_count || '0'), 10) ??
-    0;
+    item?.sale_info?.orders_count
+  );
   const areaFrom = Array.isArray(item?.delivery_info?.area_from)
     ? item.delivery_info.area_from.join(' ')
     : (item?.delivery_info?.location || '');
@@ -32,7 +44,7 @@ function mapTmapiItem(item: any) {
     title: item?.title || item?.title_origin || '',
     pic_url: pic,
     price,
-    sales: sale ? Number(sale) : undefined,
+    sales: sale ?? undefined,
     detail_url: item?.product_url || `https://detail.1688.com/offer/${numIid}.html`,
     location: areaFrom,
     extra_images: pic ? [pic] : [],
