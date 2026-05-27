@@ -15,7 +15,6 @@ Deno.serve(async (req) => {
   try {
     const { query, page = 1, pageSize = 40, imageUrl } = await req.json();
 
-    // Support either text query or image URL search
     if (!query && !imageUrl) {
       return new Response(
         JSON.stringify({ success: false, error: 'Search query or imageUrl is required' }),
@@ -24,7 +23,6 @@ Deno.serve(async (req) => {
     }
 
     const isImageSearch = !!imageUrl && !query;
-    // Ensure imageUrl is a full URL (TMAPI sometimes returns relative paths)
     let normalizedImageUrl = imageUrl;
     if (normalizedImageUrl && normalizedImageUrl.startsWith('/')) {
       normalizedImageUrl = `https://cbu01.alicdn.com${normalizedImageUrl}`;
@@ -35,7 +33,6 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Check cache
     const cutoff = new Date(Date.now() - CACHE_TTL_HOURS * 60 * 60 * 1000).toISOString();
     const { data: cached } = await supabase
       .from('search_cache')
@@ -46,7 +43,6 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (cached) {
-      console.log(`Cache HIT for "${queryKey}" page ${page}`);
       return new Response(
         JSON.stringify({
           success: true,
@@ -58,9 +54,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Cache MISS — fetch from OTAPI with language=en (native translation)
-    console.log(`Cache MISS for "${queryKey}" page ${page}, fetching from OTAPI`);
-
     const apiKey = Deno.env.get('OTCOMMERCE_API_KEY');
     if (!apiKey) {
       return new Response(
@@ -70,27 +63,20 @@ Deno.serve(async (req) => {
     }
 
     const framePosition = (page - 1) * pageSize;
-    // XML-escape special characters to prevent ValidationError
     const xmlEscape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
     let xmlParams: string;
     if (isImageSearch) {
       xmlParams = `<SearchItemsParameters><ImageUrl>${xmlEscape(normalizedImageUrl)}</ImageUrl><Provider>Alibaba1688</Provider></SearchItemsParameters>`;
-      console.log(`OTAPI image search page ${page}, imageUrl: ${normalizedImageUrl.slice(0, 120)}`);
     } else {
       xmlParams = `<SearchItemsParameters><ItemTitle>${xmlEscape(query)}</ItemTitle><Provider>Alibaba1688</Provider></SearchItemsParameters>`;
     }
     const url = `https://otapi.net/service-json/SearchItemsFrame?instanceKey=${encodeURIComponent(apiKey)}&language=en&xmlParameters=${encodeURIComponent(xmlParams)}&framePosition=${framePosition}&frameSize=${pageSize}`;
 
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: { 'Accept': 'application/json' },
-    });
-
+    const response = await fetch(url, { method: 'GET', headers: { 'Accept': 'application/json' } });
     const data = await response.json();
 
     if (!response.ok || (data?.ErrorCode && data.ErrorCode !== 'Ok' && data.ErrorCode !== 'None')) {
       const err = data?.ErrorMessage || data?.ErrorCode || `Request failed: ${response.status}`;
-      console.error('OTAPI error:', err);
       return new Response(
         JSON.stringify({ success: false, error: err }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -100,7 +86,6 @@ Deno.serve(async (req) => {
     const rawItems = data?.Result?.Items?.Content || [];
     const totalCount = data?.Result?.Items?.TotalCount || 0;
 
-    // Parse items — already translated by OTAPI via language=en
     const items = rawItems.map((item: any) => {
       const price = item?.Price?.OriginalPrice || item?.Price?.ConvertedPriceList?.Internal?.Price || 0;
       const picUrl = item?.MainPictureUrl || item?.Pictures?.[0]?.Url || '';
@@ -126,32 +111,16 @@ Deno.serve(async (req) => {
       };
     });
 
-    console.log(`OTAPI returned ${items.length} items for "${queryKey}"`);
-
-    // Store in cache (already translated by OTAPI)
     await supabase.from('search_cache').upsert(
-      {
-        query_key: queryKey,
-        page,
-        total_results: totalCount,
-        items,
-        translated: true,
-      },
+      { query_key: queryKey, page, total_results: totalCount, items, translated: true },
       { onConflict: 'query_key,page' }
     );
 
     return new Response(
-      JSON.stringify({
-        success: true,
-        data: { items, total: totalCount },
-        cached: false,
-        translated: true,
-      }),
+      JSON.stringify({ success: true, data: { items, total: totalCount }, cached: false, translated: true }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-
   } catch (error) {
-    console.error('Error in cached search:', error);
     return new Response(
       JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Search failed' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
