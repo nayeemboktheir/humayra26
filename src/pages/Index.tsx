@@ -333,7 +333,7 @@ const Index = () => {
     setSearchParams(params, { replace: true });
 
     try {
-      const result = await alibaba1688Api.search(searchQuery, page, 40);
+      const result = await alibaba1688Api.search(searchQuery, page, 20);
       if (result.success && result.data) {
         setProducts(result.data.items);
         setTotalResults(result.data.total);
@@ -365,7 +365,7 @@ const Index = () => {
   const [isCategoryLoading, setIsCategoryLoading] = useState(false);
   const [visibleCategoryCount, setVisibleCategoryCount] = useState<number>(Infinity);
 
-  const CATEGORY_PAGE_SIZE = 40;
+  const CATEGORY_PAGE_SIZE = 20;
   const categoryTotalPages = categoryTotal ? Math.ceil(categoryTotal / CATEGORY_PAGE_SIZE) : 0;
 
   const loadCategoryPage = async (categoryQuery: string, page: number) => {
@@ -509,9 +509,7 @@ const Index = () => {
       // TMAPI returned results — use converted path for pages 2+ via TMAPI V2
       if (finalItems.length > 0 && convertedPath) {
         console.log(`TMAPI page 1: ${finalItems.length} items, convertedPath: ${convertedPath}`);
-        // Store converted path for TMAPI pagination on pages 2+
         imageSearchDerivedKeywordRef.current = `__tmapi_path__${convertedPath}`;
-        // Prefetch pages 2-6 via TMAPI using converted path
         prefetchTmapiPages(convertedPath, 2, 6);
       }
 
@@ -526,14 +524,10 @@ const Index = () => {
             finalTotal = otapiResult.data.total;
           }
         }
-        // For OTAPI fallback, derive keywords for pagination
         if (finalItems.length > 0) {
           const derivedKeyword = extractSearchKeywords(finalItems);
           imageSearchDerivedKeywordRef.current = derivedKeyword;
-          console.log(`Derived keyword from OTAPI page 1 titles: "${derivedKeyword}"`);
-          if (derivedKeyword) {
-            prefetchTextPages(derivedKeyword, 2, 6);
-          }
+          if (derivedKeyword) prefetchTextPages(derivedKeyword, 2, 6);
         }
       }
 
@@ -560,7 +554,7 @@ const Index = () => {
     const pages = Array.from({ length: toPage - fromPage + 1 }, (_, i) => fromPage + i);
     pages.forEach(async (p) => {
       try {
-        const resp = await alibaba1688Api.search(keyword, p, 40);
+        const resp = await alibaba1688Api.search(keyword, p, 20);
         if (resp.success && resp.data && resp.data.items.length > 0) {
           imagePageCacheRef.current[p] = resp.data.items;
           console.log(`Prefetched text page ${p} for "${keyword}": ${resp.data.items.length} items`);
@@ -589,8 +583,8 @@ const Index = () => {
 
   // TMAPI returns 20 items, OTAPI returns 40 — use appropriate size based on pagination mode
   const isTmapiPagination = activeSearch?.mode === 'image' && imageSearchDerivedKeywordRef.current?.startsWith('__tmapi_path__');
-  const IMAGE_PAGE_SIZE = isTmapiPagination ? 20 : 40;
-  const PAGE_SIZE = activeSearch?.mode === 'image' ? IMAGE_PAGE_SIZE : 40;
+  const IMAGE_PAGE_SIZE = 20;
+  const PAGE_SIZE = 20;
   const totalPages = totalResults ? Math.ceil(totalResults / PAGE_SIZE) : 0;
 
   const goToPage = async (page: number) => {
@@ -631,7 +625,7 @@ const Index = () => {
           }
         } else {
           // Use OTAPI text search with derived keyword
-          const resp = await alibaba1688Api.search(derivedKw, page, 40);
+          const resp = await alibaba1688Api.search(derivedKw, page, 20);
           if (resp.success && resp.data) {
             items = resp.data.items;
             total = resp.data.total;
@@ -660,7 +654,7 @@ const Index = () => {
     setSearchParams(params, { replace: true });
 
     try {
-      const resp = await alibaba1688Api.search(searchQuery, page, 40);
+      const resp = await alibaba1688Api.search(searchQuery, page, 20);
       if (resp.success && resp.data) {
         setProducts(resp.data.items);
         setCurrentPage(page);
