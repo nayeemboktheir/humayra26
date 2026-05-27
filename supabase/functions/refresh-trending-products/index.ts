@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
       if (allProducts.length >= MAX_CANDIDATES) break;
       try {
         const page = 1 + Math.floor(Math.random() * 5);
-        const url = `${TMAPI_BASE}/search/items?apiToken=${encodeURIComponent(apiToken)}&keyword=${encodeURIComponent(query)}&page=${page}&page_size=20&sort=sales`;
+        const url = `${TMAPI_BASE}/global/search/items?apiToken=${encodeURIComponent(apiToken)}&keyword=${encodeURIComponent(query)}&language=en&page=${page}&page_size=20&sort=sales`;
         const resp = await fetch(url, { headers: { Accept: "application/json" } });
         const data = await resp.json();
         if (data?.code && data.code !== 200) continue;
@@ -39,18 +39,17 @@ Deno.serve(async (req) => {
           if (!id || seenIds.has(id)) continue;
           const picUrl = normalizeImg(item?.img || "");
           if (!picUrl) continue;
-          const price = parseFloat(String(item?.price_info?.sale_price || item?.price || "0")) || 0;
-          const sold = item?.sale_info?.sale_quantity_int || 0;
+          const price = parseFloat(String(item?.price_info?.sale_price || item?.price_info?.price || item?.price || "0")) || 0;
+          const sold = item?.sale_info?.sale_quantity_int || item?.sale_info?.sale_quantity_90days || 0;
           seenIds.add(id);
-          allProducts.push({ product_id: id, title: item?.title || "", image_url: picUrl, price, old_price: null, sold });
+          allProducts.push({ product_id: id, title: item?.title || item?.title_origin || "", image_url: picUrl, price, old_price: null, sold });
         }
       } catch {}
     }
     if (allProducts.length === 0) return new Response(JSON.stringify({ success: true, message: "No new products found, kept existing" }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const selectedProducts = [...allProducts].sort(() => Math.random() - 0.5).slice(0, Math.min(MAX_PRODUCTS, allProducts.length));
-    const translated = await translateTitles(selectedProducts.map(p => p.title));
-    selectedProducts.forEach((p, i) => { p.title = translated[i] || p.title; });
+
     await supabase.from("trending_products").delete().neq("id", "00000000-0000-0000-0000-000000000000");
     const { error: insertError } = await supabase.from("trending_products").insert(selectedProducts);
     if (insertError) return new Response(JSON.stringify({ success: false, error: insertError.message }),
