@@ -37,14 +37,12 @@ function mapDetail(d: any, fallbackId: number) {
   // Build variant image map from sku_props (color usually has imageUrl)
   const skuProps: any[] = Array.isArray(d?.sku_props) ? d.sku_props : [];
   const variantImageMap: Record<string, string> = {};
-  const variantNameMap: Record<string, string> = {};
   skuProps.forEach((sp: any) => {
     const pid = String(sp?.pid ?? '');
     (Array.isArray(sp?.values) ? sp.values : []).forEach((v: any) => {
       const vid = String(v?.vid ?? '');
       const key = `${pid}:${vid}`;
       if (v?.imageUrl) variantImageMap[key] = normalizeImg(v.imageUrl);
-      variantNameMap[key] = v?.name || '';
     });
   });
 
@@ -57,4 +55,75 @@ function mapDetail(d: any, fallbackId: number) {
       id: String(s?.skuid || ''),
       title: String(s?.props_names || '').replace(/;/g, ' / '),
       imageUrl,
-      price: parseFloat(String(s?.sale_price || price
+      price: parseFloat(String(s?.sale_price || price)) || price,
+      stock: parseInt(String(s?.stock || '0'), 10) || 0,
+    };
+  });
+
+  const totalStock = parseInt(String(d?.stock || '0'), 10) || configuredItems.reduce((s: number, c: any) => s + (c.stock || 0), 0);
+  const minNum = parseInt(String(d?.tiered_price_info?.begin_num || d?.mixed_batch?.mix_begin || '1'), 10) || 1;
+  const firstSkuWeight = rawSkus[0]?.package_info?.weight;
+  const totalSold = parseInt(String(d?.sale_count || d?.sale_info?.sale_quantity_90days || '0'), 10) || undefined;
+  const shop = d?.shop_info || {};
+
+  return {
+    num_iid: parseInt(String(d?.item_id || fallbackId), 10) || fallbackId,
+    title: d?.title || '',
+    desc: buildDescHtml(mainImgs, props),
+    price,
+    pic_url: mainImgs[0] || '',
+    item_imgs: mainImgs.map(u => ({ url: u })),
+    desc_img: mainImgs,
+    location: d?.delivery_info?.location || '',
+    num: String(totalStock || ''),
+    min_num: minNum,
+    video: d?.video_url || undefined,
+    props: flatProps,
+    priceRange,
+    configuredItems: configuredItems.length > 0 ? configuredItems : undefined,
+    seller_info: {
+      nick: shop?.seller_login_id || shop?.shop_name || '',
+      shop_name: shop?.shop_name || '',
+      vendor_id: shop?.seller_member_id || shop?.seller_user_id || '',
+      item_score: '',
+      delivery_score: '',
+      composite_score: '',
+      rating: '',
+      service_score: '',
+      total_sales: totalSold,
+    },
+    total_sold: totalSold,
+    item_weight: typeof firstSkuWeight === 'number' && firstSkuWeight > 0 ? firstSkuWeight : (d?.delivery_info?.unit_weight || undefined),
+  };
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+  try {
+    const { numIid } = await req.json();
+    if (!numIid) {
+      return new Response(JSON.stringify({ success: false, error: 'Product ID (numIid) is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    const apiToken = Deno.env.get('TMAPI_TOKEN');
+    if (!apiToken) {
+      return new Response(JSON.stringify({ success: false, error: 'TMAPI_TOKEN not configured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    const cleanId = String(numIid).replace(/^abb-/, '');
+    const url = `${TMAPI_BASE}/item_detail?apiToken=${encodeURIComponent(apiToken)}&item_id=${encodeURIComponent(cleanId)}&language=en`;
+    const resp = await fetch(url, { headers: { Accept: 'application/json' } });
+    const data = await resp.json();
+    if (!resp.ok || (data?.code && data.code !== 200)) {
+      const err = data?.msg || data?.message || `Request failed: ${resp.status}`;
+      return new Response(JSON.stringify({ success: false, error: err }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    const mapped = mapDetail(data?.data || {}, parseInt(cleanId, 10) || 0);
+    return new Response(JSON.stringify({ success: true, data: mapped }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  } catch (error) {
+    return new Response(JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Failed to get product' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
+});
