@@ -22,6 +22,33 @@ function normalizeImg(u: string): string {
   return u;
 }
 
+async function translateTitles(titles: string[]): Promise<string[]> {
+  try {
+    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+    const chineseRe = /[\u4e00-\u9fff]/;
+    if (!lovableKey || !titles.some(t => chineseRe.test(t))) return titles;
+    const joined = titles.join("\n---SEPARATOR---\n");
+    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-lite",
+        messages: [
+          { role: "system", content: "Translate each input line from Chinese to natural English for e-commerce product titles. Inputs are separated by ---SEPARATOR---. Return ONLY translated lines in the same order, separated by ---SEPARATOR---. No numbering, no quotes. Keep brand names, model numbers, units as-is. If already English, return unchanged." },
+          { role: "user", content: joined },
+        ],
+        max_tokens: 2000,
+        temperature: 0.2,
+      }),
+    });
+    if (!aiResp.ok) return titles;
+    const aiData = await aiResp.json();
+    const out = (aiData?.choices?.[0]?.message?.content || "").split("---SEPARATOR---").map((s: string) => s.trim());
+    if (out.length !== titles.length) return titles;
+    return out.map((t: string, i: number) => t || titles[i]);
+  } catch { return titles; }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
@@ -49,7 +76,9 @@ Deno.serve(async (req) => {
         const items: any[] = data?.data?.items || [];
         if (items.length === 0) continue;
 
-        const rows = items.map((item: any) => {
+        const titles = items.map((it: any) => it?.title || "");
+        const translated = await translateTitles(titles);
+        const rows = items.map((item: any, idx: number) => {
           const id = String(item?.item_id || "");
           const picUrl = normalizeImg(item?.img || "");
           const price = parseFloat(String(item?.price_info?.sale_price || item?.price || "0")) || 0;
@@ -58,7 +87,7 @@ Deno.serve(async (req) => {
           return {
             category_query: query,
             product_id: id,
-            title: item?.title || "",
+            title: translated[idx] || item?.title || "",
             image_url: picUrl,
             price,
             sales: sold,
