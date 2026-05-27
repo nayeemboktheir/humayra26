@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
           const id = String(item?.item_id || "");
           const picUrl = normalizeImg(item?.img || "");
           const price = parseFloat(String(item?.price_info?.sale_price || item?.price_info?.price || item?.price || "0")) || 0;
-          const sold = item?.sale_info?.sale_quantity_int || item?.sale_info?.sale_quantity_90days || null;
+          const sold = parseSold(item?.sale_info?.sale_quantity_int ?? item?.sale_info?.sale_quantity_90days);
           const areaFrom = Array.isArray(item?.delivery_info?.area_from)
             ? item.delivery_info.area_from.join(" ")
             : (item?.delivery_info?.location || "");

@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
           const picUrl = normalizeImg(item?.img || "");
           if (!picUrl) continue;
           const price = parseFloat(String(item?.price_info?.sale_price || item?.price_info?.price || item?.price || "0")) || 0;
-          const sold = item?.sale_info?.sale_quantity_int || item?.sale_info?.sale_quantity_90days || 0;
+          const sold = parseSold(item?.sale_info?.sale_quantity_int ?? item?.sale_info?.sale_quantity_90days ?? 0);
           seenIds.add(id);
           allProducts.push({ product_id: id, title: item?.title || item?.title_origin || "", image_url: picUrl, price, old_price: null, sold });
         }
