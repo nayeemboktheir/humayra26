@@ -3,27 +3,58 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
-  try {
-    const { numIid } = await req.json();
-    if (!numIid) return new Response(JSON.stringify({ success: false, error: 'Product ID (numIid) is required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    const apiKey = Deno.env.get('OTCOMMERCE_API_KEY');
-    if (!apiKey) return new Response(JSON.stringify({ success: false, error: '1688 API not configured' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    const itemId = String(numIid).startsWith('abb-') ? String(numIid) : `abb-${numIid}`;
-    const url = `https://otapi.net/service-json/BatchGetItemFullInfo?instanceKey=${encodeURIComponent(apiKey)}&language=en&itemId=${encodeURIComponent(itemId)}&blockList=Description`;
-    const response = await fetch(url, { method: 'GET', headers: { 'Accept': 'application/json' } });
-    const data = await response.json();
-    if (!response.ok) {
-      const err = data?.ErrorDescription || data?.ErrorMessage || `Request failed: ${response.status}`;
-      return new Response(JSON.stringify({ success: false, error: err }), { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-    if (data?.ErrorCode && data.ErrorCode !== 'Ok') {
-      const err = data?.ErrorDescription || data?.ErrorMessage || data.ErrorCode;
-      return new Response(JSON.stringify({ success: false, error: err }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-    return new Response(JSON.stringify({ success: true, data }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-  } catch (error) {
-    return new Response(JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Failed to get product' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-  }
-});
+const TMAPI_BASE = 'http://api.tmapi.top/1688';
+
+function normalizeImg(u: string): string {
+  if (!u) return '';
+  if (u.startsWith('//')) return `https:${u}`;
+  return u;
+}
+
+function buildDescHtml(mainImgs: string[], props: any[]): string {
+  const imgsHtml = mainImgs.map(u => `<p><img src="${u}" /></p>`).join('');
+  const propsHtml = props.length
+    ? `<table>${props.map(p => {
+        const k = Object.keys(p)[0]; const v = p[k];
+        return `<tr><td><b>${k}</b></td><td>${v}</td></tr>`;
+      }).join('')}</table>`
+    : '';
+  return `${propsHtml}${imgsHtml}`;
+}
+
+function mapDetail(d: any, fallbackId: number) {
+  const mainImgs: string[] = (Array.isArray(d?.main_imgs) ? d.main_imgs : []).map(normalizeImg);
+  const props: any[] = Array.isArray(d?.product_props) ? d.product_props : [];
+  const flatProps = props.map(p => {
+    const k = Object.keys(p)[0]; return { name: k, value: String(p[k] ?? '') };
+  });
+  const price = parseFloat(String(d?.price_info?.price || d?.price_info?.price_min || '0')) || 0;
+  const tiered = Array.isArray(d?.tiered_price_info?.prices) ? d.tiered_price_info.prices : [];
+  const priceRange = tiered.length > 1
+    ? tiered.map((t: any) => [parseInt(String(t.beginAmount || '1'), 10) || 1, parseFloat(String(t.price || '0')) || 0])
+    : undefined;
+
+  // Build variant image map from sku_props (color usually has imageUrl)
+  const skuProps: any[] = Array.isArray(d?.sku_props) ? d.sku_props : [];
+  const variantImageMap: Record<string, string> = {};
+  const variantNameMap: Record<string, string> = {};
+  skuProps.forEach((sp: any) => {
+    const pid = String(sp?.pid ?? '');
+    (Array.isArray(sp?.values) ? sp.values : []).forEach((v: any) => {
+      const vid = String(v?.vid ?? '');
+      const key = `${pid}:${vid}`;
+      if (v?.imageUrl) variantImageMap[key] = normalizeImg(v.imageUrl);
+      variantNameMap[key] = v?.name || '';
+    });
+  });
+
+  const rawSkus: any[] = Array.isArray(d?.skus) ? d.skus : [];
+  const configuredItems = rawSkus.map((s: any) => {
+    const propsIds = String(s?.props_ids || '').split(';').filter(Boolean);
+    let imageUrl: string | undefined;
+    for (const k of propsIds) { if (variantImageMap[k]) { imageUrl = variantImageMap[k]; break; } }
+    return {
+      id: String(s?.skuid || ''),
+      title: String(s?.props_names || '').replace(/;/g, ' / '),
+      imageUrl,
+      price: parseFloat(String(s?.sale_price || price
