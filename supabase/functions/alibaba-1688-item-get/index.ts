@@ -111,7 +111,7 @@ Deno.serve(async (req) => {
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
     const cleanId = String(numIid).replace(/^abb-/, '');
-    const url = `${TMAPI_BASE}/item_detail?apiToken=${encodeURIComponent(apiToken)}&item_id=${encodeURIComponent(cleanId)}&language=en`;
+    const url = `${TMAPI_BASE}/global/item_detail?apiToken=${encodeURIComponent(apiToken)}&item_id=${encodeURIComponent(cleanId)}&language=en`;
     const resp = await fetch(url, { headers: { Accept: 'application/json' } });
     const data = await resp.json();
     if (!resp.ok || (data?.code && data.code !== 200)) {

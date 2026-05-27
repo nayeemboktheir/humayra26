@@ -1,0 +1,1 @@
+DELETE FROM public.search_cache; DELETE FROM public.trending_products; DELETE FROM public.category_products;

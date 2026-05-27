@@ -9,32 +9,8 @@ function normalizeImg(u: string): string {
   if (!u) return ""; if (u.startsWith("//")) return `https:${u}`; return u;
 }
 
-async function translateTitles(titles: string[]): Promise<string[]> {
-  try {
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-    const chineseRe = /[\u4e00-\u9fff]/;
-    if (!lovableKey || !titles.some(t => chineseRe.test(t))) return titles;
-    const joined = titles.join("\n---SEPARATOR---\n");
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash-lite",
-        messages: [
-          { role: "system", content: "Translate each input line from Chinese to natural English for e-commerce product titles. Inputs are separated by ---SEPARATOR---. Return ONLY translated lines in the same order, separated by ---SEPARATOR---. No numbering, no quotes. Keep brand names, model numbers, units as-is. If already English, return unchanged." },
-          { role: "user", content: joined },
-        ],
-        max_tokens: 2000,
-        temperature: 0.2,
-      }),
-    });
-    if (!aiResp.ok) return titles;
-    const aiData = await aiResp.json();
-    const out = (aiData?.choices?.[0]?.message?.content || "").split("---SEPARATOR---").map((s: string) => s.trim());
-    if (out.length !== titles.length) return titles;
-    return out.map((t: string, i: number) => t || titles[i]);
-  } catch { return titles; }
-}
+// Multilingual cross-border search returns English titles directly — no AI translation needed.
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -52,7 +28,7 @@ Deno.serve(async (req) => {
       if (allProducts.length >= MAX_CANDIDATES) break;
       try {
         const page = 1 + Math.floor(Math.random() * 5);
-        const url = `${TMAPI_BASE}/search/items?apiToken=${encodeURIComponent(apiToken)}&keyword=${encodeURIComponent(query)}&page=${page}&page_size=20&sort=sales`;
+        const url = `${TMAPI_BASE}/global/search/items?apiToken=${encodeURIComponent(apiToken)}&keyword=${encodeURIComponent(query)}&language=en&page=${page}&page_size=20&sort=sales`;
         const resp = await fetch(url, { headers: { Accept: "application/json" } });
         const data = await resp.json();
         if (data?.code && data.code !== 200) continue;
@@ -63,18 +39,17 @@ Deno.serve(async (req) => {
           if (!id || seenIds.has(id)) continue;
           const picUrl = normalizeImg(item?.img || "");
           if (!picUrl) continue;
-          const price = parseFloat(String(item?.price_info?.sale_price || item?.price || "0")) || 0;
-          const sold = item?.sale_info?.sale_quantity_int || 0;
+          const price = parseFloat(String(item?.price_info?.sale_price || item?.price_info?.price || item?.price || "0")) || 0;
+          const sold = item?.sale_info?.sale_quantity_int || item?.sale_info?.sale_quantity_90days || 0;
           seenIds.add(id);
-          allProducts.push({ product_id: id, title: item?.title || "", image_url: picUrl, price, old_price: null, sold });
+          allProducts.push({ product_id: id, title: item?.title || item?.title_origin || "", image_url: picUrl, price, old_price: null, sold });
         }
       } catch {}
     }
     if (allProducts.length === 0) return new Response(JSON.stringify({ success: true, message: "No new products found, kept existing" }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const selectedProducts = [...allProducts].sort(() => Math.random() - 0.5).slice(0, Math.min(MAX_PRODUCTS, allProducts.length));
-    const translated = await translateTitles(selectedProducts.map(p => p.title));
-    selectedProducts.forEach((p, i) => { p.title = translated[i] || p.title; });
+
     await supabase.from("trending_products").delete().neq("id", "00000000-0000-0000-0000-000000000000");
     const { error: insertError } = await supabase.from("trending_products").insert(selectedProducts);
     if (insertError) return new Response(JSON.stringify({ success: false, error: insertError.message }),

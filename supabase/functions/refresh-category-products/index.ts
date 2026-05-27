@@ -22,32 +22,8 @@ function normalizeImg(u: string): string {
   return u;
 }
 
-async function translateTitles(titles: string[]): Promise<string[]> {
-  try {
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-    const chineseRe = /[\u4e00-\u9fff]/;
-    if (!lovableKey || !titles.some(t => chineseRe.test(t))) return titles;
-    const joined = titles.join("\n---SEPARATOR---\n");
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash-lite",
-        messages: [
-          { role: "system", content: "Translate each input line from Chinese to natural English for e-commerce product titles. Inputs are separated by ---SEPARATOR---. Return ONLY translated lines in the same order, separated by ---SEPARATOR---. No numbering, no quotes. Keep brand names, model numbers, units as-is. If already English, return unchanged." },
-          { role: "user", content: joined },
-        ],
-        max_tokens: 2000,
-        temperature: 0.2,
-      }),
-    });
-    if (!aiResp.ok) return titles;
-    const aiData = await aiResp.json();
-    const out = (aiData?.choices?.[0]?.message?.content || "").split("---SEPARATOR---").map((s: string) => s.trim());
-    if (out.length !== titles.length) return titles;
-    return out.map((t: string, i: number) => t || titles[i]);
-  } catch { return titles; }
-}
+// Multilingual cross-border search returns English titles directly — no AI translation needed.
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -69,36 +45,37 @@ Deno.serve(async (req) => {
     let totalProducts = 0;
     for (const query of categoriesToRefresh) {
       try {
-        const url = `${TMAPI_BASE}/search/items?apiToken=${encodeURIComponent(apiToken)}&keyword=${encodeURIComponent(query)}&page=1&page_size=${PRODUCTS_PER_CATEGORY}&sort=default`;
+        const url = `${TMAPI_BASE}/global/search/items?apiToken=${encodeURIComponent(apiToken)}&keyword=${encodeURIComponent(query)}&language=en&page=1&page_size=${PRODUCTS_PER_CATEGORY}&sort=default`;
         const resp = await fetch(url, { headers: { Accept: "application/json" } });
         const data = await resp.json();
         if (data?.code && data.code !== 200) continue;
         const items: any[] = data?.data?.items || [];
         if (items.length === 0) continue;
 
-        const titles = items.map((it: any) => it?.title || "");
-        const translated = await translateTitles(titles);
-        const rows = items.map((item: any, idx: number) => {
+        const rows = items.map((item: any) => {
           const id = String(item?.item_id || "");
           const picUrl = normalizeImg(item?.img || "");
-          const price = parseFloat(String(item?.price_info?.sale_price || item?.price || "0")) || 0;
-          const sold = item?.sale_info?.sale_quantity_int || null;
-          const areaFrom = Array.isArray(item?.delivery_info?.area_from) ? item.delivery_info.area_from.join(" ") : "";
+          const price = parseFloat(String(item?.price_info?.sale_price || item?.price_info?.price || item?.price || "0")) || 0;
+          const sold = item?.sale_info?.sale_quantity_int || item?.sale_info?.sale_quantity_90days || null;
+          const areaFrom = Array.isArray(item?.delivery_info?.area_from)
+            ? item.delivery_info.area_from.join(" ")
+            : (item?.delivery_info?.location || "");
           return {
             category_query: query,
             product_id: id,
-            title: translated[idx] || item?.title || "",
+            title: item?.title || item?.title_origin || "",
             image_url: picUrl,
             price,
             sales: sold,
             detail_url: item?.product_url || "",
             location: areaFrom,
-            vendor_name: item?.shop_info?.company_name || item?.shop_info?.login_id || "",
+            vendor_name: item?.shop_info?.company_name || item?.shop_info?.shop_name || item?.shop_info?.login_id || item?.shop_info?.seller_login_id || "",
             stock: null,
             weight: null,
             extra_images: [picUrl].filter(Boolean),
           };
         });
+
         const seen = new Set<string>();
         const uniqueRows = rows.filter((r: any) => {
           if (!r.product_id || seen.has(r.product_id)) return false;
