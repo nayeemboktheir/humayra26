@@ -174,9 +174,10 @@ export const alibaba1688Api = {
         return this.getProduct(numIid, _retries + 1);
       }
       if (!data?.success) return { success: false, error: data?.error || 'Failed to get product' };
-      const parsed = this.parseRawProduct(data.data, numIid);
-      if (!parsed) return { success: false, error: 'Product not found' };
-      return { success: true, data: parsed };
+      // TMAPI edge function returns already-mapped ProductDetail1688 shape
+      const detail = data.data as ProductDetail1688;
+      if (!detail || !detail.num_iid) return { success: false, error: 'Product not found' };
+      return { success: true, data: detail };
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'Failed to get product' };
     }
