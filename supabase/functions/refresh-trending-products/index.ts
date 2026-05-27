@@ -18,6 +18,8 @@ function parseSold(v: any): number {
   if (u === "k") return Math.round(n * 1000);
   if (u === "w" || u === "万") return Math.round(n * 10000);
   return Math.round(n);
+}
+
 
 // Multilingual cross-border search returns English titles directly — no AI translation needed.
 
