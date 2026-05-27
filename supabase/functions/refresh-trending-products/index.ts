@@ -9,32 +9,8 @@ function normalizeImg(u: string): string {
   if (!u) return ""; if (u.startsWith("//")) return `https:${u}`; return u;
 }
 
-async function translateTitles(titles: string[]): Promise<string[]> {
-  try {
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-    const chineseRe = /[\u4e00-\u9fff]/;
-    if (!lovableKey || !titles.some(t => chineseRe.test(t))) return titles;
-    const joined = titles.join("\n---SEPARATOR---\n");
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash-lite",
-        messages: [
-          { role: "system", content: "Translate each input line from Chinese to natural English for e-commerce product titles. Inputs are separated by ---SEPARATOR---. Return ONLY translated lines in the same order, separated by ---SEPARATOR---. No numbering, no quotes. Keep brand names, model numbers, units as-is. If already English, return unchanged." },
-          { role: "user", content: joined },
-        ],
-        max_tokens: 2000,
-        temperature: 0.2,
-      }),
-    });
-    if (!aiResp.ok) return titles;
-    const aiData = await aiResp.json();
-    const out = (aiData?.choices?.[0]?.message?.content || "").split("---SEPARATOR---").map((s: string) => s.trim());
-    if (out.length !== titles.length) return titles;
-    return out.map((t: string, i: number) => t || titles[i]);
-  } catch { return titles; }
-}
+// Multilingual cross-border search returns English titles directly — no AI translation needed.
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
