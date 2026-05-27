@@ -21,6 +21,16 @@ function normalizeImg(u: string): string {
   if (u.startsWith("//")) return `https:${u}`;
   return u;
 }
+function parseSold(v: any): number | null {
+  if (v == null || v === "") return null;
+  const s = String(v).trim().toLowerCase().replace(/\+|,/g, "");
+  const m = s.match(/^([\d.]+)\s*(k|w|万)?/);
+  if (!m) return null;
+  const n = parseFloat(m[1]) || 0;
+  const u = m[2];
+  if (u === "k") return Math.round(n * 1000);
+  if (u === "w" || u === "万") return Math.round(n * 10000);
+  return Math.round(n);
 
 // Multilingual cross-border search returns English titles directly — no AI translation needed.
 

@@ -14,6 +14,18 @@ function normalizeImg(u: string): string {
   return u;
 }
 
+function parseSold(v: any): number | null {
+  if (v == null || v === '') return null;
+  const s = String(v).trim().toLowerCase().replace(/\+|,/g, '');
+  const m = s.match(/^([\d.]+)\s*(k|w|万)?/);
+  if (!m) return null;
+  const n = parseFloat(m[1]) || 0;
+  const u = m[2];
+  if (u === 'k') return Math.round(n * 1000);
+  if (u === 'w' || u === '万') return Math.round(n * 10000);
+  return Math.round(n);
+}
+
 function mapTmapiItem(item: any) {
   const numIid = parseInt(String(item?.item_id || '0'), 10) || 0;
   const pic = normalizeImg(item?.img || '');
