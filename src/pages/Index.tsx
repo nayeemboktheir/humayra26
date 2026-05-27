@@ -504,25 +504,30 @@ const Index = () => {
       let finalItems = result.success && result.data ? result.data.items : [];
       let finalTotal = result.success && result.data ? result.data.total : 0;
       const convertedPath = (result as any).meta?.convertedImageUrl || '';
+      const originalImageUrl = (result as any).meta?.originalImageUrl || '';
 
       // TMAPI returned results — use converted path for pages 2+ via TMAPI V2
       if (finalItems.length > 0 && convertedPath) {
         console.log(`TMAPI page 1: ${finalItems.length} items, convertedPath: ${convertedPath}`);
-        // Store converted path for TMAPI pagination on pages 2+
         imageSearchDerivedKeywordRef.current = `__tmapi_path__${convertedPath}`;
-        // Prefetch pages 2-6 via TMAPI using converted path
         prefetchTmapiPages(convertedPath, 2, 6);
       }
 
-      // TMAPI returned 0 results — derive keywords from filename for text-search pagination
-      if (finalItems.length === 0 && effectiveKeyword) {
-        console.log('TMAPI image search empty, falling back to text search with filename keyword');
-        const txtResult = await alibaba1688Api.search(effectiveKeyword, 1, 20);
-        if (txtResult.success && txtResult.data && txtResult.data.items.length > 0) {
-          finalItems = txtResult.data.items;
-          finalTotal = txtResult.data.total;
-          imageSearchDerivedKeywordRef.current = effectiveKeyword;
-          prefetchTextPages(effectiveKeyword, 2, 6);
+      // TMAPI returned 0 results — fall back to OTAPI image search for page 1
+      if (finalItems.length === 0) {
+        const otapiUrl = originalImageUrl || convertedPath;
+        if (otapiUrl) {
+          console.log('TMAPI returned 0 results, falling back to OTAPI image search for page 1');
+          const otapiResult = await alibaba1688Api.searchByImageOtapi(otapiUrl, 1, 40);
+          if (otapiResult.success && otapiResult.data && otapiResult.data.items.length > 0) {
+            finalItems = otapiResult.data.items;
+            finalTotal = otapiResult.data.total;
+          }
+        }
+        if (finalItems.length > 0) {
+          const derivedKeyword = extractSearchKeywords(finalItems);
+          imageSearchDerivedKeywordRef.current = derivedKeyword;
+          if (derivedKeyword) prefetchTextPages(derivedKeyword, 2, 6);
         }
       }
 
