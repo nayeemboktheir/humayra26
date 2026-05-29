@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { imageBase64, imageUrl, page = 1, pageSize = 20 } = await req.json();
+    const { imageBase64, imageUrl, originalImageUrl, page = 1, pageSize = 20 } = await req.json();
 
     if (!imageBase64 && !imageUrl) {
       return new Response(JSON.stringify({ success: false, error: 'Image is required' }), {
@@ -109,7 +109,7 @@ Deno.serve(async (req) => {
     const startTime = Date.now();
     const effectivePageSize = Math.min(pageSize, 20);
     let imgUrl = imageUrl || '';
-    let originalUrl = imgUrl;
+    let originalUrl = originalImageUrl || imgUrl;
 
     // PATH 1: Already an alicdn URL → search directly (fast path for pagination)
     const isAlicdn = imgUrl && (imgUrl.includes('alicdn.com') || imgUrl.includes('aliyuncs.com'));
