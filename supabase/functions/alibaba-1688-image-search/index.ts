@@ -53,6 +53,38 @@ function mapTmapiImageItem(item: any) {
   };
 }
 
+function mapOtapiItem(item: any) {
+  const price = item?.Price?.OriginalPrice || 0;
+  const picUrl = normalizeImg(item?.MainPictureUrl || item?.Pictures?.[0]?.Url || item?.Pictures?.[0]?.Large?.Url || '');
+  const externalId = item?.Id || '';
+  const numIid = parseInt(String(externalId).replace(/^abb-/, ''), 10) || 0;
+  const featuredValues = Array.isArray(item?.FeaturedValues) ? item.FeaturedValues : [];
+  const totalSales = parseSold(featuredValues.find((v: any) => v?.Name === 'TotalSales')?.Value);
+  const pics = Array.isArray(item?.Pictures) ? item.Pictures : [];
+  return {
+    num_iid: numIid,
+    title: item?.Title || item?.OriginalTitle || '',
+    pic_url: picUrl,
+    price: typeof price === 'number' ? price : parseFloat(String(price)) || 0,
+    sales: totalSales,
+    detail_url: `https://detail.1688.com/offer/${numIid}.html`,
+    location: typeof item?.Location === 'string' ? item.Location : (item?.Location?.State || item?.Location?.City || ''),
+    vendor_name: item?.VendorName || item?.VendorDisplayName || '',
+    stock: item?.MasterQuantity || undefined,
+    weight: item?.PhysicalParameters?.Weight || undefined,
+    extra_images: pics.map((p: any) => normalizeImg(p?.Url || p?.Large?.Url || '')).filter(Boolean),
+  };
+}
+
+function escapeXml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
