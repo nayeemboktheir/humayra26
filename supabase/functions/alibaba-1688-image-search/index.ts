@@ -243,6 +243,53 @@ function emptyResponse(convertedUrl: string, originalUrl: string): Response {
   }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 }
 
+async function isEmptySearchResponse(response: Response): Promise<boolean> {
+  try {
+    const copy = response.clone();
+    const data = await copy.json();
+    return Boolean(data?.success && Array.isArray(data?.data?.items) && data.data.items.length === 0);
+  } catch {
+    return false;
+  }
+}
+
+async function doOtapiImageSearch(
+  imageUrl: string, page: number, pageSize: number, startTime: number, convertedUrl: string, originalUrl: string,
+): Promise<Response> {
+  const apiKey = Deno.env.get('OTCOMMERCE_API_KEY');
+  if (!apiKey || !imageUrl) return emptyResponse(convertedUrl, originalUrl);
+
+  const framePosition = (page - 1) * pageSize;
+  const xmlParams = `<SearchItemsParameters><EnableDirectSearch p2:nil="true" xmlns:p2="http://www.w3.org/2001/XMLSchema-instance" /><ImageUrl>${escapeXml(imageUrl)}</ImageUrl><Provider>Alibaba1688</Provider></SearchItemsParameters>`;
+  const url = `https://otapi.net/service-json/SearchItemsFrame?instanceKey=${encodeURIComponent(apiKey)}&language=en&xmlParameters=${encodeURIComponent(xmlParams)}&framePosition=${framePosition}&frameSize=${pageSize}`;
+
+  console.log(`Trying OTAPI image fallback, page ${page}...`);
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 25000);
+    const response = await fetch(url, { headers: { Accept: 'application/json' }, signal: controller.signal });
+    clearTimeout(timeout);
+    const data = await response.json();
+    if (!response.ok || (data?.ErrorCode && data.ErrorCode !== 'Ok' && data.ErrorCode !== 'None')) {
+      console.log('OTAPI fallback error:', data?.ErrorMessage || data?.ErrorCode || response.status);
+      return emptyResponse(convertedUrl, originalUrl);
+    }
+
+    const rawItems = data?.Result?.Items?.Content || [];
+    const total = data?.Result?.Items?.TotalCount || rawItems.length;
+    const items = rawItems.map(mapOtapiItem).filter((item: any) => item.num_iid && item.pic_url);
+    console.log(`OTAPI fallback: ${items.length} items in ${Date.now() - startTime}ms`);
+    return new Response(JSON.stringify({
+      success: true,
+      data: { items, total },
+      meta: { method: 'otapi_image_fallback', page, pageSize, convertedImageUrl: convertedUrl, originalImageUrl: originalUrl || convertedUrl },
+    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  } catch (error) {
+    console.log('OTAPI fallback failed:', error instanceof Error ? error.message : error);
+    return emptyResponse(convertedUrl, originalUrl);
+  }
+}
+
 // Convert URL via TMAPI — returns image path for V2 endpoint
 async function convertImageUrl(imgUrl: string, apiToken: string): Promise<string> {
   try {
