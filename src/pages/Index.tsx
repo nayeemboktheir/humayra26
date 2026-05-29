@@ -505,12 +505,13 @@ const Index = () => {
       let finalTotal = result.success && result.data ? result.data.total : 0;
       const convertedPath = (result as any).meta?.convertedImageUrl || '';
       const originalImageUrl = (result as any).meta?.originalImageUrl || '';
+      setImageSearchConvertedUrl(convertedPath || originalImageUrl || null);
 
       // TMAPI returned results — use converted path for pages 2+ via TMAPI V2
       if (finalItems.length > 0 && convertedPath) {
         console.log(`TMAPI page 1: ${finalItems.length} items, convertedPath: ${convertedPath}`);
         imageSearchDerivedKeywordRef.current = `__tmapi_path__${convertedPath}`;
-        prefetchTmapiPages(convertedPath, 2, 6);
+        prefetchTmapiPages(convertedPath, 2, 6, originalImageUrl || convertedPath);
       }
 
       // TMAPI returned 0 results — fall back to OTAPI image search for page 1
@@ -566,11 +567,11 @@ const Index = () => {
   };
 
   // Prefetch pages 2+ via TMAPI using converted image path (for visual consistency)
-  const prefetchTmapiPages = (convertedPath: string, fromPage: number, toPage: number) => {
+  const prefetchTmapiPages = (convertedPath: string, fromPage: number, toPage: number, originalUrl = '') => {
     const pages = Array.from({ length: toPage - fromPage + 1 }, (_, i) => fromPage + i);
     pages.forEach(async (p) => {
       try {
-        const resp = await alibaba1688Api.searchByImage('', p, 20, convertedPath);
+          const resp = await alibaba1688Api.searchByImage('', p, 20, convertedPath, originalUrl || imageSearchConvertedUrl || '');
         if (resp.success && resp.data && resp.data.items.length > 0) {
           imagePageCacheRef.current[p] = resp.data.items;
           console.log(`Prefetched TMAPI page ${p}: ${resp.data.items.length} items`);
@@ -618,7 +619,7 @@ const Index = () => {
         if (derivedKw.startsWith('__tmapi_path__')) {
           // Use TMAPI V2 with converted path for visual consistency
           const path = derivedKw.replace('__tmapi_path__', '');
-          const resp = await alibaba1688Api.searchByImage('', page, 20, path);
+          const resp = await alibaba1688Api.searchByImage('', page, 20, path, imageSearchConvertedUrl || '');
           if (resp.success && resp.data) {
             items = resp.data.items;
             total = resp.data.total;
