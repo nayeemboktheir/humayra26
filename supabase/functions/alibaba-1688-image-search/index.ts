@@ -226,17 +226,7 @@ async function fetchAndParse(
     return null;
   }
 
-  const items = rawItems.map((item: any) => ({
-    num_iid: parseInt(String(item.offer_id || item.item_id || item.num_iid || '0'), 10) || 0,
-    title: item.title || item.subject || '',
-    pic_url: item.pic_url || item.image_url || item.img || '',
-    price: parseFloat(String(item.price || item.original_price || '0')) || 0,
-    promotion_price: item.promotion_price ? parseFloat(String(item.promotion_price)) : undefined,
-    sales: parseInt(String(item.sales || item.monthly_sales || item.sold || '0'), 10) || undefined,
-    detail_url: item.detail_url || item.product_url || `https://detail.1688.com/offer/${item.offer_id || item.item_id || item.num_iid}.html`,
-    location: item.location || item.province || '',
-    vendor_name: item.seller_nick || item.shop_name || item.supplier || '',
-  }));
+  const items = rawItems.map(mapTmapiImageItem).filter((item: any) => item.num_iid && item.pic_url);
 
   console.log(`${epName}: ${items.length} items in ${Date.now() - startTime}ms`);
   return new Response(JSON.stringify({
