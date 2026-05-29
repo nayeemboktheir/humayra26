@@ -69,10 +69,11 @@ export const alibaba1688Api = {
     }
   },
 
-  async searchByImage(imageBase64: string, page = 1, pageSize = 40, imageUrl = ''): Promise<ApiResponse<{ items: Product1688[]; total: number }>> {
+  async searchByImage(imageBase64: string, page = 1, pageSize = 40, imageUrl = '', originalImageUrl = ''): Promise<ApiResponse<{ items: Product1688[]; total: number }>> {
     try {
       const body: any = { page, pageSize };
       if (imageUrl) body.imageUrl = imageUrl; else body.imageBase64 = imageBase64;
+      if (originalImageUrl) body.originalImageUrl = originalImageUrl;
       const { data, error } = await supabase.functions.invoke('alibaba-1688-image-search', { body });
       if (error) return { success: false, error: error.message };
       if (!data?.success) return { success: false, error: data?.error || 'Image search failed' };
