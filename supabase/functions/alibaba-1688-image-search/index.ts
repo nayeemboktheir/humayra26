@@ -7,6 +7,52 @@ const corsHeaders = {
 
 const TMAPI_BASE = 'http://api.tmapi.top/1688';
 
+function normalizeImg(u: string): string {
+  if (!u) return '';
+  if (u.startsWith('//')) return `https:${u}`;
+  return u;
+}
+
+function parseSold(v: any): number | undefined {
+  if (v == null || v === '') return undefined;
+  const s = String(v).trim().toLowerCase().replace(/\+|,/g, '');
+  const m = s.match(/^([\d.]+)\s*(k|w|万)?/);
+  if (!m) return undefined;
+  const n = parseFloat(m[1]) || 0;
+  const u = m[2];
+  if (u === 'k') return Math.round(n * 1000);
+  if (u === 'w' || u === '万') return Math.round(n * 10000);
+  return Math.round(n) || undefined;
+}
+
+function mapTmapiImageItem(item: any) {
+  const numIid = parseInt(String(item?.offer_id || item?.item_id || item?.num_iid || '0'), 10) || 0;
+  const picUrl = normalizeImg(item?.pic_url || item?.image_url || item?.img || '');
+  const price = parseFloat(String(
+    item?.price_info?.sale_price ||
+    item?.price_info?.price ||
+    item?.price ||
+    item?.original_price ||
+    '0'
+  )) || 0;
+  const areaFrom = Array.isArray(item?.delivery_info?.area_from)
+    ? item.delivery_info.area_from.join(' ')
+    : (item?.delivery_info?.location || item?.location || item?.province || '');
+
+  return {
+    num_iid: numIid,
+    title: item?.title || item?.subject || item?.title_origin || '',
+    pic_url: picUrl,
+    price,
+    promotion_price: item?.promotion_price ? parseFloat(String(item.promotion_price)) : undefined,
+    sales: parseSold(item?.sales ?? item?.monthly_sales ?? item?.sold ?? item?.sale_info?.sale_quantity_int ?? item?.sale_info?.sale_quantity_90days),
+    detail_url: item?.detail_url || item?.product_url || `https://detail.1688.com/offer/${numIid}.html`,
+    location: areaFrom,
+    vendor_name: item?.seller_nick || item?.shop_name || item?.supplier || item?.shop_info?.company_name || item?.shop_info?.shop_name || item?.shop_info?.login_id || '',
+    extra_images: picUrl ? [picUrl] : [],
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
