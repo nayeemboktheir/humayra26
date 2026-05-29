@@ -53,38 +53,6 @@ function mapTmapiImageItem(item: any) {
   };
 }
 
-function mapOtapiItem(item: any) {
-  const price = item?.Price?.OriginalPrice || 0;
-  const picUrl = normalizeImg(item?.MainPictureUrl || item?.Pictures?.[0]?.Url || item?.Pictures?.[0]?.Large?.Url || '');
-  const externalId = item?.Id || '';
-  const numIid = parseInt(String(externalId).replace(/^abb-/, ''), 10) || 0;
-  const featuredValues = Array.isArray(item?.FeaturedValues) ? item.FeaturedValues : [];
-  const totalSales = parseSold(featuredValues.find((v: any) => v?.Name === 'TotalSales')?.Value);
-  const pics = Array.isArray(item?.Pictures) ? item.Pictures : [];
-  return {
-    num_iid: numIid,
-    title: item?.Title || item?.OriginalTitle || '',
-    pic_url: picUrl,
-    price: typeof price === 'number' ? price : parseFloat(String(price)) || 0,
-    sales: totalSales,
-    detail_url: `https://detail.1688.com/offer/${numIid}.html`,
-    location: typeof item?.Location === 'string' ? item.Location : (item?.Location?.State || item?.Location?.City || ''),
-    vendor_name: item?.VendorName || item?.VendorDisplayName || '',
-    stock: item?.MasterQuantity || undefined,
-    weight: item?.PhysicalParameters?.Weight || undefined,
-    extra_images: pics.map((p: any) => normalizeImg(p?.Url || p?.Large?.Url || '')).filter(Boolean),
-  };
-}
-
-function escapeXml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -115,13 +83,13 @@ Deno.serve(async (req) => {
     const isAlicdn = imgUrl && (imgUrl.includes('alicdn.com') || imgUrl.includes('aliyuncs.com'));
     if (isAlicdn) {
       console.log(`Direct TMAPI search: alicdn URL, page ${page}`);
-      return await doImageSearchWithFallback(imgUrl, page, effectivePageSize, apiToken, startTime, imgUrl, imgUrl);
+      return await doImageSearch(imgUrl, page, effectivePageSize, apiToken, startTime, imgUrl, imgUrl);
     }
 
     // PATH 2: Already a converted path (starts with /) → use V2 endpoint directly
     if (imgUrl && imgUrl.startsWith('/')) {
       console.log(`V2 search with converted path, page ${page}`);
-      return await doImageSearchV2WithFallback(imgUrl, page, effectivePageSize, apiToken, startTime, imgUrl, originalUrl);
+      return await doImageSearchV2(imgUrl, page, effectivePageSize, apiToken, startTime, imgUrl, originalUrl);
     }
 
     // PATH 3: User-uploaded image (base64 or external URL) → convert first, then search with V2
@@ -139,11 +107,10 @@ Deno.serve(async (req) => {
 
     if (convertedPath && convertedPath !== imgUrl) {
       // Use V2 endpoint with the converted path
-      return await doImageSearchV2WithFallback(convertedPath, page, effectivePageSize, apiToken, startTime, convertedPath, originalUrl);
+      return await doImageSearchV2(convertedPath, page, effectivePageSize, apiToken, startTime, convertedPath, originalUrl);
     }
 
-    console.log('Convert failed, trying OTAPI image fallback');
-    return await doOtapiImageSearch(originalUrl || imgUrl, page, Math.max(effectivePageSize, 20), startTime, imgUrl, originalUrl || imgUrl);
+    return emptyResponse(imgUrl, originalUrl || imgUrl);
 
   } catch (error) {
     console.error('Error in image search:', error);
@@ -173,15 +140,6 @@ async function doImageSearch(
   return emptyResponse(convertedUrl, originalUrl);
 }
 
-async function doImageSearchWithFallback(
-  imgUrl: string, page: number, pageSize: number,
-  apiToken: string, startTime: number, convertedUrl: string, originalUrl: string = '',
-): Promise<Response> {
-  const tmapiResult = await doImageSearch(imgUrl, page, pageSize, apiToken, startTime, convertedUrl, originalUrl);
-  if (!(await isEmptySearchResponse(tmapiResult))) return tmapiResult;
-  return await doOtapiImageSearch(originalUrl || imgUrl, page, Math.max(pageSize, 20), startTime, convertedUrl, originalUrl || imgUrl);
-}
-
 // Search with V2 endpoint (for converted image paths from convert_url)
 async function doImageSearchV2(
   imgPath: string, page: number, pageSize: number,
@@ -200,16 +158,6 @@ async function doImageSearchV2(
   }
 
   return emptyResponse(convertedUrl, originalUrl);
-}
-
-async function doImageSearchV2WithFallback(
-  imgPath: string, page: number, pageSize: number,
-  apiToken: string, startTime: number, convertedUrl: string, originalUrl: string = '',
-): Promise<Response> {
-  const tmapiResult = await doImageSearchV2(imgPath, page, pageSize, apiToken, startTime, convertedUrl, originalUrl);
-  if (!(await isEmptySearchResponse(tmapiResult))) return tmapiResult;
-  if (!originalUrl || originalUrl.startsWith('/')) return tmapiResult;
-  return await doOtapiImageSearch(originalUrl, page, Math.max(pageSize, 20), startTime, convertedUrl, originalUrl);
 }
 
 // Shared fetch + parse logic
@@ -270,53 +218,6 @@ function emptyResponse(convertedUrl: string, originalUrl: string): Response {
   }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 }
 
-async function isEmptySearchResponse(response: Response): Promise<boolean> {
-  try {
-    const copy = response.clone();
-    const data = await copy.json();
-    return Boolean(data?.success && Array.isArray(data?.data?.items) && data.data.items.length === 0);
-  } catch {
-    return false;
-  }
-}
-
-async function doOtapiImageSearch(
-  imageUrl: string, page: number, pageSize: number, startTime: number, convertedUrl: string, originalUrl: string,
-): Promise<Response> {
-  const apiKey = Deno.env.get('OTCOMMERCE_API_KEY');
-  if (!apiKey || !imageUrl) return emptyResponse(convertedUrl, originalUrl);
-
-  const framePosition = (page - 1) * pageSize;
-  const xmlParams = `<SearchItemsParameters><EnableDirectSearch p2:nil="true" xmlns:p2="http://www.w3.org/2001/XMLSchema-instance" /><ImageUrl>${escapeXml(imageUrl)}</ImageUrl><Provider>Alibaba1688</Provider></SearchItemsParameters>`;
-  const url = `https://otapi.net/service-json/SearchItemsFrame?instanceKey=${encodeURIComponent(apiKey)}&language=en&xmlParameters=${encodeURIComponent(xmlParams)}&framePosition=${framePosition}&frameSize=${pageSize}`;
-
-  console.log(`Trying OTAPI image fallback, page ${page}...`);
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 25000);
-    const response = await fetch(url, { headers: { Accept: 'application/json' }, signal: controller.signal });
-    clearTimeout(timeout);
-    const data = await response.json();
-    if (!response.ok || (data?.ErrorCode && data.ErrorCode !== 'Ok' && data.ErrorCode !== 'None')) {
-      console.log('OTAPI fallback error:', data?.ErrorMessage || data?.ErrorCode || response.status);
-      return emptyResponse(convertedUrl, originalUrl);
-    }
-
-    const rawItems = data?.Result?.Items?.Content || [];
-    const total = data?.Result?.Items?.TotalCount || rawItems.length;
-    const items = rawItems.map(mapOtapiItem).filter((item: any) => item.num_iid && item.pic_url);
-    console.log(`OTAPI fallback: ${items.length} items in ${Date.now() - startTime}ms`);
-    return new Response(JSON.stringify({
-      success: true,
-      data: { items, total },
-      meta: { method: 'otapi_image_fallback', page, pageSize, convertedImageUrl: convertedUrl, originalImageUrl: originalUrl || convertedUrl },
-    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-  } catch (error) {
-    console.log('OTAPI fallback failed:', error instanceof Error ? error.message : error);
-    return emptyResponse(convertedUrl, originalUrl);
-  }
-}
-
 // Convert URL via TMAPI — returns image path for V2 endpoint
 async function convertImageUrl(imgUrl: string, apiToken: string): Promise<string> {
   try {
@@ -335,7 +236,6 @@ async function convertImageUrl(imgUrl: string, apiToken: string): Promise<string
     try { convertData = JSON.parse(rawText); } catch { return imgUrl; }
     if (convertData?.code === 200 && convertData?.data) {
       const d = convertData.data;
-      // The result is typically an image path like /search/imgextra5/...
       const result = d.image_url || d.img_url || d.url || (typeof d === 'string' ? d : '') || '';
       if (result) return result;
     }
