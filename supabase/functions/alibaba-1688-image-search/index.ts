@@ -142,13 +142,8 @@ Deno.serve(async (req) => {
       return await doImageSearchV2WithFallback(convertedPath, page, effectivePageSize, apiToken, startTime, convertedPath, originalUrl);
     }
 
-    // Convert failed — return empty so client can use OTAPI fallback
-    console.log('Convert failed, returning empty for OTAPI fallback');
-    return new Response(JSON.stringify({
-      success: true,
-      data: { items: [], total: 0 },
-      meta: { method: 'tmapi_image', convertedImageUrl: imgUrl, originalImageUrl: originalUrl, note: 'convert_failed' },
-    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    console.log('Convert failed, trying OTAPI image fallback');
+    return await doOtapiImageSearch(originalUrl || imgUrl, page, Math.max(effectivePageSize, 20), startTime, imgUrl, originalUrl || imgUrl);
 
   } catch (error) {
     console.error('Error in image search:', error);
