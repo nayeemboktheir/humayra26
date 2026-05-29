@@ -146,6 +146,15 @@ async function doImageSearch(
   return emptyResponse(convertedUrl, originalUrl);
 }
 
+async function doImageSearchWithFallback(
+  imgUrl: string, page: number, pageSize: number,
+  apiToken: string, startTime: number, convertedUrl: string, originalUrl: string = '',
+): Promise<Response> {
+  const tmapiResult = await doImageSearch(imgUrl, page, pageSize, apiToken, startTime, convertedUrl, originalUrl);
+  if (!(await isEmptySearchResponse(tmapiResult))) return tmapiResult;
+  return await doOtapiImageSearch(originalUrl || imgUrl, page, Math.max(pageSize, 20), startTime, convertedUrl, originalUrl || imgUrl);
+}
+
 // Search with V2 endpoint (for converted image paths from convert_url)
 async function doImageSearchV2(
   imgPath: string, page: number, pageSize: number,
@@ -164,6 +173,16 @@ async function doImageSearchV2(
   }
 
   return emptyResponse(convertedUrl, originalUrl);
+}
+
+async function doImageSearchV2WithFallback(
+  imgPath: string, page: number, pageSize: number,
+  apiToken: string, startTime: number, convertedUrl: string, originalUrl: string = '',
+): Promise<Response> {
+  const tmapiResult = await doImageSearchV2(imgPath, page, pageSize, apiToken, startTime, convertedUrl, originalUrl);
+  if (!(await isEmptySearchResponse(tmapiResult))) return tmapiResult;
+  if (!originalUrl || originalUrl.startsWith('/')) return tmapiResult;
+  return await doOtapiImageSearch(originalUrl, page, Math.max(pageSize, 20), startTime, convertedUrl, originalUrl);
 }
 
 // Shared fetch + parse logic
