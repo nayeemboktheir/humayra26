@@ -83,13 +83,13 @@ Deno.serve(async (req) => {
     const isAlicdn = imgUrl && (imgUrl.includes('alicdn.com') || imgUrl.includes('aliyuncs.com'));
     if (isAlicdn) {
       console.log(`Direct TMAPI search: alicdn URL, page ${page}`);
-      return await doImageSearch(imgUrl, page, effectivePageSize, apiToken, startTime, imgUrl, imgUrl);
+      return await doImageSearchWithFallback(imgUrl, page, effectivePageSize, apiToken, startTime, imgUrl, imgUrl);
     }
 
     // PATH 2: Already a converted path (starts with /) → use V2 endpoint directly
     if (imgUrl && imgUrl.startsWith('/')) {
       console.log(`V2 search with converted path, page ${page}`);
-      return await doImageSearchV2(imgUrl, page, effectivePageSize, apiToken, startTime, imgUrl, originalUrl);
+      return await doImageSearchV2WithFallback(imgUrl, page, effectivePageSize, apiToken, startTime, imgUrl, originalUrl);
     }
 
     // PATH 3: User-uploaded image (base64 or external URL) → convert first, then search with V2
@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
 
     if (convertedPath && convertedPath !== imgUrl) {
       // Use V2 endpoint with the converted path
-      return await doImageSearchV2(convertedPath, page, effectivePageSize, apiToken, startTime, convertedPath, originalUrl);
+      return await doImageSearchV2WithFallback(convertedPath, page, effectivePageSize, apiToken, startTime, convertedPath, originalUrl);
     }
 
     // Convert failed — return empty so client can use OTAPI fallback
