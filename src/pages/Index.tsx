@@ -740,24 +740,30 @@ const Index = () => {
     setSearchParams({ product: String(product.num_iid) });
     setIsLoadingProduct(true);
     setSelectedProduct(null);
-    const fallback: ProductDetail1688 = {
-      num_iid: product.num_iid,
-      title: product.title,
-      desc: '',
-      price: product.price,
-      pic_url: product.pic_url,
-      item_imgs: (product.extra_images?.length ? product.extra_images : [product.pic_url]).filter(Boolean).map(url => ({ url })),
-      location: product.location || '',
-      num: product.stock ? String(product.stock) : '',
-      min_num: 1,
-      props: [],
-      seller_info: { nick: product.vendor_name || '', shop_name: product.vendor_name || '', item_score: '', delivery_score: '', composite_score: '' },
-      total_sold: product.sales,
-      item_weight: product.weight,
+    const removeUnavailableProduct = () => {
+      setProducts(prev => prev.filter(p => p.num_iid !== product.num_iid));
+      setCategoryProducts(prev => prev.filter(p => p.num_iid !== product.num_iid));
+      setCategoryProductsMap(prev => {
+        const next = Object.fromEntries(
+          Object.entries(prev).map(([key, rows]) => [
+            key,
+            rows.filter((row: any) => parseInt(String(row.product_id).replace(/^abb-/, ''), 10) !== product.num_iid),
+          ])
+        );
+        _sessionCache.categoryProductsMap = next;
+        return next;
+      });
     };
-    setSelectedProduct(fallback);
     alibaba1688Api.getProduct(product.num_iid).then(result => {
-      if (result.success && result.data) setSelectedProduct(result.data);
+      if (result.success && result.data) {
+        setSelectedProduct(result.data);
+      } else {
+        removeUnavailableProduct();
+        const newParams = new URLSearchParams(searchParams);
+        newParams.delete('product');
+        setSearchParams(newParams, { replace: true });
+        toast.error("This product is no longer available");
+      }
     }).catch(err => console.error("Product details error:", err))
       .finally(() => setIsLoadingProduct(false));
   };
@@ -780,38 +786,17 @@ const Index = () => {
         setSelectedProduct(result.data);
       } else {
         removeUnavailableTrending();
-        // Still show the product page with a minimal fallback instead of navigating away
-        setSelectedProduct({
-          num_iid: numIid,
-          title: 'Product Details Unavailable',
-          desc: '',
-          price: 0,
-          pic_url: '/placeholder.svg',
-          item_imgs: [],
-          location: '',
-          num: '0',
-          min_num: 1,
-          props: [],
-          seller_info: { nick: '', shop_name: '', item_score: '', delivery_score: '', composite_score: '' },
-        });
-        toast.error("পণ্যের বিস্তারিত তথ্য পাওয়া যায়নি। পণ্যটি স্টকে নাও থাকতে পারে।");
+        const newParams = new URLSearchParams(searchParams);
+        newParams.delete('product');
+        setSearchParams(newParams, { replace: true });
+        toast.error("This product is no longer available");
       }
     } catch {
       removeUnavailableTrending();
-      setSelectedProduct({
-        num_iid: numIid,
-        title: 'Product Details Unavailable',
-        desc: '',
-        price: 0,
-        pic_url: '/placeholder.svg',
-        item_imgs: [],
-        location: '',
-        num: '0',
-        min_num: 1,
-        props: [],
-        seller_info: { nick: '', shop_name: '', item_score: '', delivery_score: '', composite_score: '' },
-      });
-      toast.error("পণ্যের বিস্তারিত তথ্য পাওয়া যায়নি।");
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('product');
+      setSearchParams(newParams, { replace: true });
+      toast.error("This product is no longer available");
     } finally {
       setIsLoadingProduct(false);
     }
