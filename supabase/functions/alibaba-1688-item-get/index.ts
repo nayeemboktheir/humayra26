@@ -7,31 +7,70 @@ const TMAPI_BASE = 'http://api.tmapi.top/1688';
 
 function normalizeImg(u: string): string {
   if (!u) return '';
-  if (u.startsWith('//')) return `https:${u}`;
-  return u;
+  let cleaned = u.trim().replace(/\\/g, '').replace(/^['"]+|['"]+$/g, '');
+  cleaned = cleaned.replace(/^https?:\/\/itemcdn\.tmall\.com\/%22(https?:\/\/[^%]+)%22\/?$/i, '$1');
+  cleaned = cleaned.replace(/^https?:\/\/itemcdn\.tmall\.com\/["']?(https?:\/\/[^"']+?)["']?\/?$/i, '$1');
+  cleaned = cleaned.replace(/&amp;/g, '&');
+  if (cleaned.startsWith('//')) return `https:${cleaned}`;
+  return cleaned;
 }
 
-function buildDescHtml(mainImgs: string[], props: any[]): string {
-  const imgsHtml = mainImgs.map(u => `<p><img src="${u}" /></p>`).join('');
-  const propsHtml = props.length
-    ? `<table>${props.map(p => {
-        const k = Object.keys(p)[0]; const v = p[k];
-        return `<tr><td><b>${k}</b></td><td>${v}</td></tr>`;
-      }).join('')}</table>`
-    : '';
-  return `${propsHtml}${imgsHtml}`;
+function uniqueImgs(urls: string[]): string[] {
+  const seen = new Set<string>();
+  return urls.map(normalizeImg).filter((url) => {
+    if (!url || seen.has(url)) return false;
+    seen.add(url);
+    return true;
+  });
 }
 
-function mapDetail(d: any, fallbackId: number) {
-  const mainImgs: string[] = (Array.isArray(d?.main_imgs) ? d.main_imgs : []).map(normalizeImg);
+async function fetchDetailImages(detailUrl?: string): Promise<string[]> {
+  if (!detailUrl) return [];
+  try {
+    const resp = await fetch(normalizeImg(detailUrl), { headers: { Accept: 'text/html,*/*' } });
+    if (!resp.ok) return [];
+    const text = await resp.text();
+    const decoded = text.replace(/\\u002F/g, '/').replace(/\\\//g, '/').replace(/\\"/g, '"');
+    const matches = [...decoded.matchAll(/https?:\/\/(?:cbu01|cbu02|cbu03|cbu04|img\.alicdn|gw\.alicdn)[^"'<>\s\\]+?\.(?:jpg|jpeg|png|webp)/gi)];
+    return uniqueImgs(matches.map((m) => m[0]));
+  } catch {
+    return [];
+  }
+}
+
+function parseNumber(value: any): number {
+  const n = parseFloat(String(value ?? '').replace(/,/g, ''));
+  return Number.isFinite(n) ? n : 0;
+}
+
+function parseIntSafe(value: any): number {
+  const n = parseInt(String(value ?? '').replace(/,/g, ''), 10);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function mapDetail(d: any, fallbackId: number, detailImgs: string[] = []) {
+  const mainImgs: string[] = uniqueImgs(Array.isArray(d?.main_imgs) ? d.main_imgs : []);
+  const descriptionImgs = detailImgs.length > 0 ? detailImgs : mainImgs;
   const props: any[] = Array.isArray(d?.product_props) ? d.product_props : [];
+
+  function buildDescHtml(imgs: string[], productProps: any[]): string {
+    const imgsHtml = imgs.map(u => `<p><img src="${u}" /></p>`).join('');
+    const propsHtml = productProps.length
+      ? `<table>${productProps.map(p => {
+          const k = Object.keys(p)[0]; const v = p[k];
+          return `<tr><td><b>${k}</b></td><td>${v}</td></tr>`;
+        }).join('')}</table>`
+      : '';
+    return `${propsHtml}${imgsHtml}`;
+  }
+
   const flatProps = props.map(p => {
     const k = Object.keys(p)[0]; return { name: k, value: String(p[k] ?? '') };
   });
-  const price = parseFloat(String(d?.price_info?.price || d?.price_info?.price_min || '0')) || 0;
-  const tiered = Array.isArray(d?.tiered_price_info?.prices) ? d.tiered_price_info.prices : [];
+  const price = parseNumber(d?.price_info?.price || d?.price_info?.price_min || d?.sku_price_range?.sku_param?.[0]?.price);
+  const tiered = Array.isArray(d?.tiered_price_info?.prices) ? d.tiered_price_info.prices : (Array.isArray(d?.sku_price_range?.sku_param) ? d.sku_price_range.sku_param : []);
   const priceRange = tiered.length > 1
-    ? tiered.map((t: any) => [parseInt(String(t.beginAmount || '1'), 10) || 1, parseFloat(String(t.price || '0')) || 0])
+    ? tiered.map((t: any) => [parseIntSafe(t.beginAmount || '1') || 1, parseNumber(t.price)])
     : undefined;
 
   // Build variant image map from sku_props (color usually has imageUrl)
