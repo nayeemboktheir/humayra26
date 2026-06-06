@@ -181,6 +181,7 @@ const Index = () => {
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [trendingProducts, setTrendingProducts] = useState(fallbackTrendingProducts);
+  const lastProductFetchRef = useRef<string | null>(null);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -816,16 +817,34 @@ const Index = () => {
     setSearchParams(newParams);
   };
 
-  // Load product or search from URL params on mount
+  // Keep product detail route fresh, including replacing any stale fallback detail state
+  useEffect(() => {
+    const productParam = searchParams.get('product');
+    if (!productParam || isLoadingProduct) return;
+
+    const numIid = parseInt(productParam);
+    if (isNaN(numIid) || numIid <= 0) return;
+
+    const isStaleFallback = selectedProduct?.num_iid === numIid && (
+      selectedProduct.title === 'Product Details Unavailable' ||
+      (!selectedProduct.desc && (!selectedProduct.props || selectedProduct.props.length === 0) && (!selectedProduct.configuredItems || selectedProduct.configuredItems.length === 0))
+    );
+    const shouldFetchProduct = !selectedProduct || selectedProduct.num_iid !== numIid || isStaleFallback;
+    const fetchKey = `${numIid}:${isStaleFallback ? 'fallback' : 'load'}`;
+
+    if (shouldFetchProduct && lastProductFetchRef.current !== fetchKey) {
+      lastProductFetchRef.current = fetchKey;
+      handleTrendingClick(`abb-${numIid}`);
+    }
+  }, [searchParams, selectedProduct?.num_iid, selectedProduct?.title, selectedProduct?.desc, selectedProduct?.props?.length, selectedProduct?.configuredItems?.length, isLoadingProduct]);
+
+  // Load search/category from URL params on mount
   useEffect(() => {
     const productParam = searchParams.get('product');
     const qParam = searchParams.get('q');
     const pageParam = searchParams.get('page');
-    if (productParam && !selectedProduct && !isLoadingProduct) {
-      const numIid = parseInt(productParam);
-      if (!isNaN(numIid) && numIid > 0) {
-        handleTrendingClick(`abb-${numIid}`);
-      }
+    if (productParam) {
+      return;
     } else if (qParam && !hasSearched) {
       setQuery(qParam);
       performSearch(qParam, pageParam ? parseInt(pageParam) : 1);
