@@ -764,8 +764,14 @@ const Index = () => {
         setSearchParams(newParams, { replace: true });
         toast.error("This product is no longer available");
       }
-    }).catch(err => console.error("Product details error:", err))
-      .finally(() => setIsLoadingProduct(false));
+    }).catch(err => {
+      console.error("Product details error:", err);
+      removeUnavailableProduct();
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('product');
+      setSearchParams(newParams, { replace: true });
+      toast.error("This product is no longer available");
+    }).finally(() => setIsLoadingProduct(false));
   };
 
   const handleTrendingClick = async (productId: string) => {
