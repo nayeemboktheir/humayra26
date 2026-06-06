@@ -234,8 +234,10 @@ const Index = () => {
       if (_sessionCache.trendingProducts) {
         setTrendingProducts(_sessionCache.trendingProducts);
         if (isMounted) setIsTrendingLoaded(true);
-        // Silently refresh in background for NEXT visit (don't block UI)
-        supabase.functions.invoke("refresh-trending-products").catch(() => {});
+        // Refresh in background and replace stale session products on this visit too.
+        supabase.functions.invoke("refresh-trending-products").then(async () => {
+          if (isMounted) await loadTrendingFromDatabase();
+        }).catch(() => {});
         return;
       }
 
@@ -765,11 +767,19 @@ const Index = () => {
     setIsLoadingProduct(true);
     setSelectedProduct(null);
     setSearchParams({ product: String(numIid) });
+    const removeUnavailableTrending = () => {
+      setTrendingProducts(prev => {
+        const next = prev.filter(p => String(p.id).replace(/^abb-/, '') !== String(numIid));
+        _sessionCache.trendingProducts = next;
+        return next;
+      });
+    };
     try {
       const result = await alibaba1688Api.getProduct(numIid);
       if (result.success && result.data) {
         setSelectedProduct(result.data);
       } else {
+        removeUnavailableTrending();
         // Still show the product page with a minimal fallback instead of navigating away
         setSelectedProduct({
           num_iid: numIid,
@@ -787,6 +797,7 @@ const Index = () => {
         toast.error("পণ্যের বিস্তারিত তথ্য পাওয়া যায়নি। পণ্যটি স্টকে নাও থাকতে পারে।");
       }
     } catch {
+      removeUnavailableTrending();
       setSelectedProduct({
         num_iid: numIid,
         title: 'Product Details Unavailable',
