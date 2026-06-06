@@ -94,13 +94,13 @@ function mapDetail(d: any, fallbackId: number, detailImgs: string[] = []) {
       id: String(s?.skuid || ''),
       title: String(s?.props_names || '').replace(/;/g, ' / '),
       imageUrl,
-      price: parseFloat(String(s?.sale_price || price)) || price,
-      stock: parseInt(String(s?.stock || '0'), 10) || 0,
+      price: parseNumber(s?.sale_price || price) || price,
+      stock: parseIntSafe(s?.stock),
     };
   });
 
-  const totalStock = parseInt(String(d?.stock || '0'), 10) || configuredItems.reduce((s: number, c: any) => s + (c.stock || 0), 0);
-  const minNum = parseInt(String(d?.tiered_price_info?.begin_num || d?.mixed_batch?.mix_begin || '1'), 10) || 1;
+  const totalStock = parseIntSafe(d?.stock) || configuredItems.reduce((s: number, c: any) => s + (c.stock || 0), 0);
+  const minNum = parseIntSafe(d?.tiered_price_info?.begin_num || d?.mixed_batch?.mix_begin || '1') || 1;
   const firstSkuWeight = rawSkus[0]?.package_info?.weight;
   const totalSold = parseInt(String(d?.sale_count || d?.sale_info?.sale_quantity_90days || '0'), 10) || undefined;
   const shop = d?.shop_info || {};
@@ -108,11 +108,11 @@ function mapDetail(d: any, fallbackId: number, detailImgs: string[] = []) {
   return {
     num_iid: parseInt(String(d?.item_id || fallbackId), 10) || fallbackId,
     title: d?.title || '',
-    desc: buildDescHtml(mainImgs, props),
+    desc: buildDescHtml(descriptionImgs, props),
     price,
     pic_url: mainImgs[0] || '',
     item_imgs: mainImgs.map(u => ({ url: u })),
-    desc_img: mainImgs,
+    desc_img: descriptionImgs,
     location: d?.delivery_info?.location || '',
     num: String(totalStock || ''),
     min_num: minNum,
@@ -158,7 +158,8 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ success: false, error: err }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
-    const mapped = mapDetail(data?.data || {}, parseInt(cleanId, 10) || 0);
+    const detailImages = await fetchDetailImages(data?.data?.detail_url);
+    const mapped = mapDetail(data?.data || {}, parseInt(cleanId, 10) || 0, detailImages);
     return new Response(JSON.stringify({ success: true, data: mapped }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error) {
