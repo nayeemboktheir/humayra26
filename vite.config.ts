@@ -53,6 +53,15 @@ export default defineConfig(({ mode }) => ({
       },
     }),
   ].filter(Boolean),
+  build: {
+    rollupOptions: {
+      output: {
+        // Hostinger has been rate-limiting many parallel JS chunk requests on the live domain.
+        // Keep the SPA in a single JS bundle so product pages do not fail while loading lazy chunks.
+        inlineDynamicImports: true,
+      },
+    },
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
