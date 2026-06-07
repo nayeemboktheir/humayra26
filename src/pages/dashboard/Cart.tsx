@@ -153,11 +153,15 @@ export default function Cart() {
                   src={item.product_image || "/placeholder.svg"}
                   alt=""
                   referrerPolicy="no-referrer"
-                  className="w-20 h-20 rounded-lg object-cover border flex-shrink-0"
+                  className="w-20 h-20 rounded-lg object-cover border flex-shrink-0 cursor-pointer"
+                  onClick={() => navigate(`/?product=${item.product_id}`)}
                   onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder.svg"; }}
                 />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold line-clamp-2 leading-tight">{item.product_name}</p>
+                  <p
+                    className="text-sm font-semibold line-clamp-2 leading-tight cursor-pointer hover:text-primary"
+                    onClick={() => navigate(`/?product=${item.product_id}`)}
+                  >{item.product_name}</p>
                   {item.variant_name && (
                     <p className="text-xs text-muted-foreground mt-0.5 truncate">{item.variant_name}</p>
                   )}
