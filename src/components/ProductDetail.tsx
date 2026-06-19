@@ -875,7 +875,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                       <div className="space-y-2">
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-muted-foreground">{qty} {qty === 1 ? 'Piece' : 'Pieces'}</span>
-                          <span className="font-semibold">৳{domesticBDT.toLocaleString()}</span>
+                          <span className="font-semibold">৳{totalSelectedPrice.toLocaleString()}</span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-base font-semibold">China Local Delivery</span>
