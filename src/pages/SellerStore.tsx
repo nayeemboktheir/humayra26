@@ -57,18 +57,6 @@ export default function SellerStore() {
 
       if (!error && data?.success) {
         const items: SellerProduct[] = data.data?.items || [];
-        // Translate Chinese titles to English in batch
-        try {
-          const titles = items.map((it) => it.title || '');
-          const hasChinese = titles.some((t) => /[\u4e00-\u9fff]/.test(t));
-          if (hasChinese && titles.length > 0) {
-            const { data: tData } = await supabase.functions.invoke('translate-text', { body: { texts: titles } });
-            const translations: string[] = tData?.translations || [];
-            if (translations.length === titles.length) {
-              items.forEach((it, i) => { it.title = translations[i] || it.title; });
-            }
-          }
-        } catch {}
         const newProducts = append ? [...products, ...items] : items;
         setProducts(newProducts);
         const newTotal = data.data?.total || 0;

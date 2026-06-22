@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
     // TMAPI requires member_id with `b2b-` prefix
     const memberId = vendorId.startsWith('b2b-') ? vendorId : `b2b-${vendorId}`;
     const ps = Math.min(Math.max(pageSize, 1), 40);
-    const url = `http://api.tmapi.top/1688/shop/items?apiToken=${encodeURIComponent(apiToken)}&member_id=${encodeURIComponent(memberId)}&page=${page}&page_size=${ps}`;
+    const url = `http://api.tmapi.top/1688/shop/items?apiToken=${encodeURIComponent(apiToken)}&member_id=${encodeURIComponent(memberId)}&page=${page}&page_size=${ps}&language=en`;
     const response = await fetch(url, { headers: { Accept: 'application/json' } });
     const json = await response.json();
     if (!response.ok || json?.code !== 200) {
