@@ -4,6 +4,6 @@ Deno.serve(async (req) => {
   const apiToken = Deno.env.get('TMAPI_TOKEN') || '';
   const url = `http://api.tmapi.top/1688/item_get?apiToken=${apiToken}&item_id=623411225368`;
   const r = await fetch(url);
-  const j = await r.json();
-  return new Response(JSON.stringify({ shop_info: j?.data?.shop_info, keys: Object.keys(j?.data || {}) }, null, 2), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  const text = await r.text();
+  return new Response(text.slice(0, 4000), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 });
