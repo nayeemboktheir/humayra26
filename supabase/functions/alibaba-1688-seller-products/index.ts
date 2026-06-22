@@ -3,36 +3,51 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+function normalizeImg(u: string): string {
+  if (!u) return '';
+  if (u.startsWith('//')) return `https:${u}`;
+  return u;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
   try {
     const { vendorId, page = 1, pageSize = 40 } = await req.json();
-    if (!vendorId) return new Response(JSON.stringify({ success: false, error: 'vendorId is required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    const apiKey = Deno.env.get('OTCOMMERCE_API_KEY');
-    if (!apiKey) return new Response(JSON.stringify({ success: false, error: 'API not configured' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    const framePosition = (page - 1) * pageSize;
-    const xmlParams = `<SearchItemsParameters><VendorId>${vendorId}</VendorId><Provider>Alibaba1688</Provider></SearchItemsParameters>`;
-    const url = `https://otapi.net/service-json/SearchItemsFrame?instanceKey=${encodeURIComponent(apiKey)}&language=en&xmlParameters=${encodeURIComponent(xmlParams)}&framePosition=${framePosition}&frameSize=${pageSize}`;
-    const response = await fetch(url, { method: 'GET', headers: { 'Accept': 'application/json' } });
-    const data = await response.json();
-    if (!response.ok || (data?.ErrorCode && data.ErrorCode !== 'Ok' && data.ErrorCode !== 'None')) {
-      const err = data?.ErrorMessage || data?.ErrorCode || `Request failed: ${response.status}`;
-      return new Response(JSON.stringify({ success: false, error: err }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    if (!vendorId) {
+      return new Response(JSON.stringify({ success: false, error: 'vendorId is required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
-    const rawItems = data?.Result?.Items?.Content || [];
-    const totalCount = data?.Result?.Items?.TotalCount || 0;
-    const items = rawItems.map((item: any) => {
-      const price = item?.Price?.OriginalPrice || 0;
-      const picUrl = item?.MainPictureUrl || item?.Pictures?.[0]?.Url || '';
-      const externalId = item?.Id || '';
-      const numIid = parseInt(externalId.replace(/^abb-/, ''), 10) || 0;
-      const featuredValues = Array.isArray(item?.FeaturedValues) ? item.FeaturedValues : [];
-      const totalSales = parseInt(featuredValues.find((v: any) => v?.Name === 'TotalSales')?.Value || '0', 10) || undefined;
-      const pics = Array.isArray(item?.Pictures) ? item.Pictures : [];
-      return { num_iid: numIid, title: item?.Title || '', pic_url: picUrl, price: typeof price === 'number' ? price : parseFloat(price) || 0, sales: totalSales, detail_url: `/?product=${numIid}`, extra_images: pics.map((p: any) => p?.Url || p?.Large?.Url || '').filter(Boolean), vendor_name: item?.VendorName || item?.VendorDisplayName || '', stock: item?.MasterQuantity || undefined, weight: item?.PhysicalParameters?.Weight || undefined };
+    const apiToken = Deno.env.get('TMAPI_TOKEN');
+    if (!apiToken) {
+      return new Response(JSON.stringify({ success: false, error: 'API not configured' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    // TMAPI requires member_id with `b2b-` prefix
+    const memberId = vendorId.startsWith('b2b-') ? vendorId : `b2b-${vendorId}`;
+    const ps = Math.min(Math.max(pageSize, 1), 40);
+    const url = `http://api.tmapi.top/1688/shop/items?apiToken=${encodeURIComponent(apiToken)}&member_id=${encodeURIComponent(memberId)}&page=${page}&page_size=${ps}`;
+    const response = await fetch(url, { headers: { Accept: 'application/json' } });
+    const json = await response.json();
+    if (!response.ok || json?.code !== 200) {
+      return new Response(JSON.stringify({ success: false, error: json?.msg || `Request failed: ${response.status}` }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    const data = json?.data || {};
+    const rawItems: any[] = Array.isArray(data?.items) ? data.items : [];
+    const items = rawItems.map((it: any) => {
+      const numIid = parseInt(String(it?.item_id || '0'), 10) || 0;
+      const price = parseFloat(String(it?.price_info?.sale_price || it?.price_info?.wholesale_price || it?.price_info?.drop_ship_price || it?.price || '0')) || 0;
+      const sales = parseInt(String(it?.sale_info?.sale_quantity ?? it?.sale_info?.orders_count ?? '0'), 10) || undefined;
+      return {
+        num_iid: numIid,
+        title: it?.title || '',
+        pic_url: normalizeImg(it?.img || ''),
+        price,
+        sales,
+        detail_url: `/?product=${numIid}`,
+        vendor_name: '',
+      };
     });
-    const firstItem = rawItems[0];
-    const vendorInfo = firstItem ? { name: firstItem?.VendorName || firstItem?.VendorDisplayName || '', score: firstItem?.VendorScore || 0, location: firstItem?.Location?.State || firstItem?.Location?.City || '' } : null;
+    const totalCount = data?.total_count || items.length;
+    // Try to enrich vendor info from first item; TMAPI shop/items doesn't include shop_info, leave name/location null.
+    const vendorInfo = { name: '', score: 0, location: '' };
     return new Response(JSON.stringify({ success: true, data: { items, total: totalCount, vendorInfo } }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error) {
     return new Response(JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Failed' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
