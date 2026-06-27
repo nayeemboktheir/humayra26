@@ -32,6 +32,7 @@ import Actions from "./pages/dashboard/Actions";
 import RFQ from "./pages/dashboard/RFQ";
 import Wishlist from "./pages/dashboard/Wishlist";
 import Notifications from "./pages/dashboard/Notifications";
+import Messages from "./pages/dashboard/Messages";
 import Balance from "./pages/dashboard/Balance";
 import Withdrawal from "./pages/dashboard/Withdrawal";
 import Transactions from "./pages/dashboard/Transactions";
@@ -122,6 +123,7 @@ const App = () => (
               <Route path="/dashboard/rfq" element={<DashboardRoute><RFQ /></DashboardRoute>} />
               <Route path="/dashboard/wishlist" element={<DashboardRoute><Wishlist /></DashboardRoute>} />
               <Route path="/dashboard/notifications" element={<DashboardRoute><Notifications /></DashboardRoute>} />
+              <Route path="/dashboard/messages" element={<DashboardRoute><Messages /></DashboardRoute>} />
               <Route path="/dashboard/balance" element={<DashboardRoute><Balance /></DashboardRoute>} />
               <Route path="/dashboard/withdrawal" element={<DashboardRoute><Withdrawal /></DashboardRoute>} />
               <Route path="/dashboard/transactions" element={<DashboardRoute><Transactions /></DashboardRoute>} />
