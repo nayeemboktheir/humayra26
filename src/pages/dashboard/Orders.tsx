@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import EmptyState from "@/components/dashboard/EmptyState";
 import OrderInvoice from "@/components/OrderInvoice";
-import { Loader2, FileText } from "lucide-react";
+import { Loader2, FileText, Lock } from "lucide-react";
 
 const statusColor: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-800",
@@ -14,6 +14,15 @@ const statusColor: Record<string, string> = {
   shipped: "bg-purple-100 text-purple-800",
   delivered: "bg-green-100 text-green-800",
   cancelled: "bg-red-100 text-red-800",
+};
+
+const isPaid = (ps?: string) => ps === "paid" || ps === "completed";
+
+const paymentBadge = (ps?: string) => {
+  if (isPaid(ps)) return { label: "Paid", cls: "bg-emerald-100 text-emerald-800 border-emerald-200" };
+  if (ps === "partial" || ps === "deposit" || ps === "partially_paid") return { label: "70% Deposit", cls: "bg-blue-100 text-blue-800 border-blue-200" };
+  if (ps === "failed") return { label: "Failed", cls: "bg-red-100 text-red-800 border-red-200" };
+  return { label: "Unpaid", cls: "bg-amber-100 text-amber-800 border-amber-200" };
 };
 
 const Orders = () => {
@@ -42,34 +51,48 @@ const Orders = () => {
                 <TableHead>Product</TableHead>
                 <TableHead>Qty</TableHead>
                 <TableHead>Total</TableHead>
+                <TableHead>Payment</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Invoice</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {orders.map((order) => (
-                <TableRow key={order.id}>
-                  <TableCell className="font-mono text-sm">{order.order_number}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      {order.product_image && <img src={order.product_image} alt="" className="h-10 w-10 rounded object-cover" referrerPolicy="no-referrer" />}
-                      <span className="line-clamp-2 text-sm">{order.product_name}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>{order.quantity}</TableCell>
-                  <TableCell>৳{Number(order.total_price).toLocaleString()}</TableCell>
-                  <TableCell>
-                    <Badge className={statusColor[order.status] || ""}>{order.status}</Badge>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{new Date(order.created_at).toLocaleDateString()}</TableCell>
-                  <TableCell>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setInvoiceOrder(order)}>
-                      <FileText className="h-4 w-4 text-primary" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {orders.map((order) => {
+                const pb = paymentBadge(order.payment_status);
+                const paid = isPaid(order.payment_status);
+                return (
+                  <TableRow key={order.id}>
+                    <TableCell className="font-mono text-sm">{order.order_number}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {order.product_image && <img src={order.product_image} alt="" className="h-10 w-10 rounded object-cover" referrerPolicy="no-referrer" />}
+                        <span className="line-clamp-2 text-sm">{order.product_name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{order.quantity}</TableCell>
+                    <TableCell>৳{Number(order.total_price).toLocaleString()}</TableCell>
+                    <TableCell>
+                      <Badge className={`${pb.cls} border text-[10px]`}>{pb.label}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={statusColor[order.status] || ""}>{order.status}</Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{new Date(order.created_at).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      {paid ? (
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setInvoiceOrder(order)} title="View invoice">
+                          <FileText className="h-4 w-4 text-primary" />
+                        </Button>
+                      ) : (
+                        <span title="Available after payment" className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                          <Lock className="h-3 w-3" /> Locked
+                        </span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>

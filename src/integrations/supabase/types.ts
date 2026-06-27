@@ -20,8 +20,11 @@ export type Database = {
           id: string
           is_read: boolean
           message: string
+          order_id: string | null
+          sender_role: string
           sent_by: string | null
           subject: string
+          thread_id: string | null
           user_id: string
         }
         Insert: {
@@ -29,8 +32,11 @@ export type Database = {
           id?: string
           is_read?: boolean
           message: string
+          order_id?: string | null
+          sender_role?: string
           sent_by?: string | null
           subject: string
+          thread_id?: string | null
           user_id: string
         }
         Update: {
@@ -38,11 +44,22 @@ export type Database = {
           id?: string
           is_read?: boolean
           message?: string
+          order_id?: string | null
+          sender_role?: string
           sent_by?: string | null
           subject?: string
+          thread_id?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "admin_messages_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       app_settings: {
         Row: {

@@ -6,7 +6,7 @@ import {
   LayoutDashboard, ShoppingCart, Truck, Package, Ship, AlertCircle,
   FileText, Heart, Bell, Wallet, CreditCard, ArrowDownToLine,
   Receipt, RefreshCcw, UserCircle, Info, ChevronDown, ChevronRight,
-  LogOut, Menu, X
+  LogOut, Menu, X, MessageSquare
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -36,6 +36,7 @@ const navItems: NavItem[] = [
   { label: "Action Needed", icon: AlertCircle, path: "/dashboard/actions" },
   { label: "RFQ Management", icon: FileText, path: "/dashboard/rfq" },
   { label: "Wishlist", icon: Heart, path: "/dashboard/wishlist" },
+  { label: "Messages", icon: MessageSquare, path: "/dashboard/messages" },
   { label: "Notification", icon: Bell, path: "/dashboard/notifications" },
   {
     label: "My Wallet", icon: Wallet,
