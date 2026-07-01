@@ -161,6 +161,18 @@ function mapDetail(d: any, fallbackId: number, detailImgs: string[] = []) {
     };
   });
 
+  const sellerInfo = {
+    nick: shop?.seller_login_id || shop?.shop_name || '',
+    shop_name: shop?.shop_name || '',
+    vendor_id: shop?.seller_member_id || shop?.member_id || shop?.seller_user_id || shop?.user_id || '',
+    item_score: '',
+    delivery_score: '',
+    composite_score: '',
+    rating: '',
+    service_score: '',
+    total_sales: totalSold,
+  };
+
   return {
     num_iid: itemId,
     title: d?.title || '',
@@ -176,17 +188,8 @@ function mapDetail(d: any, fallbackId: number, detailImgs: string[] = []) {
     props: flatProps,
     priceRange,
     configuredItems: configuredItems.length > 0 ? configuredItems : undefined,
-    i_info: {
-      nick: shop?.seller_login_id || shop?.shop_name || '',
-      shop_name: shop?.shop_name || '',
-      vendor_id: shop?.seller_member_id || shop?.member_id || shop?.seller_user_id || shop?.user_id || '',
-      item_score: '',
-      delivery_score: '',
-      composite_score: '',
-      rating: '',
-      service_score: '',
-      total_sales: totalSold,
-    },
+    seller_info: sellerInfo,
+    i_info: sellerInfo,
     total_sold: totalSold,
     item_weight: typeof firstSkuWeight === 'number' && firstSkuWeight > 0 ? firstSkuWeight : (d?.delivery_info?.unit_weight || undefined),
     Result: {
