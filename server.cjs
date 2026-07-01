@@ -46,7 +46,9 @@ http.createServer((req, res) => {
   const contentType = mime[ext] || 'application/octet-stream';
 
   // Cache static assets, no-cache for HTML
-  const cacheControl = ext === '.html'
+  const baseName = path.basename(filePath).toLowerCase();
+  const noCacheFiles = new Set(['index.html', 'favicon.ico', 'favicon.png', 'manifest.webmanifest', 'sw.js']);
+  const cacheControl = noCacheFiles.has(baseName)
     ? 'no-cache, no-store, must-revalidate'
     : 'public, max-age=31536000, immutable';
 
