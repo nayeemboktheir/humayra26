@@ -5,6 +5,17 @@ const corsHeaders = {
 
 const TMAPI_BASE = 'http://api.tmapi.top/1688';
 
+function isNetworkFailure(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  return /dns error|failed to lookup|Name or service not known|Connect|network|fetch failed/i.test(message);
+}
+
+function safeErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  if (isNetworkFailure(error)) return 'TMAPI is temporarily unreachable. Please try again shortly.';
+  return message.replace(/apiToken=[^&\s)]+/g, 'apiToken=REDACTED') || 'Failed to get product';
+}
+
 function normalizeImg(u: string): string {
   if (!u) return '';
   let cleaned = u.trim().replace(/\\/g, '').replace(/^['"]+|['"]+$/g, '');
@@ -236,7 +247,12 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ success: true, data: mapped }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error) {
-    return new Response(JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Failed to get product' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    const retryable = isNetworkFailure(error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: safeErrorMessage(error),
+      retryable,
+    }),
+      { status: retryable ? 200 : 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
