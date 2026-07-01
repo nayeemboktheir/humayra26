@@ -39,7 +39,7 @@ export interface ProductDetail1688 {
   item_weight?: number;
 }
 
-type ApiResponse<T = any> = { success: boolean; error?: string; data?: T; meta?: any; };
+type ApiResponse<T = any> = { success: boolean; error?: string; data?: T; meta?: any; retryable?: boolean; };
 
 function getFeaturedValue(item: any, name: string): string {
   const arr = Array.isArray(item?.FeaturedValues) ? item.FeaturedValues : [];
@@ -174,7 +174,7 @@ export const alibaba1688Api = {
         await new Promise(r => setTimeout(r, 3000));
         return this.getProduct(numIid, _retries + 1);
       }
-      if (!data?.success) return { success: false, error: data?.error || 'Failed to get product' };
+      if (!data?.success) return { success: false, error: data?.error || 'Failed to get product', retryable: Boolean(data?.retryable) };
       // TMAPI edge function returns already-mapped ProductDetail1688 shape
       const detail = data.data as ProductDetail1688;
       if (!detail || !detail.num_iid) return { success: false, error: 'Product not found' };

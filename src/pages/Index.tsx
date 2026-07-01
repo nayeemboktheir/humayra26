@@ -736,10 +736,83 @@ const Index = () => {
     return () => document.removeEventListener('paste', handlePaste);
   }, [isLoading]);
 
+  const buildCachedProductDetail = (productLike: {
+    id?: string | number;
+    num_iid?: string | number;
+    product_id?: string | number;
+    title?: string;
+    image?: string;
+    image_url?: string;
+    pic_url?: string;
+    price?: number | string;
+    sold?: number | string;
+    sales?: number | string;
+    location?: string;
+    vendor_name?: string;
+  }): ProductDetail1688 | null => {
+    const rawId = productLike.num_iid ?? productLike.product_id ?? productLike.id;
+    const numIid = parseInt(String(rawId ?? '').replace(/^abb-/, ''), 10);
+    if (!numIid) return null;
+
+    const image = String(productLike.pic_url || productLike.image_url || productLike.image || '/placeholder.svg');
+    const sold = Number(productLike.sold ?? productLike.sales ?? 0) || undefined;
+
+    return {
+      num_iid: numIid,
+      title: productLike.title || 'Product details are loading',
+      desc: '',
+      price: Number(productLike.price) || 0,
+      pic_url: image,
+      item_imgs: image ? [{ url: image }] : [],
+      desc_img: image ? [image] : [],
+      location: productLike.location || 'China',
+      num: '',
+      min_num: 1,
+      props: [],
+      seller_info: {
+        nick: productLike.vendor_name || '',
+        shop_name: productLike.vendor_name || '',
+        vendor_id: '',
+        item_score: '',
+        delivery_score: '',
+        composite_score: '',
+        rating: '',
+        service_score: '',
+        total_sales: sold,
+      },
+      total_sold: sold,
+    };
+  };
+
+  const findCachedProductDetail = (numIid: number, directProduct?: Product1688): ProductDetail1688 | null => {
+    if (directProduct) return buildCachedProductDetail(directProduct);
+
+    const trending = trendingProducts.find(p => String(p.id).replace(/^abb-/, '') === String(numIid));
+    if (trending) return buildCachedProductDetail(trending);
+
+    const searchProduct = products.find(p => p.num_iid === numIid);
+    if (searchProduct) return buildCachedProductDetail(searchProduct);
+
+    for (const rows of Object.values(categoryProductsMap)) {
+      const row = rows.find((p: any) => parseInt(String(p.product_id).replace(/^abb-/, ''), 10) === numIid);
+      if (row) return buildCachedProductDetail(row);
+    }
+
+    return null;
+  };
+
+  const showCachedDetailFallback = (fallback: ProductDetail1688 | null) => {
+    if (!fallback) return false;
+    setSelectedProduct(fallback);
+    toast.info('Product details are temporarily unavailable; showing cached product info.');
+    return true;
+  };
+
   const handleProductClick = (product: Product1688) => {
     setSearchParams({ product: String(product.num_iid) });
     setIsLoadingProduct(true);
     setSelectedProduct(null);
+    const fallbackDetail = buildCachedProductDetail(product);
     const removeUnavailableProduct = () => {
       setProducts(prev => prev.filter(p => p.num_iid !== product.num_iid));
       setCategoryProducts(prev => prev.filter(p => p.num_iid !== product.num_iid));
@@ -758,6 +831,8 @@ const Index = () => {
       if (result.success && result.data) {
         setSelectedProduct(result.data);
       } else {
+        if (showCachedDetailFallback(fallbackDetail)) return;
+        if (result.retryable) return;
         removeUnavailableProduct();
         const newParams = new URLSearchParams(searchParams);
         newParams.delete('product');
@@ -766,6 +841,7 @@ const Index = () => {
       }
     }).catch(err => {
       console.error("Product details error:", err);
+      if (showCachedDetailFallback(fallbackDetail)) return;
       removeUnavailableProduct();
       const newParams = new URLSearchParams(searchParams);
       newParams.delete('product');
@@ -779,6 +855,7 @@ const Index = () => {
     setIsLoadingProduct(true);
     setSelectedProduct(null);
     setSearchParams({ product: String(numIid) });
+    const fallbackDetail = findCachedProductDetail(numIid);
     const removeUnavailableTrending = () => {
       setTrendingProducts(prev => {
         const next = prev.filter(p => String(p.id).replace(/^abb-/, '') !== String(numIid));
@@ -791,6 +868,8 @@ const Index = () => {
       if (result.success && result.data) {
         setSelectedProduct(result.data);
       } else {
+        if (showCachedDetailFallback(fallbackDetail)) return;
+        if (result.retryable) return;
         removeUnavailableTrending();
         const newParams = new URLSearchParams(searchParams);
         newParams.delete('product');
@@ -798,6 +877,7 @@ const Index = () => {
         toast.error("This product is no longer available");
       }
     } catch {
+      if (showCachedDetailFallback(fallbackDetail)) return;
       removeUnavailableTrending();
       const newParams = new URLSearchParams(searchParams);
       newParams.delete('product');

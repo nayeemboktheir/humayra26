@@ -5,6 +5,17 @@ const corsHeaders = {
 
 const TMAPI_BASE = 'http://api.tmapi.top/1688';
 
+function isNetworkFailure(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  return /dns error|failed to lookup|Name or service not known|Connect|network|fetch failed/i.test(message);
+}
+
+function safeErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  if (isNetworkFailure(error)) return 'TMAPI is temporarily unreachable. Please try again shortly.';
+  return message.replace(/apiToken=[^&\s)]+/g, 'apiToken=REDACTED') || 'Failed to get product';
+}
+
 function normalizeImg(u: string): string {
   if (!u) return '';
   let cleaned = u.trim().replace(/\\/g, '').replace(/^['"]+|['"]+$/g, '');
@@ -150,6 +161,18 @@ function mapDetail(d: any, fallbackId: number, detailImgs: string[] = []) {
     };
   });
 
+  const sellerInfo = {
+    nick: shop?.seller_login_id || shop?.shop_name || '',
+    shop_name: shop?.shop_name || '',
+    vendor_id: shop?.seller_member_id || shop?.member_id || shop?.seller_user_id || shop?.user_id || '',
+    item_score: '',
+    delivery_score: '',
+    composite_score: '',
+    rating: '',
+    service_score: '',
+    total_sales: totalSold,
+  };
+
   return {
     num_iid: itemId,
     title: d?.title || '',
@@ -165,17 +188,8 @@ function mapDetail(d: any, fallbackId: number, detailImgs: string[] = []) {
     props: flatProps,
     priceRange,
     configuredItems: configuredItems.length > 0 ? configuredItems : undefined,
-    i_info: {
-      nick: shop?.seller_login_id || shop?.shop_name || '',
-      shop_name: shop?.shop_name || '',
-      vendor_id: shop?.seller_member_id || shop?.member_id || shop?.seller_user_id || shop?.user_id || '',
-      item_score: '',
-      delivery_score: '',
-      composite_score: '',
-      rating: '',
-      service_score: '',
-      total_sales: totalSold,
-    },
+    seller_info: sellerInfo,
+    i_info: sellerInfo,
     total_sold: totalSold,
     item_weight: typeof firstSkuWeight === 'number' && firstSkuWeight > 0 ? firstSkuWeight : (d?.delivery_info?.unit_weight || undefined),
     Result: {
@@ -236,7 +250,12 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ success: true, data: mapped }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error) {
-    return new Response(JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Failed to get product' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    const retryable = isNetworkFailure(error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: safeErrorMessage(error),
+      retryable,
+    }),
+      { status: retryable ? 200 : 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
