@@ -754,7 +754,7 @@ const Index = () => {
     const numIid = parseInt(String(rawId ?? '').replace(/^abb-/, ''), 10);
     if (!numIid) return null;
 
-    const image = String(productLike.pic_url || productLike.image_url || productLike.image || '');
+    const image = String(productLike.pic_url || productLike.image_url || productLike.image || '/placeholder.svg');
     const sold = Number(productLike.sold ?? productLike.sales ?? 0) || undefined;
 
     return {
@@ -831,7 +831,8 @@ const Index = () => {
       if (result.success && result.data) {
         setSelectedProduct(result.data);
       } else {
-        if (result.retryable || showCachedDetailFallback(fallbackDetail)) return;
+        if (showCachedDetailFallback(fallbackDetail)) return;
+        if (result.retryable) return;
         removeUnavailableProduct();
         const newParams = new URLSearchParams(searchParams);
         newParams.delete('product');
@@ -867,7 +868,8 @@ const Index = () => {
       if (result.success && result.data) {
         setSelectedProduct(result.data);
       } else {
-        if (result.retryable || showCachedDetailFallback(fallbackDetail)) return;
+        if (showCachedDetailFallback(fallbackDetail)) return;
+        if (result.retryable) return;
         removeUnavailableTrending();
         const newParams = new URLSearchParams(searchParams);
         newParams.delete('product');
