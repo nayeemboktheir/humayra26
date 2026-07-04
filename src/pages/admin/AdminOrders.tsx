@@ -223,10 +223,42 @@ export default function AdminOrders() {
     if (!deleteId) return;
     setSaving(true);
     try {
-      const { error } = await supabase.from("orders").delete().eq("id", deleteId);
+      const { error } = await supabase
+        .from("orders")
+        .update({ deleted_at: new Date().toISOString() } as any)
+        .eq("id", deleteId);
       if (error) throw error;
-      toast({ title: "Order deleted" });
+      toast({ title: "Order moved to Trash" });
       setDeleteId(null);
+      fetchOrders();
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    }
+    setSaving(false);
+  };
+
+  const handleRestore = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from("orders")
+        .update({ deleted_at: null } as any)
+        .eq("id", id);
+      if (error) throw error;
+      toast({ title: "Order restored" });
+      fetchOrders();
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const handlePermanentDelete = async () => {
+    if (!permanentDeleteId) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase.from("orders").delete().eq("id", permanentDeleteId);
+      if (error) throw error;
+      toast({ title: "Order permanently deleted" });
+      setPermanentDeleteId(null);
       fetchOrders();
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
