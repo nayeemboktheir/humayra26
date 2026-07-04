@@ -10,7 +10,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   ExternalLink, UserCircle, Search, Trash2, Pencil, Package,
   Truck, DollarSign, Calendar, Hash, StickyNote, ImageIcon, Copy,
-  CheckSquare, Square, Download, ShoppingBag, FileText, Send, Loader2
+  CheckSquare, Square, Download, ShoppingBag, FileText, Send, Loader2,
+  RotateCcw, Inbox
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import ShipmentTimeline from "@/components/admin/ShipmentTimeline";
