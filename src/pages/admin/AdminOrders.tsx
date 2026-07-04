@@ -150,7 +150,11 @@ export default function AdminOrders() {
     setSendingEmailId(null);
   };
 
-  const filtered = data.filter((order) => {
+  const visible = data.filter((o) =>
+    viewMode === "trash" ? !!(o as any).deleted_at : !(o as any).deleted_at
+  );
+
+  const filtered = visible.filter((order) => {
     const matchesSearch =
       order.order_number.toLowerCase().includes(search.toLowerCase()) ||
       order.product_name.toLowerCase().includes(search.toLowerCase()) ||
@@ -165,7 +169,8 @@ export default function AdminOrders() {
       (paymentFilter === "partial" && (ps === "partial" || ps === "deposit" || ps === "partially_paid"));
 
     let matchesStatus = true;
-    if (statusFilter === "pending") matchesStatus = order.status === "pending";
+    if (viewMode === "trash") matchesStatus = true;
+    else if (statusFilter === "pending") matchesStatus = order.status === "pending";
     else if (statusFilter === "awaiting_payment") matchesStatus = order.status === "awaiting_payment";
     else if (statusFilter !== "all") {
       const shipment = shipmentMap[order.id];
@@ -173,6 +178,9 @@ export default function AdminOrders() {
     }
     return matchesSearch && matchesPayment && matchesStatus;
   });
+
+  const trashCount = data.filter((o) => !!(o as any).deleted_at).length;
+  const activeCount = data.length - trashCount;
 
   const handleEdit = (order: OrderWithProfile) => {
     setEditOrder(order);
