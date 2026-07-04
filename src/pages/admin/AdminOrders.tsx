@@ -10,7 +10,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   ExternalLink, UserCircle, Search, Trash2, Pencil, Package,
   Truck, DollarSign, Calendar, Hash, StickyNote, ImageIcon, Copy,
-  CheckSquare, Square, Download, ShoppingBag, FileText, Send, Loader2
+  CheckSquare, Square, Download, ShoppingBag, FileText, Send, Loader2,
+  RotateCcw, Inbox
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import ShipmentTimeline from "@/components/admin/ShipmentTimeline";
@@ -87,6 +88,8 @@ export default function AdminOrders() {
   const [editOrder, setEditOrder] = useState<OrderWithProfile | null>(null);
   const [editValues, setEditValues] = useState<Record<string, any>>({});
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [permanentDeleteId, setPermanentDeleteId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"active" | "trash">("active");
   const [saving, setSaving] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkStatus, setBulkStatus] = useState("");
@@ -147,7 +150,11 @@ export default function AdminOrders() {
     setSendingEmailId(null);
   };
 
-  const filtered = data.filter((order) => {
+  const visible = data.filter((o) =>
+    viewMode === "trash" ? !!(o as any).deleted_at : !(o as any).deleted_at
+  );
+
+  const filtered = visible.filter((order) => {
     const matchesSearch =
       order.order_number.toLowerCase().includes(search.toLowerCase()) ||
       order.product_name.toLowerCase().includes(search.toLowerCase()) ||
@@ -162,7 +169,8 @@ export default function AdminOrders() {
       (paymentFilter === "partial" && (ps === "partial" || ps === "deposit" || ps === "partially_paid"));
 
     let matchesStatus = true;
-    if (statusFilter === "pending") matchesStatus = order.status === "pending";
+    if (viewMode === "trash") matchesStatus = true;
+    else if (statusFilter === "pending") matchesStatus = order.status === "pending";
     else if (statusFilter === "awaiting_payment") matchesStatus = order.status === "awaiting_payment";
     else if (statusFilter !== "all") {
       const shipment = shipmentMap[order.id];
@@ -170,6 +178,9 @@ export default function AdminOrders() {
     }
     return matchesSearch && matchesPayment && matchesStatus;
   });
+
+  const trashCount = data.filter((o) => !!(o as any).deleted_at).length;
+  const activeCount = data.length - trashCount;
 
   const handleEdit = (order: OrderWithProfile) => {
     setEditOrder(order);
@@ -212,10 +223,42 @@ export default function AdminOrders() {
     if (!deleteId) return;
     setSaving(true);
     try {
-      const { error } = await supabase.from("orders").delete().eq("id", deleteId);
+      const { error } = await supabase
+        .from("orders")
+        .update({ deleted_at: new Date().toISOString() } as any)
+        .eq("id", deleteId);
       if (error) throw error;
-      toast({ title: "Order deleted" });
+      toast({ title: "Order moved to Trash" });
       setDeleteId(null);
+      fetchOrders();
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    }
+    setSaving(false);
+  };
+
+  const handleRestore = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from("orders")
+        .update({ deleted_at: null } as any)
+        .eq("id", id);
+      if (error) throw error;
+      toast({ title: "Order restored" });
+      fetchOrders();
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const handlePermanentDelete = async () => {
+    if (!permanentDeleteId) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase.from("orders").delete().eq("id", permanentDeleteId);
+      if (error) throw error;
+      toast({ title: "Order permanently deleted" });
+      setPermanentDeleteId(null);
       fetchOrders();
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
@@ -353,16 +396,38 @@ export default function AdminOrders() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Orders</h1>
-          <p className="text-sm text-muted-foreground">{data.length} total orders</p>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {viewMode === "trash" ? "Trash" : "Orders"}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {viewMode === "trash" ? `${trashCount} deleted orders` : `${activeCount} total orders`}
+          </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <Button size="sm" className="gap-1.5" onClick={handleOpenAllInvoices}>
-            <FileText className="h-4 w-4" /> See All Invoices
-          </Button>
-          <Button variant="outline" size="sm" onClick={exportCSV}>
-            <Download className="h-4 w-4 mr-1" /> Export CSV
-          </Button>
+          <div className="inline-flex rounded-md border overflow-hidden">
+            <button
+              onClick={() => { setViewMode("active"); setSelectedIds(new Set()); }}
+              className={`px-3 py-1.5 text-xs font-medium inline-flex items-center gap-1.5 ${viewMode === "active" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+            >
+              <Inbox className="h-3.5 w-3.5" /> Active ({activeCount})
+            </button>
+            <button
+              onClick={() => { setViewMode("trash"); setSelectedIds(new Set()); }}
+              className={`px-3 py-1.5 text-xs font-medium inline-flex items-center gap-1.5 border-l ${viewMode === "trash" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+            >
+              <Trash2 className="h-3.5 w-3.5" /> Trash ({trashCount})
+            </button>
+          </div>
+          {viewMode === "active" && (
+            <>
+              <Button size="sm" className="gap-1.5" onClick={handleOpenAllInvoices}>
+                <FileText className="h-4 w-4" /> See All Invoices
+              </Button>
+              <Button variant="outline" size="sm" onClick={exportCSV}>
+                <Download className="h-4 w-4 mr-1" /> Export CSV
+              </Button>
+            </>
+          )}
           <div className="relative w-full sm:w-56">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
@@ -648,30 +713,53 @@ export default function AdminOrders() {
                       {new Date(order.created_at).toLocaleDateString()}
                     </div>
                     <div className="flex gap-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 px-2 gap-1 text-[11px] text-primary border-primary/30 hover:bg-primary/10"
-                        onClick={() => setInvoiceOrder(order)}
-                      >
-                        <FileText className="h-3 w-3" /> Invoice
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 px-2 gap-1 text-[11px] border-primary/30 hover:bg-primary/10"
-                        disabled={sendingEmailId === order.id}
-                        onClick={() => handleSendInvoiceEmail(order)}
-                      >
-                        {sendingEmailId === order.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
-                        Email
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(order)}>
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleteId(order.id)}>
-                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                      </Button>
+                      {viewMode === "trash" ? (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 gap-1 text-[11px] border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                            onClick={() => handleRestore(order.id)}
+                          >
+                            <RotateCcw className="h-3 w-3" /> Restore
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 gap-1 text-[11px] border-destructive/40 text-destructive hover:bg-destructive/10"
+                            onClick={() => setPermanentDeleteId(order.id)}
+                          >
+                            <Trash2 className="h-3 w-3" /> Delete Forever
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 gap-1 text-[11px] text-primary border-primary/30 hover:bg-primary/10"
+                            onClick={() => setInvoiceOrder(order)}
+                          >
+                            <FileText className="h-3 w-3" /> Invoice
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 gap-1 text-[11px] border-primary/30 hover:bg-primary/10"
+                            disabled={sendingEmailId === order.id}
+                            onClick={() => handleSendInvoiceEmail(order)}
+                          >
+                            {sendingEmailId === order.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+                            Email
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(order)}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleteId(order.id)}>
+                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -754,14 +842,26 @@ export default function AdminOrders() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation */}
+      {/* Move to Trash Confirmation */}
       <Dialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Delete Order</DialogTitle></DialogHeader>
-          <p className="text-sm text-muted-foreground">Are you sure? This action cannot be undone.</p>
+          <DialogHeader><DialogTitle>Move to Trash</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">This order will be moved to Trash. You can restore it later from the Trash view.</p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteId(null)}>Cancel</Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={saving}>{saving ? "Deleting..." : "Delete"}</Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={saving}>{saving ? "Moving..." : "Move to Trash"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Permanent Delete Confirmation */}
+      <Dialog open={!!permanentDeleteId} onOpenChange={() => setPermanentDeleteId(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Delete Permanently</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">This order will be permanently deleted and cannot be recovered. Continue?</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPermanentDeleteId(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={handlePermanentDelete} disabled={saving}>{saving ? "Deleting..." : "Delete Forever"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

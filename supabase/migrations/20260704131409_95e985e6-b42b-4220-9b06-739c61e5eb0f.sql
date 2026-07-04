@@ -1,0 +1,1 @@
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ; CREATE INDEX IF NOT EXISTS orders_deleted_at_idx ON public.orders(deleted_at);
