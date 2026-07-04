@@ -713,30 +713,53 @@ export default function AdminOrders() {
                       {new Date(order.created_at).toLocaleDateString()}
                     </div>
                     <div className="flex gap-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 px-2 gap-1 text-[11px] text-primary border-primary/30 hover:bg-primary/10"
-                        onClick={() => setInvoiceOrder(order)}
-                      >
-                        <FileText className="h-3 w-3" /> Invoice
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 px-2 gap-1 text-[11px] border-primary/30 hover:bg-primary/10"
-                        disabled={sendingEmailId === order.id}
-                        onClick={() => handleSendInvoiceEmail(order)}
-                      >
-                        {sendingEmailId === order.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
-                        Email
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(order)}>
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleteId(order.id)}>
-                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                      </Button>
+                      {viewMode === "trash" ? (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 gap-1 text-[11px] border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                            onClick={() => handleRestore(order.id)}
+                          >
+                            <RotateCcw className="h-3 w-3" /> Restore
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 gap-1 text-[11px] border-destructive/40 text-destructive hover:bg-destructive/10"
+                            onClick={() => setPermanentDeleteId(order.id)}
+                          >
+                            <Trash2 className="h-3 w-3" /> Delete Forever
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 gap-1 text-[11px] text-primary border-primary/30 hover:bg-primary/10"
+                            onClick={() => setInvoiceOrder(order)}
+                          >
+                            <FileText className="h-3 w-3" /> Invoice
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 gap-1 text-[11px] border-primary/30 hover:bg-primary/10"
+                            disabled={sendingEmailId === order.id}
+                            onClick={() => handleSendInvoiceEmail(order)}
+                          >
+                            {sendingEmailId === order.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+                            Email
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(order)}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleteId(order.id)}>
+                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
