@@ -842,14 +842,26 @@ export default function AdminOrders() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation */}
+      {/* Move to Trash Confirmation */}
       <Dialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Delete Order</DialogTitle></DialogHeader>
-          <p className="text-sm text-muted-foreground">Are you sure? This action cannot be undone.</p>
+          <DialogHeader><DialogTitle>Move to Trash</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">This order will be moved to Trash. You can restore it later from the Trash view.</p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteId(null)}>Cancel</Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={saving}>{saving ? "Deleting..." : "Delete"}</Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={saving}>{saving ? "Moving..." : "Move to Trash"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Permanent Delete Confirmation */}
+      <Dialog open={!!permanentDeleteId} onOpenChange={() => setPermanentDeleteId(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Delete Permanently</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">This order will be permanently deleted and cannot be recovered. Continue?</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPermanentDeleteId(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={handlePermanentDelete} disabled={saving}>{saving ? "Deleting..." : "Delete Forever"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
