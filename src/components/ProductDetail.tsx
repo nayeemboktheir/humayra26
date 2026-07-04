@@ -63,18 +63,18 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
   const fetchDomesticShippingFee = async (qty: number): Promise<number> => {
     if (!product?.num_iid || qty <= 0) return 0;
     const provinces = ['Guangdong', 'Zhejiang', 'Shanghai'];
-    const totalWeight = product.item_weight && product.item_weight > 0
-      ? Math.max(0.001, product.item_weight * qty)
-      : undefined;
 
     for (const province of provinces) {
       try {
         const { data, error } = await supabase.functions.invoke('alibaba-1688-shipping-fee', {
-          body: { numIid: String(product.num_iid), province, totalQuantity: qty, totalWeight },
+          body: { numIid: String(product.num_iid), province, totalQuantity: qty },
         });
         if (!error && data?.success && data?.data) {
           const d = data.data;
-          const fee = d.total_fee ?? d.first_unit_fee ?? null;
+          // Use TMAPI's base rate (first_unit_fee) as the wholesale domestic courier quote.
+          // The weight-scaled total_fee is a RETAIL freight rate and is unrealistic for bulk B2B
+          // (e.g. 700pcs × 0.39kg = 273kg → 305 CNY at 1.1 CNY/kg). Admin can edit per order if needed.
+          const fee = d.first_unit_fee ?? d.total_fee ?? null;
           if (fee != null && fee > 0) {
             setDomesticShippingUnit(d.unit === 'kg' ? 'kg' : 'qty');
             return fee;
@@ -85,6 +85,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
 
     return FALLBACK_FIRST_CNY;
   };
+
 
   const selectedDomesticQty = product?.configuredItems && product.configuredItems.length > 0
     ? Object.values(skuQuantities).reduce((a, b) => a + b, 0)
