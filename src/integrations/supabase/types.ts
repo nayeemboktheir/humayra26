@@ -230,6 +230,7 @@ export type Database = {
         Row: {
           commission: number | null
           created_at: string
+          deleted_at: string | null
           domestic_courier_charge: number | null
           id: string
           invoice_name: string | null
@@ -259,6 +260,7 @@ export type Database = {
         Insert: {
           commission?: number | null
           created_at?: string
+          deleted_at?: string | null
           domestic_courier_charge?: number | null
           id?: string
           invoice_name?: string | null
@@ -288,6 +290,7 @@ export type Database = {
         Update: {
           commission?: number | null
           created_at?: string
+          deleted_at?: string | null
           domestic_courier_charge?: number | null
           id?: string
           invoice_name?: string | null
