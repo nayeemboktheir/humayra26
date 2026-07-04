@@ -648,32 +648,24 @@ export default function AdminOrders() {
                       {new Date(order.created_at).toLocaleDateString()}
                     </div>
                     <div className="flex gap-1">
-                      {(ps === "paid" || ps === "completed") ? (
-                        <>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7 px-2 gap-1 text-[11px] text-primary border-primary/30 hover:bg-primary/10"
-                            onClick={() => setInvoiceOrder(order)}
-                          >
-                            <FileText className="h-3 w-3" /> Invoice
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7 px-2 gap-1 text-[11px] border-primary/30 hover:bg-primary/10"
-                            disabled={sendingEmailId === order.id}
-                            onClick={() => handleSendInvoiceEmail(order)}
-                          >
-                            {sendingEmailId === order.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
-                            Email
-                          </Button>
-                        </>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground px-2" title="Invoice available after payment">
-                          <FileText className="h-3 w-3" /> Invoice locked
-                        </span>
-                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2 gap-1 text-[11px] text-primary border-primary/30 hover:bg-primary/10"
+                        onClick={() => setInvoiceOrder(order)}
+                      >
+                        <FileText className="h-3 w-3" /> Invoice
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2 gap-1 text-[11px] border-primary/30 hover:bg-primary/10"
+                        disabled={sendingEmailId === order.id}
+                        onClick={() => handleSendInvoiceEmail(order)}
+                      >
+                        {sendingEmailId === order.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+                        Email
+                      </Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(order)}>
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
