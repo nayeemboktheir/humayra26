@@ -88,6 +88,8 @@ export default function AdminOrders() {
   const [editOrder, setEditOrder] = useState<OrderWithProfile | null>(null);
   const [editValues, setEditValues] = useState<Record<string, any>>({});
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [permanentDeleteId, setPermanentDeleteId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"active" | "trash">("active");
   const [saving, setSaving] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkStatus, setBulkStatus] = useState("");
