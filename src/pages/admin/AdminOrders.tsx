@@ -396,16 +396,38 @@ export default function AdminOrders() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Orders</h1>
-          <p className="text-sm text-muted-foreground">{data.length} total orders</p>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {viewMode === "trash" ? "Trash" : "Orders"}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {viewMode === "trash" ? `${trashCount} deleted orders` : `${activeCount} total orders`}
+          </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <Button size="sm" className="gap-1.5" onClick={handleOpenAllInvoices}>
-            <FileText className="h-4 w-4" /> See All Invoices
-          </Button>
-          <Button variant="outline" size="sm" onClick={exportCSV}>
-            <Download className="h-4 w-4 mr-1" /> Export CSV
-          </Button>
+          <div className="inline-flex rounded-md border overflow-hidden">
+            <button
+              onClick={() => { setViewMode("active"); setSelectedIds(new Set()); }}
+              className={`px-3 py-1.5 text-xs font-medium inline-flex items-center gap-1.5 ${viewMode === "active" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+            >
+              <Inbox className="h-3.5 w-3.5" /> Active ({activeCount})
+            </button>
+            <button
+              onClick={() => { setViewMode("trash"); setSelectedIds(new Set()); }}
+              className={`px-3 py-1.5 text-xs font-medium inline-flex items-center gap-1.5 border-l ${viewMode === "trash" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+            >
+              <Trash2 className="h-3.5 w-3.5" /> Trash ({trashCount})
+            </button>
+          </div>
+          {viewMode === "active" && (
+            <>
+              <Button size="sm" className="gap-1.5" onClick={handleOpenAllInvoices}>
+                <FileText className="h-4 w-4" /> See All Invoices
+              </Button>
+              <Button variant="outline" size="sm" onClick={exportCSV}>
+                <Download className="h-4 w-4 mr-1" /> Export CSV
+              </Button>
+            </>
+          )}
           <div className="relative w-full sm:w-56">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
