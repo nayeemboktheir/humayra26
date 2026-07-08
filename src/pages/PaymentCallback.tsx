@@ -72,7 +72,7 @@ export default function PaymentCallback() {
 
           if (lastStatus === "success") {
             if (!cancelled) setStatus("success");
-            await fetchOrderNumber();
+            await fetchOrderNumber(true);
             return;
           }
           if (lastStatus === "failed") {
