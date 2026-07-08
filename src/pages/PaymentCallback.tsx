@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { trackPurchase } from "@/lib/tracking";
+import { getMetaBrowserIds, trackPurchase } from "@/lib/tracking";
 
 export default function PaymentCallback() {
   const [searchParams] = useSearchParams();
@@ -32,6 +32,7 @@ export default function PaymentCallback() {
 
     // Verify payment server-side with polling (PayStation may take a few seconds to settle)
     let cancelled = false;
+    const purchaseEventId = `purchase_${invoiceNumber}`;
 
     const fetchOrderNumber = async (firePurchase = false) => {
       const { data: order } = await supabase
@@ -51,6 +52,7 @@ export default function PaymentCallback() {
               currency: "BDT",
               orderId: order.order_number,
               ids: order.product_1688_id ? [String(order.product_1688_id)] : [],
+              eventId: purchaseEventId,
             });
           }
         }
@@ -66,7 +68,12 @@ export default function PaymentCallback() {
         if (cancelled) return;
         try {
           const { data } = await supabase.functions.invoke("paystation-verify-payment", {
-            body: { invoice_number: invoiceNumber },
+            body: {
+              invoice_number: invoiceNumber,
+              meta_event_id: purchaseEventId,
+              meta_browser_ids: getMetaBrowserIds(),
+              event_source_url: window.location.href,
+            },
           });
           lastStatus = (data?.trx_status || "").toLowerCase();
 

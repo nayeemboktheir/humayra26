@@ -306,7 +306,15 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
       totalPrice,
       domesticShippingFeeBDT: domesticChargeBDT,
       sellerName: product.seller_info?.shop_name,
-      onConfirm: async (opts: { address: string; paymentOption: string }) => {
+      productIds: [String(product.num_iid)],
+      onConfirm: async (opts: {
+        address: string;
+        paymentOption: string;
+        customerName: string;
+        customerPhone: string;
+        trackingEventId: string;
+        metaBrowserIds: { fbp?: string; fbc?: string };
+      }) => {
         const unitPrice = totalQty > 0 ? Math.round(totalPrice / totalQty) : 0;
         const orderNumber = `HT-${Date.now().toString(36).toUpperCase()}`;
 
@@ -360,13 +368,18 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
           body: {
             invoice_number: invoiceNumber,
             payment_amount: payableAmount,
-            cust_name: opts.address ? opts.address.split('\n')[0] : (user!.user_metadata?.full_name || 'Customer'),
-            cust_phone: '01700000000',
+            cust_name: opts.customerName || user!.user_metadata?.full_name || 'Customer',
+            cust_phone: opts.customerPhone || '01700000000',
             cust_email: userEmail,
             cust_address: opts.address || 'N/A',
             callback_url: callbackUrl,
             checkout_items: JSON.stringify({ order_number: orderNumber, product: product.title, qty: totalQty }),
             reference: orderNumber,
+            meta_event_id: opts.trackingEventId,
+            meta_browser_ids: opts.metaBrowserIds,
+            content_ids: [String(product.num_iid)],
+            num_items: totalQty,
+            event_source_url: window.location.href,
           },
         });
 

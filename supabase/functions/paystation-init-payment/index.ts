@@ -1,3 +1,6 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { sendMetaCapiEvent } from '../_shared/meta-capi.ts';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
@@ -11,6 +14,8 @@ Deno.serve(async (req) => {
   try {
     const merchantId = Deno.env.get('PAYSTATION_MERCHANT_ID');
     const password = Deno.env.get('PAYSTATION_PASSWORD');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
     if (!merchantId || !password) {
       return new Response(
@@ -29,6 +34,11 @@ Deno.serve(async (req) => {
       callback_url,
       checkout_items,
       reference,
+      meta_event_id,
+      meta_browser_ids,
+      content_ids,
+      num_items,
+      event_source_url,
     } = await req.json();
 
     if (!invoice_number || !payment_amount || !cust_name || !cust_phone || !cust_email || !callback_url) {
@@ -65,6 +75,27 @@ Deno.serve(async (req) => {
     console.log('PayStation response:', JSON.stringify(data));
 
     if (data.status_code === '200' && data.status === 'success') {
+      if (supabaseUrl && serviceRoleKey && meta_event_id) {
+        const admin = createClient(supabaseUrl, serviceRoleKey);
+        const nameParts = String(cust_name || '').trim().split(/\s+/);
+        await sendMetaCapiEvent(admin, req, {
+          eventName: 'InitiateCheckout',
+          eventId: meta_event_id,
+          eventSourceUrl: event_source_url,
+          value: Number(payment_amount || 0),
+          currency: 'BDT',
+          contentIds: Array.isArray(content_ids) ? content_ids.map(String) : [],
+          numItems: Number(num_items || 0) || undefined,
+          orderId: reference,
+          email: cust_email,
+          phone: cust_phone,
+          firstName: nameParts[0],
+          lastName: nameParts.slice(1).join(' '),
+          fbp: meta_browser_ids?.fbp,
+          fbc: meta_browser_ids?.fbc,
+        });
+      }
+
       return new Response(
         JSON.stringify({ success: true, payment_url: data.payment_url, invoice_number: data.invoice_number }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

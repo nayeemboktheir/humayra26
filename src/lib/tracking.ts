@@ -15,6 +15,23 @@ function safe(fn: () => void) {
   try { fn(); } catch { /* ignore */ }
 }
 
+function getCookie(name: string) {
+  const match = document.cookie.match(new RegExp(`(?:^|; )${name.replace(/[.$?*|{}()[\]\\/+^]/g, "\\$&")}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : undefined;
+}
+
+export function createTrackingEventId(prefix: string) {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+export function getMetaBrowserIds() {
+  let fbc = getCookie("_fbc");
+  const fbp = getCookie("_fbp");
+  const fbclid = new URLSearchParams(window.location.search).get("fbclid");
+  if (!fbc && fbclid) fbc = `fb.1.${Date.now()}.${fbclid}`;
+  return { fbp, fbc };
+}
+
 export function trackPageView() {
   safe(() => window.fbq && window.fbq("track", "PageView"));
   safe(() => window.ttq && window.ttq.page && window.ttq.page());
@@ -64,7 +81,7 @@ export function trackAddToCart(p: { id: string; name?: string; value?: number; q
   }));
 }
 
-export function trackInitiateCheckout(p: { value: number; quantity?: number; currency?: string; ids?: string[] }) {
+export function trackInitiateCheckout(p: { value: number; quantity?: number; currency?: string; ids?: string[]; eventId?: string }) {
   const currency = p.currency || "BDT";
   safe(() => window.fbq && window.fbq("track", "InitiateCheckout", {
     value: p.value,
@@ -72,7 +89,7 @@ export function trackInitiateCheckout(p: { value: number; quantity?: number; cur
     num_items: p.quantity,
     content_ids: p.ids,
     content_type: "product",
-  }));
+  }, p.eventId ? { eventID: p.eventId } : undefined));
   safe(() => window.ttq && window.ttq.track && window.ttq.track("InitiateCheckout", {
     value: p.value,
     currency,
@@ -84,7 +101,7 @@ export function trackInitiateCheckout(p: { value: number; quantity?: number; cur
   }));
 }
 
-export function trackPurchase(p: { value: number; currency?: string; orderId?: string; ids?: string[] }) {
+export function trackPurchase(p: { value: number; currency?: string; orderId?: string; ids?: string[]; eventId?: string }) {
   const currency = p.currency || "BDT";
   safe(() => window.fbq && window.fbq("track", "Purchase", {
     value: p.value,
@@ -92,7 +109,7 @@ export function trackPurchase(p: { value: number; currency?: string; orderId?: s
     content_ids: p.ids,
     content_type: "product",
     order_id: p.orderId,
-  }));
+  }, p.eventId ? { eventID: p.eventId } : undefined));
   safe(() => window.ttq && window.ttq.track && window.ttq.track("PlaceAnOrder", {
     value: p.value,
     currency,

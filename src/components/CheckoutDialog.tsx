@@ -10,7 +10,7 @@ import { Loader2, MapPin, CreditCard, User, Phone, Percent, Warehouse, Truck, Pe
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { trackInitiateCheckout } from "@/lib/tracking";
+import { createTrackingEventId, getMetaBrowserIds, trackInitiateCheckout } from "@/lib/tracking";
 
 interface SkuLine {
   name: string;
@@ -28,7 +28,16 @@ interface CheckoutData {
   totalPrice: number;
   domesticShippingFeeBDT: number;
   sellerName?: string;
-  onConfirm: (opts: { address: string; paymentOption: string; deliveryMethod: string }) => Promise<void>;
+  productIds?: string[];
+  onConfirm: (opts: {
+    address: string;
+    paymentOption: string;
+    deliveryMethod: string;
+    customerName: string;
+    customerPhone: string;
+    trackingEventId: string;
+    metaBrowserIds: { fbp?: string; fbc?: string };
+  }) => Promise<void>;
 }
 
 interface CheckoutDialogProps {
@@ -89,12 +98,24 @@ export default function CheckoutDialog({ open, onOpenChange, data }: CheckoutDia
       return;
     }
     setPlacing(true);
-    trackInitiateCheckout({ value: payableAmount, quantity: data.totalQty, currency: "BDT" });
+    const trackingEventId = createTrackingEventId("initiate_checkout");
+    const metaBrowserIds = getMetaBrowserIds();
+    trackInitiateCheckout({
+      value: payableAmount,
+      quantity: data.totalQty,
+      currency: "BDT",
+      ids: data.productIds,
+      eventId: trackingEventId,
+    });
     try {
       await data.onConfirm({
         address: effectiveAddress,
         paymentOption,
         deliveryMethod,
+        customerName: profile.full_name,
+        customerPhone: profile.phone,
+        trackingEventId,
+        metaBrowserIds,
       });
     } catch {
       // error handled in parent
