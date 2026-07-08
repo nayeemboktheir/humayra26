@@ -89,6 +89,7 @@ export default function CheckoutDialog({ open, onOpenChange, data }: CheckoutDia
       return;
     }
     setPlacing(true);
+    trackInitiateCheckout({ value: payableAmount, quantity: data.totalQty, currency: "BDT" });
     try {
       await data.onConfirm({
         address: effectiveAddress,
