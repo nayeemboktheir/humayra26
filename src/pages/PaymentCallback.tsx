@@ -42,7 +42,7 @@ export default function PaymentCallback() {
       if (order && !cancelled) {
         setOrderNumber(order.order_number);
         if (firePurchase) {
-          const value = Number(order.paid_amount || order.total_amount || 0);
+          const value = Number(order.payment_amount || order.total_price || 0);
           const dedupeKey = `pixel_purchase_${invoiceNumber}`;
           if (value > 0 && !sessionStorage.getItem(dedupeKey)) {
             sessionStorage.setItem(dedupeKey, "1");
