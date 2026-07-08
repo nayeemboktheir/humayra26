@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { trackAddToCart } from "@/lib/tracking";
 
 interface CartItem {
   id: string;
@@ -75,6 +76,12 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       await (supabase.from("cart_items" as any) as any).insert({ ...item, user_id: user.id });
     }
     await fetchCart();
+    trackAddToCart({
+      id: item.product_id,
+      name: item.product_name,
+      value: (item.unit_price || 0) * (item.quantity || 1),
+      quantity: item.quantity || 1,
+    });
   };
 
   const removeFromCart = async (id: string) => {

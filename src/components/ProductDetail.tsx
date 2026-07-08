@@ -24,6 +24,7 @@ import { useCart } from "@/contexts/CartContext";
 
 import { convertToBDT, getTierCnyPrice, getSkuTierCnyPrice } from "@/lib/currency";
 import CheckoutDialog from "@/components/CheckoutDialog";
+import { trackViewContent } from "@/lib/tracking";
 
 const translateLocation = (location: string): string => {
   if (location.includes("省") || location.includes("市")) return "China";
@@ -161,6 +162,18 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
       });
     }
   }, [user, product]);
+
+  // Fire ViewContent pixel event once per product view
+  useEffect(() => {
+    if (!product?.num_iid) return;
+    trackViewContent({
+      id: String(product.num_iid),
+      name: product.title,
+      value: tierBdtUnit(1),
+      currency: "BDT",
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product?.num_iid]);
 
   const downloadFile = async (url: string, filename: string) => {
     try {

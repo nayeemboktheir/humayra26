@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { trackPurchase } from "@/lib/tracking";
 
 export default function PaymentCallback() {
   const [searchParams] = useSearchParams();
@@ -32,13 +33,28 @@ export default function PaymentCallback() {
     // Verify payment server-side with polling (PayStation may take a few seconds to settle)
     let cancelled = false;
 
-    const fetchOrderNumber = async () => {
+    const fetchOrderNumber = async (firePurchase = false) => {
       const { data: order } = await supabase
         .from("orders")
-        .select("order_number")
+        .select("order_number, payment_amount, total_price, product_1688_id")
         .eq("payment_invoice", invoiceNumber)
         .maybeSingle();
-      if (order && !cancelled) setOrderNumber(order.order_number);
+      if (order && !cancelled) {
+        setOrderNumber(order.order_number);
+        if (firePurchase) {
+          const value = Number(order.payment_amount || order.total_price || 0);
+          const dedupeKey = `pixel_purchase_${invoiceNumber}`;
+          if (value > 0 && !sessionStorage.getItem(dedupeKey)) {
+            sessionStorage.setItem(dedupeKey, "1");
+            trackPurchase({
+              value,
+              currency: "BDT",
+              orderId: order.order_number,
+              ids: order.product_1688_id ? [String(order.product_1688_id)] : [],
+            });
+          }
+        }
+      }
     };
 
     const verify = async () => {
@@ -56,7 +72,7 @@ export default function PaymentCallback() {
 
           if (lastStatus === "success") {
             if (!cancelled) setStatus("success");
-            await fetchOrderNumber();
+            await fetchOrderNumber(true);
             return;
           }
           if (lastStatus === "failed") {

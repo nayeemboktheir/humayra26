@@ -1,8 +1,19 @@
 import { useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { useAppSettings } from "@/hooks/useAppSettings";
+import { trackPageView } from "@/lib/tracking";
 
 export default function TrackingScripts() {
   const { settings, loading } = useAppSettings();
+  const location = useLocation();
+
+  // Fire PageView on every SPA route change (after pixels initialize)
+  useEffect(() => {
+    if (loading) return;
+    // Small delay so newly-injected pixel scripts have a chance to define fbq/ttq
+    const t = window.setTimeout(() => trackPageView(), 300);
+    return () => window.clearTimeout(t);
+  }, [location.pathname, location.search, loading]);
 
   useEffect(() => {
     if (loading) return;
