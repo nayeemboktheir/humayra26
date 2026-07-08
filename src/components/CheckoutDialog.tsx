@@ -10,6 +10,7 @@ import { Loader2, MapPin, CreditCard, User, Phone, Percent, Warehouse, Truck, Pe
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { trackInitiateCheckout } from "@/lib/tracking";
 
 interface SkuLine {
   name: string;
