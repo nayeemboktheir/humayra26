@@ -36,7 +36,7 @@ export default function PaymentCallback() {
     const fetchOrderNumber = async (firePurchase = false) => {
       const { data: order } = await supabase
         .from("orders")
-        .select("order_number, paid_amount, total_amount, product_1688_id")
+        .select("order_number, payment_amount, total_price, product_1688_id")
         .eq("payment_invoice", invoiceNumber)
         .maybeSingle();
       if (order && !cancelled) {
