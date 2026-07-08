@@ -33,13 +33,28 @@ export default function PaymentCallback() {
     // Verify payment server-side with polling (PayStation may take a few seconds to settle)
     let cancelled = false;
 
-    const fetchOrderNumber = async () => {
+    const fetchOrderNumber = async (firePurchase = false) => {
       const { data: order } = await supabase
         .from("orders")
-        .select("order_number")
+        .select("order_number, paid_amount, total_amount, product_1688_id")
         .eq("payment_invoice", invoiceNumber)
         .maybeSingle();
-      if (order && !cancelled) setOrderNumber(order.order_number);
+      if (order && !cancelled) {
+        setOrderNumber(order.order_number);
+        if (firePurchase) {
+          const value = Number(order.paid_amount || order.total_amount || 0);
+          const dedupeKey = `pixel_purchase_${invoiceNumber}`;
+          if (value > 0 && !sessionStorage.getItem(dedupeKey)) {
+            sessionStorage.setItem(dedupeKey, "1");
+            trackPurchase({
+              value,
+              currency: "BDT",
+              orderId: order.order_number,
+              ids: order.product_1688_id ? [String(order.product_1688_id)] : [],
+            });
+          }
+        }
+      }
     };
 
     const verify = async () => {
