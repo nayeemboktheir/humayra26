@@ -24,6 +24,7 @@ import { useCart } from "@/contexts/CartContext";
 
 import { convertToBDT, getTierCnyPrice, getSkuTierCnyPrice } from "@/lib/currency";
 import CheckoutDialog from "@/components/CheckoutDialog";
+import { trackViewContent } from "@/lib/tracking";
 
 const translateLocation = (location: string): string => {
   if (location.includes("省") || location.includes("市")) return "China";
