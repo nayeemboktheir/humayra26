@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { sendMetaCapiEvent } from '../_shared/meta-capi.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -22,7 +23,12 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { invoice_number } = await req.json();
+    const {
+      invoice_number,
+      meta_event_id,
+      meta_browser_ids,
+      event_source_url,
+    } = await req.json();
 
     if (!invoice_number) {
       return new Response(
@@ -67,7 +73,7 @@ Deno.serve(async (req) => {
       // Fetch all orders tied to this invoice so we can detect partial vs full
       const { data: invoiceOrders } = await supabase
         .from('orders')
-        .select('id, user_id, order_number, payment_amount, total_price, domestic_courier_charge, shipping_charges, commission')
+        .select('id, user_id, order_number, payment_amount, total_price, domestic_courier_charge, shipping_charges, commission, product_1688_id, quantity')
         .eq('payment_invoice', invoice_number);
 
       const orders = invoiceOrders || [];
@@ -109,6 +115,29 @@ Deno.serve(async (req) => {
           title: isPartial ? 'Deposit Received' : 'Payment Successful',
           message: `Your ${isPartial ? '70% advance' : 'full'} payment of ৳${sumPayable} for invoice ${invoice_number} was successful.`,
           type: 'payment',
+        });
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name, phone')
+          .eq('user_id', firstOrder.user_id)
+          .maybeSingle();
+
+        const nameParts = String(profile?.full_name || '').trim().split(/\s+/);
+        await sendMetaCapiEvent(supabase, req, {
+          eventName: 'Purchase',
+          eventId: meta_event_id || `purchase_${invoice_number}`,
+          eventSourceUrl: event_source_url,
+          value: sumPayable,
+          currency: 'BDT',
+          orderId: firstOrder.order_number,
+          contentIds: orders.map((o: any) => o.product_1688_id).filter(Boolean).map(String),
+          numItems: orders.reduce((sum: number, o: any) => sum + Number(o.quantity || 0), 0),
+          phone: profile?.phone,
+          firstName: nameParts[0],
+          lastName: nameParts.slice(1).join(' '),
+          fbp: meta_browser_ids?.fbp,
+          fbc: meta_browser_ids?.fbc,
         });
       }
     } else if (isFailed || isCanceled) {
