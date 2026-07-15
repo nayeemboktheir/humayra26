@@ -134,10 +134,7 @@ const Orders = () => {
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{new Date(order.created_at).toLocaleDateString()}</TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setInvoiceOrder(order)} title="View invoice">
-                          <FileText className="h-4 w-4 text-primary" />
-                        </Button>
+                      <div className="flex items-center justify-end gap-1 flex-wrap">
                         {!paid && order.status !== "cancelled" && (
                           <Button
                             size="sm"
@@ -151,9 +148,12 @@ const Orders = () => {
                             ) : (
                               <CreditCard className="h-3.5 w-3.5" />
                             )}
-                            <span className="text-xs">Pay ৳{due.toLocaleString()}</span>
+                            <span className="text-xs whitespace-nowrap">Pay ৳{due.toLocaleString()}</span>
                           </Button>
                         )}
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setInvoiceOrder(order)} title="View invoice">
+                          <FileText className="h-4 w-4 text-primary" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
