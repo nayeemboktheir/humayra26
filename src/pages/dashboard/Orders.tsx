@@ -98,14 +98,14 @@ const Orders = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Order #</TableHead>
-                <TableHead>Product</TableHead>
-                <TableHead>Qty</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Payment</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead className="w-[110px]">Order #</TableHead>
+                <TableHead className="max-w-[280px]">Product</TableHead>
+                <TableHead className="w-[60px]">Qty</TableHead>
+                <TableHead className="w-[90px]">Total</TableHead>
+                <TableHead className="w-[100px]">Payment</TableHead>
+                <TableHead className="w-[100px]">Status</TableHead>
+                <TableHead className="w-[100px]">Date</TableHead>
+                <TableHead className="w-[180px] text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
