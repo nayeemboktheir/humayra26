@@ -707,12 +707,12 @@ export default function AdminOrders() {
                   </div>
 
                   {/* Date + Actions */}
-                  <div className="flex items-center justify-between pt-2 border-t border-border/40">
+                  <div className="flex items-center justify-between pt-2 border-t border-border/40 gap-2 flex-wrap">
                     <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
                       <Calendar className="h-3 w-3" />
                       {new Date(order.created_at).toLocaleDateString()}
                     </div>
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 flex-wrap justify-end">
                       {viewMode === "trash" ? (
                         <>
                           <Button
