@@ -98,14 +98,14 @@ const Orders = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Order #</TableHead>
-                <TableHead>Product</TableHead>
-                <TableHead>Qty</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Payment</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead className="w-[110px]">Order #</TableHead>
+                <TableHead className="max-w-[280px]">Product</TableHead>
+                <TableHead className="w-[60px]">Qty</TableHead>
+                <TableHead className="w-[90px]">Total</TableHead>
+                <TableHead className="w-[100px]">Payment</TableHead>
+                <TableHead className="w-[100px]">Status</TableHead>
+                <TableHead className="w-[100px]">Date</TableHead>
+                <TableHead className="w-[180px] text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -118,9 +118,9 @@ const Orders = () => {
                 return (
                   <TableRow key={order.id}>
                     <TableCell className="font-mono text-sm">{order.order_number}</TableCell>
-                    <TableCell>
+                    <TableCell className="max-w-[280px]">
                       <div className="flex items-center gap-2">
-                        {order.product_image && <img src={order.product_image} alt="" className="h-10 w-10 rounded object-cover" referrerPolicy="no-referrer" />}
+                        {order.product_image && <img src={order.product_image} alt="" className="h-10 w-10 rounded object-cover flex-shrink-0" referrerPolicy="no-referrer" />}
                         <span className="line-clamp-2 text-sm">{order.product_name}</span>
                       </div>
                     </TableCell>
@@ -134,10 +134,7 @@ const Orders = () => {
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{new Date(order.created_at).toLocaleDateString()}</TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setInvoiceOrder(order)} title="View invoice">
-                          <FileText className="h-4 w-4 text-primary" />
-                        </Button>
+                      <div className="flex items-center justify-end gap-1 flex-wrap">
                         {!paid && order.status !== "cancelled" && (
                           <Button
                             size="sm"
@@ -151,9 +148,12 @@ const Orders = () => {
                             ) : (
                               <CreditCard className="h-3.5 w-3.5" />
                             )}
-                            <span className="text-xs">Pay ৳{due.toLocaleString()}</span>
+                            <span className="text-xs whitespace-nowrap">Pay ৳{due.toLocaleString()}</span>
                           </Button>
                         )}
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setInvoiceOrder(order)} title="View invoice">
+                          <FileText className="h-4 w-4 text-primary" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
