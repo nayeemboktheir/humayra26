@@ -138,6 +138,12 @@ http.createServer(async (req, res) => {
   const safePath = path.normalize(urlPath).replace(/^(\.\.[/\\])+/, '');
   let filePath = path.join(ROOT, safePath);
 
+  if (urlPath === '/assets/index-BQHE-_WD.js' || urlPath === '/assets/index-DaxjUk2z.js') {
+    const latestBundle = path.join(ROOT, 'assets', 'tradeon-app-20260717-v5.js');
+    serveFile(res, latestBundle, 'application/javascript', 'no-cache, no-store, must-revalidate');
+    return;
+  }
+
   let stat = null;
   try { stat = fs.statSync(filePath); } catch (e) {}
 
