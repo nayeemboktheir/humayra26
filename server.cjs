@@ -173,7 +173,8 @@ http.createServer(async (req, res) => {
   const contentType = mime[ext] || 'application/octet-stream';
   const baseName = path.basename(filePath).toLowerCase();
   const noCacheFiles = new Set(['index.html', 'favicon.ico', 'favicon.png', 'manifest.webmanifest', 'sw.js']);
-  const cacheControl = noCacheFiles.has(baseName)
+  const noCacheExtensions = new Set(['.html', '.js', '.css']);
+  const cacheControl = noCacheFiles.has(baseName) || noCacheExtensions.has(ext)
     ? 'no-cache, no-store, must-revalidate'
     : 'public, max-age=31536000, immutable';
 

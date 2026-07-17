@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -59,6 +59,34 @@ import AdminSMS from "./pages/admin/AdminSMS";
 import AdminPermissions from "./pages/admin/AdminPermissions";
 
 const queryClient = new QueryClient();
+const APP_VERSION = "20260717-invoice-unlocked-v2";
+
+const useBrowserCacheBust = () => {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const previousVersion = window.localStorage.getItem("tradeon_app_version");
+    window.localStorage.setItem("tradeon_app_version", APP_VERSION);
+
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.getRegistrations()
+        .then((registrations) => Promise.allSettled(registrations.map((registration) => registration.unregister())))
+        .catch(() => undefined);
+    }
+
+    if ("caches" in window) {
+      caches.keys()
+        .then((keys) => Promise.allSettled(keys.map((key) => caches.delete(key))))
+        .catch(() => undefined);
+    }
+
+    if (previousVersion && previousVersion !== APP_VERSION && !window.location.search.includes("cache_bust=")) {
+      const nextUrl = new URL(window.location.href);
+      nextUrl.searchParams.set("cache_bust", APP_VERSION);
+      window.location.replace(nextUrl.toString());
+    }
+  }, []);
+};
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
@@ -93,68 +121,72 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <CartProvider>
-          <TrackingScripts />
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/about-us" element={<AboutUs />} />
-              <Route path="/contact-us" element={<ContactUs />} />
-              <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-              <Route path="/return-refund-policy" element={<ReturnRefundPolicy />} />
-              <Route path="/prohibited-items" element={<ProhibitedItems />} />
-              <Route path="/install" element={<Install />} />
-              <Route path="/seller/:vendorId" element={<SellerStore />} />
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/payment/callback" element={<PaymentCallback />} />
-              <Route path="/dashboard" element={<DashboardRoute><Overview /></DashboardRoute>} />
-              <Route path="/dashboard/orders" element={<DashboardRoute><Orders /></DashboardRoute>} />
-              <Route path="/dashboard/delivery" element={<DashboardRoute><Delivery /></DashboardRoute>} />
-              <Route path="/dashboard/shipments" element={<DashboardRoute><Shipments /></DashboardRoute>} />
-              <Route path="/dashboard/parcels" element={<DashboardRoute><Parcels /></DashboardRoute>} />
-              <Route path="/dashboard/actions" element={<DashboardRoute><Actions /></DashboardRoute>} />
-              <Route path="/dashboard/rfq" element={<DashboardRoute><RFQ /></DashboardRoute>} />
-              <Route path="/dashboard/wishlist" element={<DashboardRoute><Wishlist /></DashboardRoute>} />
-              <Route path="/dashboard/notifications" element={<DashboardRoute><Notifications /></DashboardRoute>} />
-              <Route path="/dashboard/messages" element={<DashboardRoute><Messages /></DashboardRoute>} />
-              <Route path="/dashboard/balance" element={<DashboardRoute><Balance /></DashboardRoute>} />
-              <Route path="/dashboard/withdrawal" element={<DashboardRoute><Withdrawal /></DashboardRoute>} />
-              <Route path="/dashboard/transactions" element={<DashboardRoute><Transactions /></DashboardRoute>} />
-              <Route path="/dashboard/refunds" element={<DashboardRoute><Refunds /></DashboardRoute>} />
-              <Route path="/dashboard/profile" element={<DashboardRoute><Profile /></DashboardRoute>} />
-              <Route path="/dashboard/cart" element={<DashboardRoute><Cart /></DashboardRoute>} />
-              <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-              <Route path="/admin/orders" element={<AdminRoute><AdminOrders /></AdminRoute>} />
-              <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
-              <Route path="/admin/roles" element={<AdminRoute><AdminRoles /></AdminRoute>} />
-              <Route path="/admin/shipments" element={<AdminRoute><AdminShipments /></AdminRoute>} />
-              <Route path="/admin/refunds" element={<AdminRoute><AdminRefunds /></AdminRoute>} />
-              <Route path="/admin/transactions" element={<AdminRoute><AdminTransactions /></AdminRoute>} />
-              <Route path="/admin/wallets" element={<AdminRoute><AdminWallets /></AdminRoute>} />
-              <Route path="/admin/notifications" element={<AdminRoute><AdminNotifications /></AdminRoute>} />
-              <Route path="/admin/wishlist" element={<AdminRoute><AdminWishlist /></AdminRoute>} />
-              <Route path="/admin/customers" element={<AdminRoute><AdminCustomers /></AdminRoute>} />
-              <Route path="/admin/analytics" element={<AdminRoute><AdminAnalytics /></AdminRoute>} />
-              <Route path="/admin/messaging" element={<AdminRoute><AdminMessaging /></AdminRoute>} />
-              <Route path="/admin/settings" element={<AdminRoute><AdminSettings /></AdminRoute>} />
-              <Route path="/admin/marketing" element={<AdminRoute><AdminMarketing /></AdminRoute>} />
-              <Route path="/admin/sms" element={<AdminRoute><AdminSMS /></AdminRoute>} />
-              <Route path="/admin/permissions" element={<AdminRoute><AdminPermissions /></AdminRoute>} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Suspense>
-        </CartProvider>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  useBrowserCacheBust();
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <CartProvider>
+            <TrackingScripts />
+            <Suspense fallback={<PageLoader />}>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/about-us" element={<AboutUs />} />
+                <Route path="/contact-us" element={<ContactUs />} />
+                <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+                <Route path="/return-refund-policy" element={<ReturnRefundPolicy />} />
+                <Route path="/prohibited-items" element={<ProhibitedItems />} />
+                <Route path="/install" element={<Install />} />
+                <Route path="/seller/:vendorId" element={<SellerStore />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/payment/callback" element={<PaymentCallback />} />
+                <Route path="/dashboard" element={<DashboardRoute><Overview /></DashboardRoute>} />
+                <Route path="/dashboard/orders" element={<DashboardRoute><Orders /></DashboardRoute>} />
+                <Route path="/dashboard/delivery" element={<DashboardRoute><Delivery /></DashboardRoute>} />
+                <Route path="/dashboard/shipments" element={<DashboardRoute><Shipments /></DashboardRoute>} />
+                <Route path="/dashboard/parcels" element={<DashboardRoute><Parcels /></DashboardRoute>} />
+                <Route path="/dashboard/actions" element={<DashboardRoute><Actions /></DashboardRoute>} />
+                <Route path="/dashboard/rfq" element={<DashboardRoute><RFQ /></DashboardRoute>} />
+                <Route path="/dashboard/wishlist" element={<DashboardRoute><Wishlist /></DashboardRoute>} />
+                <Route path="/dashboard/notifications" element={<DashboardRoute><Notifications /></DashboardRoute>} />
+                <Route path="/dashboard/messages" element={<DashboardRoute><Messages /></DashboardRoute>} />
+                <Route path="/dashboard/balance" element={<DashboardRoute><Balance /></DashboardRoute>} />
+                <Route path="/dashboard/withdrawal" element={<DashboardRoute><Withdrawal /></DashboardRoute>} />
+                <Route path="/dashboard/transactions" element={<DashboardRoute><Transactions /></DashboardRoute>} />
+                <Route path="/dashboard/refunds" element={<DashboardRoute><Refunds /></DashboardRoute>} />
+                <Route path="/dashboard/profile" element={<DashboardRoute><Profile /></DashboardRoute>} />
+                <Route path="/dashboard/cart" element={<DashboardRoute><Cart /></DashboardRoute>} />
+                <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+                <Route path="/admin/orders" element={<AdminRoute><AdminOrders /></AdminRoute>} />
+                <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
+                <Route path="/admin/roles" element={<AdminRoute><AdminRoles /></AdminRoute>} />
+                <Route path="/admin/shipments" element={<AdminRoute><AdminShipments /></AdminRoute>} />
+                <Route path="/admin/refunds" element={<AdminRoute><AdminRefunds /></AdminRoute>} />
+                <Route path="/admin/transactions" element={<AdminRoute><AdminTransactions /></AdminRoute>} />
+                <Route path="/admin/wallets" element={<AdminRoute><AdminWallets /></AdminRoute>} />
+                <Route path="/admin/notifications" element={<AdminRoute><AdminNotifications /></AdminRoute>} />
+                <Route path="/admin/wishlist" element={<AdminRoute><AdminWishlist /></AdminRoute>} />
+                <Route path="/admin/customers" element={<AdminRoute><AdminCustomers /></AdminRoute>} />
+                <Route path="/admin/analytics" element={<AdminRoute><AdminAnalytics /></AdminRoute>} />
+                <Route path="/admin/messaging" element={<AdminRoute><AdminMessaging /></AdminRoute>} />
+                <Route path="/admin/settings" element={<AdminRoute><AdminSettings /></AdminRoute>} />
+                <Route path="/admin/marketing" element={<AdminRoute><AdminMarketing /></AdminRoute>} />
+                <Route path="/admin/sms" element={<AdminRoute><AdminSMS /></AdminRoute>} />
+                <Route path="/admin/permissions" element={<AdminRoute><AdminPermissions /></AdminRoute>} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
+          </CartProvider>
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
