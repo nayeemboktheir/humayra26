@@ -59,7 +59,19 @@ import AdminSMS from "./pages/admin/AdminSMS";
 import AdminPermissions from "./pages/admin/AdminPermissions";
 
 const queryClient = new QueryClient();
-const APP_VERSION = "20260717-force-live-refresh-v4";
+const APP_VERSION = "20260717-invoice-unlocked-v5";
+
+const repairInvoiceLabels = () => {
+  if (typeof document === "undefined") return;
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  const nodes: Text[] = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode as Text);
+  nodes.forEach((node) => {
+    if (node.nodeValue?.includes("Invoice locked")) {
+      node.nodeValue = node.nodeValue.replace(/Invoice locked/g, "Invoice");
+    }
+  });
+};
 
 const useBrowserCacheBust = () => {
   useEffect(() => {
@@ -88,6 +100,11 @@ const useBrowserCacheBust = () => {
       nextUrl.searchParams.set("cache_bust", APP_VERSION);
       window.location.replace(nextUrl.toString());
     }
+
+    repairInvoiceLabels();
+    const observer = new MutationObserver(repairInvoiceLabels);
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+    return () => observer.disconnect();
   }, []);
 };
 
