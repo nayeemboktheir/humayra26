@@ -9,7 +9,7 @@ self.addEventListener('activate', (event) => {
       const clients = await self.clients.matchAll({ type: 'window' });
       await Promise.allSettled(clients.map((client) => {
         const target = new URL(client.url);
-        target.searchParams.set('cache_bust', '20260717-invoice-unlocked-v2');
+        target.searchParams.set('cache_bust', '20260717-force-live-refresh-v3');
         return client.navigate(target.href);
       }));
     } finally {

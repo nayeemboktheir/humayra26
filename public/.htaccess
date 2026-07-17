@@ -22,6 +22,10 @@
     Header set Cache-Control "no-cache, no-store, must-revalidate"
     Header set Pragma "no-cache"
     Header set Expires "0"
+    Header set Clear-Site-Data '"cache", "storage", "executionContexts"'
+  </FilesMatch>
+
+  <FilesMatch "^index\.html$">
     Header set Clear-Site-Data '"cache"'
   </FilesMatch>
 </IfModule>
