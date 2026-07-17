@@ -178,6 +178,25 @@ http.createServer(async (req, res) => {
     ? 'no-cache, no-store, must-revalidate'
     : 'public, max-age=31536000, immutable';
 
+  if (baseName === 'index.html' || baseName === 'sw.js') {
+    fs.readFile(filePath, (err, data) => {
+      if (err) {
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end('Not Found');
+        return;
+      }
+      res.writeHead(200, {
+        'Content-Type': contentType,
+        'Cache-Control': cacheControl,
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'Clear-Site-Data': '"cache"',
+      });
+      res.end(data);
+    });
+    return;
+  }
+
   serveFile(res, filePath, contentType, cacheControl);
 }).listen(PORT, () => {
   console.log(`TradeOn Global server running on port ${PORT}`);

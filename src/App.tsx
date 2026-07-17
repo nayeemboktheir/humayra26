@@ -59,7 +59,7 @@ import AdminSMS from "./pages/admin/AdminSMS";
 import AdminPermissions from "./pages/admin/AdminPermissions";
 
 const queryClient = new QueryClient();
-const APP_VERSION = "20260717-invoice-unlocked-v2";
+const APP_VERSION = "20260717-force-live-refresh-v3";
 
 const useBrowserCacheBust = () => {
   useEffect(() => {
@@ -80,7 +80,10 @@ const useBrowserCacheBust = () => {
         .catch(() => undefined);
     }
 
-    if (previousVersion && previousVersion !== APP_VERSION && !window.location.search.includes("cache_bust=")) {
+    const currentUrl = new URL(window.location.href);
+    const alreadyOnVersion = currentUrl.searchParams.get("cache_bust") === APP_VERSION;
+
+    if (previousVersion !== APP_VERSION && !alreadyOnVersion) {
       const nextUrl = new URL(window.location.href);
       nextUrl.searchParams.set("cache_bust", APP_VERSION);
       window.location.replace(nextUrl.toString());
