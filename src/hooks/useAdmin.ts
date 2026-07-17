@@ -3,39 +3,42 @@ import { useAuth } from "@/contexts/AuthContext";
 import { isStaffRole, resolveUserRole, type AppRole } from "@/lib/roles";
 
 export function useAdmin() {
-  const { user } = useAuth();
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isStaff, setIsStaff] = useState(false);
-  const [userRole, setUserRole] = useState<AppRole>(null);
-  const [loading, setLoading] = useState(true);
+  const { user, loading: authLoading } = useAuth();
+  const [resolved, setResolved] = useState<{ userId: string | null; role: AppRole }>({
+    userId: null,
+    role: null,
+  });
 
   useEffect(() => {
     if (!user) {
-      setIsAdmin(false);
-      setIsStaff(false);
-      setUserRole(null);
-      setLoading(false);
+      setResolved({ userId: null, role: null });
       return;
     }
 
     let cancelled = false;
-    setLoading(true);
-
-    const checkAdmin = async () => {
-      try {
-        const role = await resolveUserRole(user.id);
-        if (cancelled) return;
-        setUserRole(role);
-        setIsAdmin(role === "admin");
-        setIsStaff(isStaffRole(role));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+    resolveUserRole(user.id)
+      .then((role) => {
+        if (!cancelled) setResolved({ userId: user.id, role });
+      })
+      .catch(() => {
+        if (!cancelled) setResolved({ userId: user.id, role: null });
+      });
+    return () => {
+      cancelled = true;
     };
-
-    checkAdmin();
-    return () => { cancelled = true; };
   }, [user?.id]);
 
-  return { isAdmin, isStaff, userRole, loading };
+  // While auth is still loading, or the role hasn't been resolved for the current user,
+  // report loading=true. This prevents a race where AdminRoute/DashboardRoute momentarily
+  // sees user=present + isStaff=false and redirects away before the role check completes.
+  const resolvedForCurrentUser = user ? resolved.userId === user.id : true;
+  const loading = authLoading || (!!user && !resolvedForCurrentUser);
+  const role: AppRole = resolvedForCurrentUser ? resolved.role : null;
+
+  return {
+    isAdmin: role === "admin",
+    isStaff: isStaffRole(role),
+    userRole: role,
+    loading,
+  };
 }
