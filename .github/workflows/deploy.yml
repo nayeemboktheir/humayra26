@@ -93,7 +93,7 @@ jobs:
             cp public/.htaccess dist/.htaccess
           fi
 
-      - name: Deploy to Hostinger via FTP
+      - name: Deploy to Hostinger FTP root
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
@@ -103,5 +103,33 @@ jobs:
           port: 21
           local-dir: ./dist/
           server-dir: ./
-          dangerous-clean-slate: true
+          dangerous-clean-slate: false
           timeout: 60000
+
+      - name: Deploy to Hostinger public_html fallback
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          port: 21
+          local-dir: ./dist/
+          server-dir: ./public_html/
+          dangerous-clean-slate: false
+          timeout: 60000
+
+      - name: Verify live site updated
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3 4 5; do
+            HTML="$(curl -fsSL 'https://tradeon.global/?deploy_verify='"${GITHUB_SHA}-${GITHUB_RUN_NUMBER}-${attempt}" || true)"
+            if printf '%s' "$HTML" | grep -q 'tradeon-live-\|tradeon-app-20260717-v6'; then
+              echo "✅ tradeon.global is serving the new bundle reference"
+              exit 0
+            fi
+            echo "Attempt $attempt: live site still has old bundle reference; retrying..."
+            sleep 15
+          done
+          echo "❌ tradeon.global still did not update. Check Hostinger FTP_SERVER/FTP_USERNAME secrets or CDN cache." >&2
+          exit 1
