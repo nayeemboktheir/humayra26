@@ -59,7 +59,7 @@ import AdminSMS from "./pages/admin/AdminSMS";
 import AdminPermissions from "./pages/admin/AdminPermissions";
 
 const queryClient = new QueryClient();
-const APP_VERSION = "20260717-force-live-refresh-v3";
+const APP_VERSION = "20260717-force-live-refresh-v4";
 
 const useBrowserCacheBust = () => {
   useEffect(() => {
