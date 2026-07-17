@@ -139,7 +139,7 @@ http.createServer(async (req, res) => {
   let filePath = path.join(ROOT, safePath);
 
   if (urlPath === '/assets/index-BQHE-_WD.js' || urlPath === '/assets/index-DaxjUk2z.js') {
-    const latestBundle = path.join(ROOT, 'assets', 'tradeon-app-20260717-v6.js');
+    const latestBundle = path.join(ROOT, 'assets', 'tradeon-app-20260717-v8.js');
     serveFile(res, latestBundle, 'application/javascript', 'no-cache, no-store, must-revalidate');
     return;
   }

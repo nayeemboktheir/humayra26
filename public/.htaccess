@@ -1,7 +1,7 @@
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
-  RewriteRule ^assets/index-(BQHE-_WD|DaxjUk2z)\.js$ /assets/tradeon-app-20260717-v6.js?cache_bust=20260717-invoice-unlocked-v6 [R=302,L]
+  RewriteRule ^assets/index-(BQHE-_WD|DaxjUk2z)\.js$ /assets/tradeon-app-20260717-v8.js?cache_bust=20260717-force-hostinger-v8 [R=302,L]
   RewriteRule ^index\.html$ - [L]
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d

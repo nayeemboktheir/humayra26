@@ -22,9 +22,9 @@ export default defineConfig(({ mode }) => ({
         // Hostinger has been rate-limiting many parallel JS chunk requests on the live domain.
         // Keep the SPA in a single JS bundle so product pages do not fail while loading lazy chunks.
         inlineDynamicImports: true,
-        entryFileNames: "assets/tradeon-app-20260717-v6.js",
-        chunkFileNames: "assets/tradeon-chunk-20260717-v6-[hash].js",
-        assetFileNames: "assets/tradeon-asset-20260717-v6-[hash][extname]",
+        entryFileNames: "assets/tradeon-app-20260717-v8.js",
+        chunkFileNames: "assets/tradeon-chunk-20260717-v8-[hash].js",
+        assetFileNames: "assets/tradeon-asset-20260717-v8-[hash][extname]",
       },
     },
   },

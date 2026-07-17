@@ -29,12 +29,14 @@ jobs:
           VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID }}
         run: bun run build
 
-      - name: Force fresh live bundle and remove invoice lock
+      - name: Prepare cache-proof dist
         run: |
           set -euo pipefail
-          DEPLOY_TAG="${GITHUB_SHA:-manual}-${GITHUB_RUN_NUMBER:-0}"
+          SHA_SHORT="$(printf '%s' "${GITHUB_SHA:-manual}" | cut -c1-12)"
+          DEPLOY_TAG="${SHA_SHORT}-${GITHUB_RUN_NUMBER:-0}"
           SAFE_TAG="$(printf '%s' "$DEPLOY_TAG" | tr -cd '[:alnum:]-_')"
           LIVE_BUNDLE="assets/tradeon-live-${SAFE_TAG}.js"
+          LIVE_STYLE="assets/tradeon-style-${SAFE_TAG}.css"
 
           MAIN_REF="$(python3 - <<'PY'
           from pathlib import Path
@@ -50,6 +52,15 @@ jobs:
           MAIN_FILE="dist/${MAIN_REF}"
           test -f "$MAIN_FILE"
 
+          CSS_REF="$(python3 - <<'PY'
+          from pathlib import Path
+          import re
+          html = Path('dist/index.html').read_text()
+          matches = re.findall(r'href=["\']/?(assets/[^"\']+\.css)["\']', html)
+          print(matches[0] if matches else '')
+          PY
+          )"
+
           # Even if an old source revision is accidentally built, never ship the locked invoice text.
           python3 - <<'PY'
           from pathlib import Path
@@ -61,20 +72,40 @@ jobs:
           PY
 
           cp "$MAIN_FILE" "dist/${LIVE_BUNDLE}"
+          for compat in \
+            assets/index-BQHE-_WD.js \
+            assets/index-DaxjUk2z.js \
+            assets/tradeon-app-20260717-v6.js \
+            assets/tradeon-app-20260717-v7.js \
+            assets/tradeon-app-20260717-v8.js
+          do
+            if [ "dist/${compat}" != "$MAIN_FILE" ]; then
+              cp "$MAIN_FILE" "dist/${compat}"
+            fi
+          done
 
-          cat > dist/assets/index-BQHE-_WD.js <<EOF
-          import('./tradeon-live-${SAFE_TAG}.js?cache_bust=' + Date.now());
-          EOF
-          cat > dist/assets/index-DaxjUk2z.js <<EOF
-          import('./tradeon-live-${SAFE_TAG}.js?cache_bust=' + Date.now());
-          EOF
+          if [ -n "$CSS_REF" ] && [ -f "dist/${CSS_REF}" ]; then
+            cp "dist/${CSS_REF}" "dist/${LIVE_STYLE}"
+            cp "dist/${CSS_REF}" "dist/assets/index-DjeSEfYI.css"
+          else
+            LIVE_STYLE=""
+          fi
 
-          python3 - <<PY
+          SAFE_TAG="$SAFE_TAG" LIVE_BUNDLE="$LIVE_BUNDLE" LIVE_STYLE="$LIVE_STYLE" python3 - <<'PY'
           from pathlib import Path
+          import os
           import re
+          safe_tag = os.environ['SAFE_TAG']
+          live_bundle = os.environ['LIVE_BUNDLE']
+          live_style = os.environ.get('LIVE_STYLE', '')
           html_path = Path('dist/index.html')
           html = html_path.read_text()
-          html = re.sub(r'src=["\']/?assets/[^"\']+\.js["\']', 'src="/${LIVE_BUNDLE}?v=${SAFE_TAG}"', html, count=1)
+          html = re.sub(r'src=["\']/?assets/[^"\']+\.js["\']', f'src="/{live_bundle}?v={safe_tag}"', html, count=1)
+          if live_style:
+              html = re.sub(r'href=["\']/?assets/[^"\']+\.css["\']', f'href="/{live_style}?v={safe_tag}"', html, count=1)
+          marker = f'<meta name="tradeon-build" content="{safe_tag}" />'
+          html = re.sub(r'<meta name="tradeon-build" content="[^"]*" />\s*', '', html)
+          html = html.replace('</head>', f'    {marker}\n  </head>')
           html_path.write_text(html)
           PY
 
@@ -119,17 +150,78 @@ jobs:
           dangerous-clean-slate: false
           timeout: 60000
 
+      - name: Force overwrite Hostinger web roots
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import ftplib
+          import os
+          from pathlib import Path
+
+          server = os.environ['FTP_SERVER']
+          username = os.environ['FTP_USERNAME']
+          password = os.environ['FTP_PASSWORD']
+          local_root = Path('dist')
+          targets = ['', 'public_html']
+
+          files = [p for p in local_root.rglob('*') if p.is_file()]
+
+          def cwd_mkdirs(ftp, remote_dir):
+              ftp.cwd('/')
+              for part in [p for p in remote_dir.split('/') if p]:
+                  try:
+                      ftp.cwd(part)
+                  except ftplib.error_perm:
+                      ftp.mkd(part)
+                      ftp.cwd(part)
+
+          def upload_target(remote_root):
+              ftp = ftplib.FTP_TLS(timeout=60)
+              ftp.connect(server, 21)
+              ftp.login(username, password)
+              ftp.prot_p()
+              ftp.set_pasv(True)
+              print(f'Overwriting dist files in /{remote_root or "."}')
+              for path in files:
+                  rel = path.relative_to(local_root)
+                  parent = rel.parent.as_posix()
+                  remote_dir = '/'.join(x for x in [remote_root.strip('/'), parent] if x)
+                  cwd_mkdirs(ftp, remote_dir)
+                  with path.open('rb') as handle:
+                      ftp.storbinary(f'STOR {rel.name}', handle)
+              ftp.quit()
+
+          for target in targets:
+              upload_target(target)
+          PY
+
       - name: Verify live site updated
         run: |
           set -euo pipefail
-          for attempt in 1 2 3 4 5; do
-            HTML="$(curl -fsSL 'https://tradeon.global/?deploy_verify='"${GITHUB_SHA}-${GITHUB_RUN_NUMBER}-${attempt}" || true)"
-            if printf '%s' "$HTML" | grep -q 'tradeon-live-\|tradeon-app-20260717-v6'; then
-              echo "✅ tradeon.global is serving the new bundle reference"
+          SHA_SHORT="$(printf '%s' "${GITHUB_SHA:-manual}" | cut -c1-12)"
+          SAFE_TAG="$(printf '%s' "${SHA_SHORT}-${GITHUB_RUN_NUMBER:-0}" | tr -cd '[:alnum:]-_')"
+          LIVE_BUNDLE="assets/tradeon-live-${SAFE_TAG}.js"
+          for attempt in 1 2 3 4 5 6 7 8; do
+            VERIFY_ID="${SAFE_TAG}-${attempt}-$(date +%s)"
+            HTML="$(curl -fsSL -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "https://tradeon.global/?deploy_verify=${VERIFY_ID}" || true)"
+            OLD_JS="$(curl -fsSL -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "https://tradeon.global/assets/index-BQHE-_WD.js?deploy_verify=${VERIFY_ID}" || true)"
+            NEW_JS="$(curl -fsSL -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "https://tradeon.global/${LIVE_BUNDLE}?deploy_verify=${VERIFY_ID}" || true)"
+
+            if printf '%s' "$HTML" | grep -q "tradeon-build.*${SAFE_TAG}" \
+              && printf '%s' "$HTML" | grep -q "$LIVE_BUNDLE" \
+              && ! printf '%s' "$OLD_JS" | grep -q 'Invoice locked' \
+              && ! printf '%s' "$OLD_JS" | grep -qi '<!doctype html' \
+              && ! printf '%s' "$NEW_JS" | grep -q 'Invoice locked' \
+              && ! printf '%s' "$NEW_JS" | grep -qi '<!doctype html'; then
+              echo "✅ tradeon.global is serving this run's index and JS files"
               exit 0
             fi
-            echo "Attempt $attempt: live site still has old bundle reference; retrying..."
+            echo "Attempt $attempt: live site still has stale HTML or JS; retrying..."
             sleep 15
           done
-          echo "❌ tradeon.global still did not update. Check Hostinger FTP_SERVER/FTP_USERNAME secrets or CDN cache." >&2
+          echo "❌ tradeon.global still did not update. The FTP credentials may point to the wrong Hostinger account/folder, or Hostinger CDN cache must be purged." >&2
           exit 1
