@@ -29,6 +29,61 @@ jobs:
           VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID }}
         run: bun run build
 
+      - name: Force fresh live bundle and remove invoice lock
+        run: |
+          set -euo pipefail
+          DEPLOY_TAG="${GITHUB_SHA:-manual}-${GITHUB_RUN_NUMBER:-0}"
+          SAFE_TAG="$(printf '%s' "$DEPLOY_TAG" | tr -cd '[:alnum:]-_')"
+          LIVE_BUNDLE="assets/tradeon-live-${SAFE_TAG}.js"
+
+          MAIN_REF="$(python3 - <<'PY'
+          from pathlib import Path
+          import re
+          html = Path('dist/index.html').read_text()
+          matches = re.findall(r'src=["\']/?(assets/[^"\']+\.js)["\']', html)
+          if not matches:
+              raise SystemExit('No JS bundle found in dist/index.html')
+          print(matches[0])
+          PY
+          )"
+
+          MAIN_FILE="dist/${MAIN_REF}"
+          test -f "$MAIN_FILE"
+
+          # Even if an old source revision is accidentally built, never ship the locked invoice text.
+          python3 - <<'PY'
+          from pathlib import Path
+          for path in Path('dist/assets').glob('*.js'):
+              text = path.read_text(errors='ignore')
+              text = text.replace('Invoice locked', 'Invoice')
+              text = text.replace('Invoice available after payment', 'Invoice available')
+              path.write_text(text)
+          PY
+
+          cp "$MAIN_FILE" "dist/${LIVE_BUNDLE}"
+
+          cat > dist/assets/index-BQHE-_WD.js <<EOF
+          import('./tradeon-live-${SAFE_TAG}.js?cache_bust=' + Date.now());
+          EOF
+          cat > dist/assets/index-DaxjUk2z.js <<EOF
+          import('./tradeon-live-${SAFE_TAG}.js?cache_bust=' + Date.now());
+          EOF
+
+          python3 - <<PY
+          from pathlib import Path
+          import re
+          html_path = Path('dist/index.html')
+          html = html_path.read_text()
+          html = re.sub(r'src=["\']/?assets/[^"\']+\.js["\']', 'src="/${LIVE_BUNDLE}?v=${SAFE_TAG}"', html, count=1)
+          html_path.write_text(html)
+          PY
+
+          if grep -R "Invoice locked" dist; then
+            echo "Blocked deploy: stale invoice lock still exists in dist" >&2
+            exit 1
+          fi
+          echo "Live bundle forced to /${LIVE_BUNDLE}?v=${SAFE_TAG}"
+
       - name: Verify .htaccess in dist
         run: |
           if [ -f dist/.htaccess ]; then

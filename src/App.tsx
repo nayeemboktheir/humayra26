@@ -59,7 +59,7 @@ import AdminSMS from "./pages/admin/AdminSMS";
 import AdminPermissions from "./pages/admin/AdminPermissions";
 
 const queryClient = new QueryClient();
-const APP_VERSION = "20260717-invoice-unlocked-v5";
+const APP_VERSION = "20260717-invoice-unlocked-v6";
 
 const repairInvoiceLabels = () => {
   if (typeof document === "undefined") return;
