@@ -132,23 +132,36 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
     setAddingToWishlist(true);
     try {
       if (isWishlisted) {
-        await supabase.from('wishlist').delete().eq('user_id', user.id).eq('product_id', String(product.num_iid));
+        const { error } = await supabase.from('wishlist').delete().eq('user_id', user.id).eq('product_id', String(product.num_iid));
+        if (error) throw error;
         setIsWishlisted(false);
         toast({ title: "Removed from wishlist" });
       } else {
-        await supabase.from('wishlist').insert({
+        const rawPrice = tierBdtUnit(1);
+        const price = Number.isFinite(rawPrice) ? Number(rawPrice) : null;
+        const { error } = await supabase.from('wishlist').insert({
           user_id: user.id,
           product_id: String(product.num_iid),
-          product_name: product.title,
-          product_image: product.pic_url,
-          product_price: tierBdtUnit(1),
+          product_name: product.title || `Product ${product.num_iid}`,
+          product_image: product.pic_url || null,
+          product_price: price,
           product_url: `${window.location.origin}/?product=${product.num_iid}`,
         });
+        if (error) {
+          // If duplicate (already exists), treat as success
+          if ((error as any).code === '23505') {
+            setIsWishlisted(true);
+            toast({ title: "Already in wishlist" });
+            return;
+          }
+          throw error;
+        }
         setIsWishlisted(true);
         toast({ title: "Added to wishlist!" });
       }
-    } catch {
-      toast({ title: "Error", description: "Something went wrong.", variant: "destructive" });
+    } catch (err: any) {
+      console.error('Wishlist error:', err);
+      toast({ title: "Error", description: err?.message || "Something went wrong.", variant: "destructive" });
     } finally {
       setAddingToWishlist(false);
     }
