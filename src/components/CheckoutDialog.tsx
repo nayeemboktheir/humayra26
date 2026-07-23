@@ -243,7 +243,7 @@ export default function CheckoutDialog({ open, onOpenChange, data }: CheckoutDia
             <h3 className="text-sm font-bold mb-3">পণ্য তালিকা</h3>
             <div className="border rounded-lg p-3 space-y-3">
               <div className="flex gap-3">
-                <img src={data.productImage} alt="" referrerPolicy="no-referrer" className="w-14 h-14 rounded-md object-cover border flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
+                <img src={data.productImage} alt="" referrerPolicy="no-referrer" loading="lazy" decoding="async" className="w-14 h-14 rounded-md object-cover border flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold leading-tight line-clamp-2">{data.productTitle}</p>
                   <p className="text-xs text-muted-foreground mt-1">Qty: {data.totalQty} Pcs</p>
