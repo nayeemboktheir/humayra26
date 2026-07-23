@@ -340,6 +340,8 @@ export const ProductSearch = () => {
                         <img
                           src={img}
                           alt={`Image ${i + 1}`}
+                          loading="lazy"
+                          decoding="async"
                           className="w-full h-full object-cover"
                           onError={(e) => {
                             (e.target as HTMLImageElement).src = "/placeholder.svg";
@@ -493,6 +495,8 @@ export const ProductSearch = () => {
                   <img
                     src={selectedProduct.pic_url || "/placeholder.svg"}
                     alt="Store"
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = "/placeholder.svg";
