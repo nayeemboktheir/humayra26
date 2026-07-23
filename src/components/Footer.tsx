@@ -125,7 +125,7 @@ const Footer = () => {
           <p className="flex items-center justify-center gap-2 pt-2">
             <span>Powered by</span>
             <a href="https://otcommerce.com" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 hover:opacity-80 transition-opacity">
-              <img src={otcommerceLogo} alt="OT Commerce" className="h-5 w-auto" />
+              <img src={otcommerceLogo} alt="OT Commerce" loading="lazy" decoding="async" className="h-5 w-auto" />
               <span className="font-semibold text-foreground">OT Commerce</span>
             </a>
           </p>
