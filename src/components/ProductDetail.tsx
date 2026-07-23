@@ -524,7 +524,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
               <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 mt-2">
                 {images.map((img, idx) => (
                   <button key={`img-${idx}`} onClick={() => downloadFile(img, `product-image-${idx + 1}.jpg`)} className="aspect-square rounded-lg overflow-hidden border bg-muted hover:ring-2 hover:ring-primary transition-all cursor-pointer group relative">
-                    <img src={img} alt={`Product ${idx + 1}`} referrerPolicy="no-referrer" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
+                    <img src={img} alt={`Product ${idx + 1}`} referrerPolicy="no-referrer" loading="lazy" decoding="async" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
                     <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/20 transition-colors flex items-center justify-center">
                       <Download className="h-5 w-5 text-background opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
                     </div>
@@ -532,7 +532,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                 ))}
                 {product.configuredItems?.filter(ci => ci.imageUrl).map((ci, idx) => (
                   <button key={`sku-${idx}`} onClick={() => downloadFile(ci.imageUrl!, `variant-${idx + 1}.jpg`)} className="aspect-square rounded-lg overflow-hidden border bg-muted hover:ring-2 hover:ring-primary transition-all cursor-pointer group relative">
-                    <img src={ci.imageUrl} alt={ci.title} referrerPolicy="no-referrer" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
+                    <img src={ci.imageUrl} alt={ci.title} referrerPolicy="no-referrer" loading="lazy" decoding="async" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
                     <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/20 transition-colors flex items-center justify-center">
                       <Download className="h-5 w-5 text-background opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
                     </div>
@@ -572,7 +572,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                   className={`flex-shrink-0 w-[72px] h-[72px] rounded-lg overflow-hidden border-2 transition-all ${
                     selectedImage === idx && !showVideo && !variantOverrideImage ? "border-primary ring-2 ring-primary/20" : "border-border hover:border-primary/40"
                   }`}>
-                  <img src={img} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
+                  <img src={img} alt="" referrerPolicy="no-referrer" loading="lazy" decoding="async" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
                 </button>
               ))}
               {product.video && (
@@ -608,7 +608,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                 className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
                   selectedImage === idx && !showVideo && !variantOverrideImage ? "border-primary ring-2 ring-primary/20" : "border-border hover:border-primary/40"
                 }`}>
-                <img src={img} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
+                <img src={img} alt="" referrerPolicy="no-referrer" loading="lazy" decoding="async" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
               </button>
             ))}
           </div>
@@ -692,7 +692,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                             className={`relative flex-shrink-0 w-[60px] h-[60px] rounded overflow-hidden border-2 transition-all ${
                               selectedColorKey === colorKey ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-primary/40'
                             }`}>
-                            <img src={firstSku.imageUrl} alt={firstSku.title} referrerPolicy="no-referrer" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
+                            <img src={firstSku.imageUrl} alt={firstSku.title} referrerPolicy="no-referrer" loading="lazy" decoding="async" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
                             {totalQtyForColor > 0 && (
                               <span className="absolute -top-0.5 -right-0.5 bg-primary text-primary-foreground text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center shadow-sm">{totalQtyForColor}</span>
                             )}
@@ -844,7 +844,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                       return (
                         <div key={sku.id} className="border rounded-lg p-3 space-y-2.5">
                           <div className="flex items-start gap-3">
-                            {sku.imageUrl && <img src={sku.imageUrl} alt="" referrerPolicy="no-referrer" className="w-14 h-14 rounded-md object-cover border" />}
+                            {sku.imageUrl && <img src={sku.imageUrl} alt="" referrerPolicy="no-referrer" loading="lazy" decoding="async" className="w-14 h-14 rounded-md object-cover border" />}
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-semibold leading-tight line-clamp-2">{sku.title}</p>
                               <div className="flex items-baseline gap-2 mt-1">
