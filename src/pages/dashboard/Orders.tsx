@@ -120,7 +120,7 @@ const Orders = () => {
                     <TableCell className="font-mono text-sm">{order.order_number}</TableCell>
                     <TableCell className="max-w-[280px]">
                       <div className="flex items-center gap-2">
-                        {order.product_image && <img src={order.product_image} alt="" className="h-10 w-10 rounded object-cover flex-shrink-0" referrerPolicy="no-referrer" />}
+                        {order.product_image && <img src={order.product_image} alt="" loading="lazy" decoding="async" className="h-10 w-10 rounded object-cover flex-shrink-0" referrerPolicy="no-referrer" />}
                         <span className="line-clamp-2 text-sm">{order.product_name}</span>
                       </div>
                     </TableCell>

@@ -592,7 +592,7 @@ export default function AdminOrders() {
                 <div className="p-4 space-y-4">
                   <div className="flex gap-3">
                     {order.product_image ? (
-                      <img src={order.product_image} alt="" className="w-16 h-16 rounded-lg object-cover border border-border/40 flex-shrink-0" referrerPolicy="no-referrer" />
+                      <img src={order.product_image} alt="" loading="lazy" decoding="async" className="w-16 h-16 rounded-lg object-cover border border-border/40 flex-shrink-0" referrerPolicy="no-referrer" />
                     ) : (
                       <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
                         <ImageIcon className="h-6 w-6 text-muted-foreground/40" />
@@ -610,7 +610,7 @@ export default function AdminOrders() {
                     className="flex items-center gap-2.5 w-full p-2.5 rounded-lg bg-muted/50 hover:bg-muted transition-colors text-left"
                   >
                     {order.profile?.avatar_url ? (
-                      <img src={order.profile.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover border border-border" />
+                      <img src={order.profile.avatar_url} alt="" loading="lazy" decoding="async" className="w-8 h-8 rounded-full object-cover border border-border" />
                     ) : (
                       <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
                         <UserCircle className="h-4 w-4 text-primary" />
@@ -782,7 +782,7 @@ export default function AdminOrders() {
             <div className="space-y-4">
               <div className="flex flex-col items-center gap-3 pb-4 border-b border-border/40">
                 {selectedProfile.profile?.avatar_url ? (
-                  <img src={selectedProfile.profile.avatar_url} alt="" className="w-20 h-20 rounded-full object-cover border-2 border-primary/20" />
+                  <img src={selectedProfile.profile.avatar_url} alt="" loading="lazy" decoding="async" className="w-20 h-20 rounded-full object-cover border-2 border-primary/20" />
                 ) : (
                   <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
                     <UserCircle className="h-10 w-10 text-primary/40" />

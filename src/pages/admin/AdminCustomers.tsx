@@ -474,7 +474,7 @@ export default function AdminCustomers() {
                     return (
                       <div key={order.id} className="flex gap-3 p-3 rounded-lg border border-border/60 hover:border-primary/20 transition-colors">
                         {order.product_image ? (
-                          <img src={order.product_image} alt="" className="w-14 h-14 rounded-lg object-cover border border-border/40 flex-shrink-0" referrerPolicy="no-referrer" />
+                          <img src={order.product_image} alt="" loading="lazy" decoding="async" className="w-14 h-14 rounded-lg object-cover border border-border/40 flex-shrink-0" referrerPolicy="no-referrer" />
                         ) : (
                           <div className="w-14 h-14 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
                             <ImageIcon className="h-5 w-5 text-muted-foreground/40" />

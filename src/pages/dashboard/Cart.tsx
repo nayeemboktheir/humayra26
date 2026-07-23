@@ -153,6 +153,8 @@ export default function Cart() {
                   src={item.product_image || "/placeholder.svg"}
                   alt=""
                   referrerPolicy="no-referrer"
+                  loading="lazy"
+                  decoding="async"
                   className="w-20 h-20 rounded-lg object-cover border flex-shrink-0 cursor-pointer"
                   onClick={() => navigate(`/?product=${item.product_id}`)}
                   onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder.svg"; }}

@@ -39,7 +39,7 @@ const Wishlist = () => {
           {items.map((item) => (
             <Card key={item.id} className="overflow-hidden">
               {item.product_image && (
-                <img src={item.product_image} alt={item.product_name} className="w-full h-40 object-cover" />
+                <img src={item.product_image} alt={item.product_name} loading="lazy" decoding="async" className="w-full h-40 object-cover" />
               )}
               <CardContent className="p-4">
                 <h3 className="font-medium text-sm line-clamp-2 mb-2">{item.product_name}</h3>
