@@ -145,6 +145,8 @@ export default function SellerStore() {
                       src={product.pic_url}
                       alt={product.title}
                       referrerPolicy="no-referrer"
+                      loading="lazy"
+                      decoding="async"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
                     />

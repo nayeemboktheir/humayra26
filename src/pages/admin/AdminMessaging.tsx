@@ -298,7 +298,7 @@ export default function AdminMessaging() {
               className={cn("cursor-pointer hover:shadow-md transition-shadow", t.unread > 0 && "border-primary/40 bg-primary/5")}>
               <CardContent className="p-4 flex items-start gap-3">
                 {p?.avatar_url ? (
-                  <img src={p.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover shrink-0" />
+                  <img src={p.avatar_url} alt="" loading="lazy" decoding="async" className="w-10 h-10 rounded-full object-cover shrink-0" />
                 ) : (
                   <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                     <MessageSquare className="h-5 w-5 text-primary" />
