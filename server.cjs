@@ -179,10 +179,11 @@ http.createServer(async (req, res) => {
   const contentType = mime[ext] || 'application/octet-stream';
   const baseName = path.basename(filePath).toLowerCase();
   const noCacheFiles = new Set(['index.html', 'favicon.ico', 'favicon.png', 'manifest.webmanifest', 'sw.js']);
-  const noCacheExtensions = new Set(['.html', '.js', '.css']);
-  const cacheControl = noCacheFiles.has(baseName) || noCacheExtensions.has(ext)
+  // Long-cache hashed/versioned build outputs; entry docs above stay no-cache.
+  const isVersionedAsset = /^tradeon-(app|chunk|asset|style|live)-.*\.(js|css|png|jpe?g|gif|svg|webp|woff2?|ttf)$/.test(baseName);
+  const cacheControl = noCacheFiles.has(baseName)
     ? 'no-cache, no-store, must-revalidate'
-    : 'public, max-age=31536000, immutable';
+    : (isVersionedAsset ? 'public, max-age=31536000, immutable' : 'public, max-age=3600');
 
   if (baseName === 'index.html' || baseName === 'sw.js') {
     fs.readFile(filePath, (err, data) => {
