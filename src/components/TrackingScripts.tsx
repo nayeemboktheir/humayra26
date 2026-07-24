@@ -18,6 +18,26 @@ export default function TrackingScripts() {
   useEffect(() => {
     if (loading) return;
 
+    // Defer all third-party pixel injection until the browser is idle
+    // so it doesn't compete with first paint / hydration.
+    let cancelled = false;
+    const ric: (cb: () => void) => number =
+      (window as any).requestIdleCallback
+        ? (cb) => (window as any).requestIdleCallback(cb, { timeout: 4000 })
+        : (cb) => window.setTimeout(cb, 2500);
+    const handle = ric(() => {
+      if (cancelled) return;
+      injectPixels();
+    });
+    return () => {
+      cancelled = true;
+      const cic = (window as any).cancelIdleCallback;
+      if (cic) cic(handle);
+      else clearTimeout(handle);
+    };
+
+    function injectPixels() {
+
     // Meta Pixel
     if (settings.meta_pixel_enabled === "true" && settings.meta_pixel_id) {
       const id = settings.meta_pixel_id;
@@ -82,6 +102,7 @@ export default function TrackingScripts() {
         `;
         document.head.appendChild(inlineScript);
       }
+    }
     }
   }, [loading, settings]);
 

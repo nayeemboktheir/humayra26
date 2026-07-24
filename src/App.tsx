@@ -64,30 +64,23 @@ const APP_VERSION = "20260717-force-hostinger-v8";
 const useBrowserCacheBust = () => {
   useEffect(() => {
     if (typeof window === "undefined") return;
-
-    const previousVersion = window.localStorage.getItem("tradeon_app_version");
     window.localStorage.setItem("tradeon_app_version", APP_VERSION);
 
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.getRegistrations()
-        .then((registrations) => Promise.allSettled(registrations.map((registration) => registration.unregister())))
-        .catch(() => undefined);
-    }
-
-    if ("caches" in window) {
-      caches.keys()
-        .then((keys) => Promise.allSettled(keys.map((key) => caches.delete(key))))
-        .catch(() => undefined);
-    }
-
-    const currentUrl = new URL(window.location.href);
-    const alreadyOnVersion = currentUrl.searchParams.get("cache_bust") === APP_VERSION;
-
-    if (previousVersion !== APP_VERSION && !alreadyOnVersion) {
-      const nextUrl = new URL(window.location.href);
-      nextUrl.searchParams.set("cache_bust", APP_VERSION);
-      window.location.replace(nextUrl.toString());
-    }
+    // One-time cleanup of legacy SW/caches; deferred to idle so it doesn't block first paint.
+    const cleanup = () => {
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.getRegistrations()
+          .then((regs) => Promise.allSettled(regs.map((r) => r.unregister())))
+          .catch(() => undefined);
+      }
+      if ("caches" in window) {
+        caches.keys()
+          .then((keys) => Promise.allSettled(keys.map((k) => caches.delete(k))))
+          .catch(() => undefined);
+      }
+    };
+    const ric = (window as any).requestIdleCallback || ((cb: () => void) => setTimeout(cb, 2000));
+    ric(cleanup);
   }, []);
 };
 
