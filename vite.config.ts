@@ -1,7 +1,20 @@
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
+
+const nonBlockingCss = (): Plugin => ({
+  name: "non-blocking-css",
+  apply: "build",
+  transformIndexHtml(html: string) {
+    return html.replace(
+      /<link rel="stylesheet"[^>]*href="([^"]+\.css)"[^>]*\/?>(?!\s*<\/noscript>)/g,
+      (_m: string, href: string) =>
+        `<link rel="preload" as="style" href="${href}" onload="this.onload=null;this.rel='stylesheet'">` +
+        `<noscript><link rel="stylesheet" href="${href}"></noscript>`,
+    );
+  },
+});
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -15,6 +28,7 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     mode === "development" && componentTagger(),
+    nonBlockingCss(),
   ].filter(Boolean),
   build: {
     rollupOptions: {
