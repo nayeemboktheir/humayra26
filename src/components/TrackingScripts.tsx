@@ -103,6 +103,7 @@ export default function TrackingScripts() {
         document.head.appendChild(inlineScript);
       }
     }
+    }
   }, [loading, settings]);
 
   return null;
