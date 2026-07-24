@@ -9,16 +9,20 @@
 </IfModule>
 
 <IfModule mod_headers.c>
+  # Entry documents must always be fresh so they can reference the newest hashed assets.
   <FilesMatch "^index\.html$|^registerSW\.js$|^manifest\.webmanifest$|^favicon(-20260701)?\.(ico|png)$">
     Header set Cache-Control "no-cache, no-store, must-revalidate"
     Header set Pragma "no-cache"
     Header set Expires "0"
   </FilesMatch>
-  <FilesMatch "\.(js|css)$">
-    Header set Cache-Control "no-cache, no-store, must-revalidate"
-    Header set Pragma "no-cache"
-    Header set Expires "0"
+
+  # Long-cache versioned/hashed build assets (filenames change on each release).
+  <FilesMatch "^tradeon-(app|chunk|asset|style|live)-.*\.(js|css|png|jpg|jpeg|gif|svg|webp|woff2?|ttf)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+    Header unset Pragma
+    Header unset Expires
   </FilesMatch>
+
   <FilesMatch "^sw\.js$">
     Header set Cache-Control "no-cache, no-store, must-revalidate"
     Header set Pragma "no-cache"
