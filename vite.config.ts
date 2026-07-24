@@ -15,6 +15,19 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     mode === "development" && componentTagger(),
+    {
+      // Make the entry stylesheet non-render-blocking via rel=preload swap + <noscript> fallback.
+      name: "non-blocking-css",
+      apply: "build",
+      transformIndexHtml(html) {
+        return html.replace(
+          /<link rel="stylesheet"[^>]*href="([^"]+\.css)"[^>]*\/?>(?!\s*<\/noscript>)/g,
+          (_m, href) =>
+            `<link rel="preload" as="style" href="${href}" onload="this.onload=null;this.rel='stylesheet'">` +
+            `<noscript><link rel="stylesheet" href="${href}"></noscript>`,
+        );
+      },
+    },
   ].filter(Boolean),
   build: {
     rollupOptions: {
