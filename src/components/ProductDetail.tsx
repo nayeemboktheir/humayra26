@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -29,6 +30,15 @@ import { trackViewContent } from "@/lib/tracking";
 const translateLocation = (location: string): string => {
   if (location.includes("省") || location.includes("市")) return "China";
   return location;
+};
+
+const parseQtyInput = (value: string, max?: number): number => {
+  const digits = value.replace(/\D/g, "");
+  if (digits === "") return 0;
+  let n = parseInt(digits, 10);
+  if (Number.isNaN(n) || n < 0) n = 0;
+  if (max !== undefined && n > max) n = max;
+  return n;
 };
 
 interface ProductDetailProps {
@@ -729,7 +739,13 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                                         <Button variant="outline" size="icon" className="h-7 w-7 rounded-l-md rounded-r-none border-r-0" onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: Math.max(0, (prev[sku.id] || 0) - 1) }))}>
                                           <Minus className="h-3 w-3" />
                                         </Button>
-                                        <div className="h-7 w-8 border border-input flex items-center justify-center text-xs font-semibold tabular-nums bg-background">{qty}</div>
+                                        <Input
+                                          type="number"
+                                          min={0}
+                                          value={qty}
+                                          onChange={(e) => setSkuQuantities(prev => ({ ...prev, [sku.id]: parseQtyInput(e.target.value) }))}
+                                          className="h-7 w-8 rounded-none border-x-0 px-0 text-center text-xs font-semibold tabular-nums bg-background [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                        />
                                         <Button variant="outline" size="icon" className="h-7 w-7 rounded-r-md rounded-l-none border-l-0" onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: (prev[sku.id] || 0) + 1 }))}>
                                           <Plus className="h-3 w-3" />
                                         </Button>
@@ -817,7 +833,13 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                                 onClick={() => setSkuQuantities(prev => ({ ...prev, [selectedSkuId!]: Math.max(0, (prev[selectedSkuId!] || 0) - 1) }))}>
                                 <Minus className="h-3.5 w-3.5" />
                               </Button>
-                              <div className="h-8 w-10 border border-input flex items-center justify-center text-sm font-semibold tabular-nums bg-background">{qty}</div>
+                              <Input
+                                type="number"
+                                min={0}
+                                value={qty}
+                                onChange={(e) => setSkuQuantities(prev => ({ ...prev, [selectedSkuId!]: parseQtyInput(e.target.value) }))}
+                                className="h-8 w-10 rounded-none border-x-0 px-0 text-center text-sm font-semibold tabular-nums bg-background [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                              />
                               <Button variant="outline" size="icon" className="h-8 w-8 rounded-r-md rounded-l-none border-l-0"
                                 onClick={() => setSkuQuantities(prev => ({ ...prev, [selectedSkuId!]: (prev[selectedSkuId!] || 0) + 1 }))}>
                                 <Plus className="h-3.5 w-3.5" />
@@ -859,7 +881,13 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                                 onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: Math.max(0, (prev[sku.id] || 0) - 1) }))}>
                                 <Minus className="h-3.5 w-3.5" />
                               </Button>
-                              <div className="h-8 w-10 border border-input flex items-center justify-center text-sm font-semibold tabular-nums bg-background">{qty}</div>
+                              <Input
+                                type="number"
+                                min={0}
+                                value={qty}
+                                onChange={(e) => setSkuQuantities(prev => ({ ...prev, [sku.id]: parseQtyInput(e.target.value) }))}
+                                className="h-8 w-10 rounded-none border-x-0 px-0 text-center text-sm font-semibold tabular-nums bg-background [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                              />
                               <Button variant="outline" size="icon" className="h-8 w-8 rounded-r-md rounded-l-none border-l-0"
                                 onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: (prev[sku.id] || 0) + 1 }))}>
                                 <Plus className="h-3.5 w-3.5" />
@@ -878,7 +906,13 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                       <span className="text-base font-semibold">Quantity</span>
                       <div className="flex items-center gap-1.5">
                         <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => setQuantity(Math.max(0, quantity - 1))}><Minus className="h-3 w-3" /></Button>
-                        <span className="w-8 text-center text-base font-semibold tabular-nums">{quantity}</span>
+                        <Input
+                          type="number"
+                          min={0}
+                          value={quantity}
+                          onChange={(e) => setQuantity(parseQtyInput(e.target.value))}
+                          className="h-8 w-10 rounded-lg px-0 text-center text-base font-semibold tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                        />
                         <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => setQuantity(quantity + 1)}><Plus className="h-3 w-3" /></Button>
                       </div>
                     </div>
