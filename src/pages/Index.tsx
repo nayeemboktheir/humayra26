@@ -899,10 +899,19 @@ const Index = () => {
     setSearchParams(newParams);
   };
 
+  // Exit the detail view when the product param disappears (e.g. browser back button)
+  useEffect(() => {
+    if (searchParams.get('product')) return;
+    lastProductFetchRef.current = null;
+    setSelectedProduct(null);
+    setIsLoadingProduct(false);
+  }, [searchParams]);
+
   // Keep product detail route fresh, including replacing any stale fallback detail state
   useEffect(() => {
     const productParam = searchParams.get('product');
     if (!productParam || isLoadingProduct) return;
+
 
     const numIid = parseInt(productParam);
     if (isNaN(numIid) || numIid <= 0) return;
