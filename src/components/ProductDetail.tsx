@@ -32,6 +32,15 @@ const translateLocation = (location: string): string => {
   return location;
 };
 
+const parseQtyInput = (value: string, max?: number): number => {
+  const digits = value.replace(/\D/g, "");
+  if (digits === "") return 0;
+  let n = parseInt(digits, 10);
+  if (Number.isNaN(n) || n < 0) n = 0;
+  if (max !== undefined && n > max) n = max;
+  return n;
+};
+
 interface ProductDetailProps {
   product?: ProductDetail1688;
   isLoading?: boolean;
