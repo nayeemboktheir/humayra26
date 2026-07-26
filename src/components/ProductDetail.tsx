@@ -906,7 +906,13 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                       <span className="text-base font-semibold">Quantity</span>
                       <div className="flex items-center gap-1.5">
                         <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => setQuantity(Math.max(0, quantity - 1))}><Minus className="h-3 w-3" /></Button>
-                        <span className="w-8 text-center text-base font-semibold tabular-nums">{quantity}</span>
+                        <Input
+                          type="number"
+                          min={0}
+                          value={quantity}
+                          onChange={(e) => setQuantity(parseQtyInput(e.target.value))}
+                          className="h-8 w-10 rounded-lg px-0 text-center text-base font-semibold tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                        />
                         <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => setQuantity(quantity + 1)}><Plus className="h-3 w-3" /></Button>
                       </div>
                     </div>
