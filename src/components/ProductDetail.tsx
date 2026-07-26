@@ -881,7 +881,13 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                                 onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: Math.max(0, (prev[sku.id] || 0) - 1) }))}>
                                 <Minus className="h-3.5 w-3.5" />
                               </Button>
-                              <div className="h-8 w-10 border border-input flex items-center justify-center text-sm font-semibold tabular-nums bg-background">{qty}</div>
+                              <Input
+                                type="number"
+                                min={0}
+                                value={qty}
+                                onChange={(e) => setSkuQuantities(prev => ({ ...prev, [sku.id]: parseQtyInput(e.target.value) }))}
+                                className="h-8 w-10 rounded-none border-x-0 px-0 text-center text-sm font-semibold tabular-nums bg-background [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                              />
                               <Button variant="outline" size="icon" className="h-8 w-8 rounded-r-md rounded-l-none border-l-0"
                                 onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: (prev[sku.id] || 0) + 1 }))}>
                                 <Plus className="h-3.5 w-3.5" />
