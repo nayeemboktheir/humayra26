@@ -128,7 +128,7 @@ Deno.serve(async (req) => {
 
     const order = isMemberId
       ? [tryMemberId, tryShopUrl, tryResolveThenMemberId]
-      : [tryShopUrl, tryResolveThenMemberId, tryMemberId];
+      : [tryResolveThenMemberId, tryShopUrl, tryMemberId];
 
     for (const attempt of order) {
       if (await attempt()) break;
