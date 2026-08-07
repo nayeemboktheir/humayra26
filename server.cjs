@@ -160,7 +160,7 @@ http.createServer(async (req, res) => {
       const pageUrl = `${SITE_ORIGIN}/?product=${encodeURIComponent(productId)}`;
       const title = og?.title ? `${og.title} — TradeOn Global` : 'TradeOn Global';
       const description = og?.title || 'TradeOn Global - Search and browse wholesale products with prices in BDT';
-      const image = og?.image || `${SITE_ORIGIN}/favicon-20260701.png`;
+      const image = og?.image || `${SITE_ORIGIN}/og-image.png?v=2`;
       const html = injectOg(indexHtml, { title, description, image, pageUrl });
       res.writeHead(200, {
         'Content-Type': 'text/html; charset=utf-8',
