@@ -207,51 +207,58 @@ const Index = () => {
   useEffect(() => {
     let isMounted = true;
 
-    // Load trending from DB and cache in session for instant subsequent loads
-    const loadTrendingFromDatabase = async () => {
+    // Load trending from DB and cache in session for instant subsequent loads.
+    // Returns the age (in ms) of the newest cached row, or Infinity when empty.
+    const loadTrendingFromDatabase = async (): Promise<number> => {
       const { data, error } = await supabase
         .from("trending_products")
         .select("*")
         .order("updated_at", { ascending: false })
         .limit(24);
 
-      if (!error && data && data.length > 0 && isMounted) {
-        const mapped = data.slice(0, 12).map((p: any) => ({
-          id: p.product_id,
-          title: p.title,
-          image: p.image_url,
-          price: Number(p.price) || 0,
-          oldPrice: Number(p.old_price) || Number(p.price) || 0,
-          sold: Number(p.sold) || 0,
-        }));
-        setTrendingProducts(mapped);
-        _sessionCache.trendingProducts = mapped;
+      if (!error && data && data.length > 0) {
+        if (isMounted) {
+          const mapped = data.slice(0, 12).map((p: any) => ({
+            id: p.product_id,
+            title: p.title,
+            image: p.image_url,
+            price: Number(p.price) || 0,
+            oldPrice: Number(p.old_price) || Number(p.price) || 0,
+            sold: Number(p.sold) || 0,
+          }));
+          setTrendingProducts(mapped);
+          _sessionCache.trendingProducts = mapped;
+        }
+        const newest = new Date((data[0] as any).updated_at || (data[0] as any).created_at || 0).getTime();
+        return Date.now() - newest;
       }
+      return Infinity;
     };
+
+    const DAY_MS = 24 * 60 * 60 * 1000;
 
     const refreshTrendingOnVisit = async () => {
       // If we have session-cached trending, show instantly
       if (_sessionCache.trendingProducts) {
         setTrendingProducts(_sessionCache.trendingProducts);
         if (isMounted) setIsTrendingLoaded(true);
-        // Refresh in background and replace stale session products on this visit too.
-        supabase.functions.invoke("refresh-trending-products").then(async () => {
-          if (isMounted) await loadTrendingFromDatabase();
-        }).catch(() => {});
         return;
       }
 
-      // First visit: load from DB immediately, then trigger background refresh
-      await loadTrendingFromDatabase();
+      // First visit: load from DB immediately
+      const age = await loadTrendingFromDatabase();
       if (isMounted) setIsTrendingLoaded(true);
 
-      // Background refresh — update cache for next reload
+      // Only refresh once every 24 hours to avoid burning API credits
+      if (age < DAY_MS) return;
+
       supabase.functions.invoke("refresh-trending-products").then(async ({ error }) => {
         if (!error) {
           await loadTrendingFromDatabase();
         }
       }).catch(() => {});
     };
+
 
     // Skip category fetch if already cached
     if (_sessionCache.categoryProductsMap) {
