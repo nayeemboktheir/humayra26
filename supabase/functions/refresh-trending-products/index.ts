@@ -33,6 +33,22 @@ Deno.serve(async (req) => {
     if (!apiToken) return new Response(JSON.stringify({ success: false, error: "TMAPI_TOKEN not configured" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+    // Only refresh once per 24 hours (unless ?force=1) to avoid burning API credits
+    const force = new URL(req.url).searchParams.get("force") === "1";
+    if (!force) {
+      const { data: latest } = await supabase
+        .from("trending_products")
+        .select("updated_at")
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (latest?.updated_at && Date.now() - new Date(latest.updated_at).getTime() < 24 * 60 * 60 * 1000) {
+        return new Response(JSON.stringify({ success: true, skipped: true, message: "Trending refreshed within last 24h" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+
     const allProducts: any[] = [];
     const seenIds = new Set<string>();
     const shuffledQueries = [...TRENDING_QUERIES].sort(() => Math.random() - 0.5);
