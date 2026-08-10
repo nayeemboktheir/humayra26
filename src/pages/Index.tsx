@@ -521,7 +521,8 @@ const Index = () => {
       if (finalItems.length > 0 && convertedPath) {
         console.log(`TMAPI page 1: ${finalItems.length} items, convertedPath: ${convertedPath}`);
         imageSearchDerivedKeywordRef.current = `__tmapi_path__${convertedPath}`;
-        prefetchTmapiPages(convertedPath, 2, 6, originalImageUrl || convertedPath);
+        // Only prefetch ONE page ahead — extra pages are fetched on demand in goToPage.
+        prefetchTmapiPages(convertedPath, 2, 2, originalImageUrl || convertedPath);
       }
 
       // TMAPI returned 0 results — fall back to OTAPI image search for page 1
@@ -538,7 +539,7 @@ const Index = () => {
         if (finalItems.length > 0) {
           const derivedKeyword = extractSearchKeywords(finalItems);
           imageSearchDerivedKeywordRef.current = derivedKeyword;
-          if (derivedKeyword) prefetchTextPages(derivedKeyword, 2, 6);
+          if (derivedKeyword) prefetchTextPages(derivedKeyword, 2, 2);
         }
       }
 

@@ -7,6 +7,8 @@ const corsHeaders = {
 
 const TMAPI_BASE = 'http://api.tmapi.top/1688';
 
+type SaveCache = (url: string, page: number, items: any[], total: number) => Promise<void>;
+
 function normalizeImg(u: string): string {
   if (!u) return '';
   if (u.startsWith('//')) return `https:${u}`;
@@ -76,6 +78,31 @@ Deno.serve(async (req) => {
 
     const startTime = Date.now();
     const effectivePageSize = Math.min(pageSize, 20);
+
+    // Serve from cache when possible (saves TMAPI credits on repeat/paging)
+    const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+    const cacheKeyFor = (u: string) => `img2:${String(u).trim().toLowerCase()}`;
+    if (imageUrl) {
+      const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { data: cached } = await supabase
+        .from('search_cache')
+        .select('items, total_results')
+        .eq('query_key', cacheKeyFor(imageUrl)).eq('page', page).gte('updated_at', cutoff).maybeSingle();
+      if (cached?.items) {
+        return new Response(JSON.stringify({
+          success: true, data: { items: cached.items, total: cached.total_results },
+          meta: { method: 'tmapi_image_cache', page, pageSize: effectivePageSize, convertedImageUrl: imageUrl, originalImageUrl: originalImageUrl || imageUrl },
+        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+    }
+    const saveCache = async (u: string, p: number, items: any[], total: number) => {
+      if (!u || !items?.length) return;
+      try {
+        await supabase.from('search_cache').upsert(
+          { query_key: cacheKeyFor(u), page: p, total_results: total, items, translated: true },
+          { onConflict: 'query_key,page' });
+      } catch { /* cache write is best-effort */ }
+    };
     let imgUrl = imageUrl || '';
     let originalUrl = originalImageUrl || imgUrl;
 
@@ -83,13 +110,13 @@ Deno.serve(async (req) => {
     const isAlicdn = imgUrl && (imgUrl.includes('alicdn.com') || imgUrl.includes('aliyuncs.com'));
     if (isAlicdn) {
       console.log(`Direct TMAPI search: alicdn URL, page ${page}`);
-      return await doImageSearch(imgUrl, page, effectivePageSize, apiToken, startTime, imgUrl, imgUrl);
+      return await doImageSearch(imgUrl, page, effectivePageSize, apiToken, startTime, imgUrl, imgUrl, saveCache);
     }
 
     // PATH 2: Already a converted path (starts with /) → use V2 endpoint directly
     if (imgUrl && imgUrl.startsWith('/')) {
       console.log(`V2 search with converted path, page ${page}`);
-      return await doImageSearchV2(imgUrl, page, effectivePageSize, apiToken, startTime, imgUrl, originalUrl);
+      return await doImageSearchV2(imgUrl, page, effectivePageSize, apiToken, startTime, imgUrl, originalUrl, saveCache);
     }
 
     // PATH 3: User-uploaded image (base64 or external URL) → convert first, then search with V2
@@ -107,7 +134,7 @@ Deno.serve(async (req) => {
 
     if (convertedPath && convertedPath !== imgUrl) {
       // Use V2 endpoint with the converted path
-      return await doImageSearchV2(convertedPath, page, effectivePageSize, apiToken, startTime, convertedPath, originalUrl);
+      return await doImageSearchV2(convertedPath, page, effectivePageSize, apiToken, startTime, convertedPath, originalUrl, saveCache);
     }
 
     return emptyResponse(imgUrl, originalUrl || imgUrl);
@@ -125,6 +152,7 @@ Deno.serve(async (req) => {
 async function doImageSearch(
   imgUrl: string, page: number, pageSize: number,
   apiToken: string, startTime: number, convertedUrl: string, originalUrl: string = '',
+  saveCache?: SaveCache,
 ): Promise<Response> {
   const endpoints = [
     `${TMAPI_BASE}/search/image?apiToken=${encodeURIComponent(apiToken)}&img_url=${encodeURIComponent(imgUrl)}&page=${page}&page_size=${pageSize}&sort=default`,
@@ -133,7 +161,7 @@ async function doImageSearch(
 
   for (const searchUrl of endpoints) {
     const epName = searchUrl.includes('/global/') ? 'global' : 'standard';
-    const result = await fetchAndParse(searchUrl, epName, pageSize, apiToken, startTime, convertedUrl, originalUrl, page);
+    const result = await fetchAndParse(searchUrl, epName, pageSize, apiToken, startTime, convertedUrl, originalUrl, page, saveCache);
     if (result) return result;
   }
 
@@ -144,17 +172,18 @@ async function doImageSearch(
 async function doImageSearchV2(
   imgPath: string, page: number, pageSize: number,
   apiToken: string, startTime: number, convertedUrl: string, originalUrl: string = '',
+  saveCache?: SaveCache,
 ): Promise<Response> {
   const searchUrl = `${TMAPI_BASE}/global/search/image/v2?apiToken=${encodeURIComponent(apiToken)}&img_url=${encodeURIComponent(imgPath)}&language=en&page=${page}&page_size=${pageSize}&sort=default`;
 
-  const result = await fetchAndParse(searchUrl, 'v2', pageSize, apiToken, startTime, convertedUrl, originalUrl, page);
+  const result = await fetchAndParse(searchUrl, 'v2', pageSize, apiToken, startTime, convertedUrl, originalUrl, page, saveCache);
   if (result) return result;
 
   // V2 failed, try standard endpoints with full URL if it looks like a path
   if (imgPath.startsWith('/')) {
     const fullUrl = `https://cbu01.alicdn.com${imgPath}`;
     console.log('V2 failed, trying standard with full URL...');
-    return await doImageSearch(fullUrl, page, pageSize, apiToken, startTime, convertedUrl, originalUrl);
+    return await doImageSearch(fullUrl, page, pageSize, apiToken, startTime, convertedUrl, originalUrl, saveCache);
   }
 
   return emptyResponse(convertedUrl, originalUrl);
@@ -164,6 +193,7 @@ async function doImageSearchV2(
 async function fetchAndParse(
   searchUrl: string, epName: string, pageSize: number,
   apiToken: string, startTime: number, convertedUrl: string, originalUrl: string, page: number,
+  saveCache?: SaveCache,
 ): Promise<Response | null> {
   console.log(`Trying ${epName} endpoint, page ${page}...`);
   const controller = new AbortController();
@@ -204,6 +234,7 @@ async function fetchAndParse(
   const items = rawItems.map(mapTmapiImageItem).filter((item: any) => item.num_iid && item.pic_url);
 
   console.log(`${epName}: ${items.length} items in ${Date.now() - startTime}ms`);
+  if (saveCache) await saveCache(convertedUrl, page, items, total);
   return new Response(JSON.stringify({
     success: true,
     data: { items, total },
