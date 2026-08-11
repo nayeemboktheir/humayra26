@@ -422,6 +422,7 @@ export default function OrderInvoice({ order, orders: ordersProp, open, onOpenCh
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-primary text-primary-foreground">
+                  <th className="text-center py-3 px-3.5 font-bold text-[11px] uppercase tracking-wider w-10">SN</th>
                   <th className="text-left py-3 px-3.5 font-bold text-[11px] uppercase tracking-wider">Product</th>
                   <th className="text-center py-3 px-3.5 font-bold text-[11px] uppercase tracking-wider w-20">QTY</th>
                   <th className="text-right py-3 px-3.5 font-bold text-[11px] uppercase tracking-wider w-28">Unit Price</th>
@@ -431,18 +432,20 @@ export default function OrderInvoice({ order, orders: ordersProp, open, onOpenCh
               <tbody>
                 {orders.map((o, oi) => {
                   const lines = parseOrderLines(o);
+                  const snOffset = orders.slice(0, oi).reduce((n, po) => n + parseOrderLines(po).length, 0);
                   const domesticCourier = Number(o.domestic_courier_charge || 0);
                   const orderTotal = Number(o.total_price) + domesticCourier;
                   return (
                     <>{isCombined && (
                       <tr key={`h-${oi}`}>
-                        <td colSpan={4} className="py-2 px-3.5 font-bold text-xs text-primary bg-primary/5 border-b-2 border-primary/10">
+                        <td colSpan={5} className="py-2 px-3.5 font-bold text-xs text-primary bg-primary/5 border-b-2 border-primary/10">
                           Order #{o.order_number}{o.invoice_name ? ` — ${o.invoice_name}` : ""}
                         </td>
                       </tr>
                     )}
                     {lines.map((line, li) => (
                       <tr key={`${oi}-${li}`} className={li % 2 === 1 ? "bg-muted/30" : ""}>
+                        <td className="py-2.5 px-3.5 text-xs text-center text-muted-foreground">{snOffset + li + 1}</td>
                         <td className="py-2.5 px-3.5 text-xs font-medium whitespace-pre-line">{line.name}</td>
                         <td className="py-2.5 px-3.5 text-xs text-center">{line.qty}</td>
                         <td className="py-2.5 px-3.5 text-xs text-right">৳{line.unitPrice.toLocaleString()}</td>
@@ -451,20 +454,26 @@ export default function OrderInvoice({ order, orders: ordersProp, open, onOpenCh
                     ))}
                     {domesticCourier > 0 && (
                       <tr key={`d-${oi}`} className="bg-muted/20">
-                        <td colSpan={3} className="py-2 px-3.5 text-xs text-muted-foreground">Domestic Courier (China)</td>
+                        <td colSpan={4} className="py-2 px-3.5 text-xs text-muted-foreground">Domestic Courier (China)</td>
                         <td className="py-2 px-3.5 text-xs text-right font-semibold">৳{domesticCourier.toLocaleString()}</td>
                       </tr>
                     )}
                     {isCombined && (
                       <tr key={`s-${oi}`} className="border-t-2 border-border/60">
-                        <td colSpan={3} className="py-2 px-3.5 text-right text-xs font-semibold text-muted-foreground">Subtotal</td>
+                        <td colSpan={4} className="py-2 px-3.5 text-right text-xs font-semibold text-muted-foreground">Subtotal</td>
                         <td className="py-2 px-3.5 text-right text-xs font-bold">৳{orderTotal.toLocaleString()}</td>
                       </tr>
                     )}
                     </>
                   );
                 })}
+                <tr className="bg-primary/5 border-t-2 border-primary/20">
+                  <td colSpan={2} className="py-2.5 px-3.5 text-right text-xs font-bold text-primary">Total Quantity</td>
+                  <td className="py-2.5 px-3.5 text-center text-xs font-extrabold text-primary">{calcTotalQty(orders)}</td>
+                  <td colSpan={2} />
+                </tr>
               </tbody>
+
             </table>
           </div>
 
