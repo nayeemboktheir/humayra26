@@ -70,6 +70,13 @@ function calcTotals(orders: OrderData[]) {
   return { productTotal, domesticTotal, shippingTotal, commissionTotal, grandTotal: productTotal + domesticTotal + shippingTotal + commissionTotal };
 }
 
+function calcTotalQty(orders: OrderData[]) {
+  let qty = 0;
+  for (const o of orders) for (const l of parseOrderLines(o)) qty += Number(l.qty || 0);
+  return qty;
+}
+
+
 const ACCENT = "#1874bd";
 
 function buildPrintHTML(orders: OrderData[], settings: Record<string, string>) {
@@ -89,18 +96,21 @@ function buildPrintHTML(orders: OrderData[], settings: Record<string, string>) {
 
   // Build table rows
   let tableRows = "";
+  let sn = 0;
   for (const o of orders) {
     const lines = parseOrderLines(o);
     const domesticCourier = Number(o.domestic_courier_charge || 0);
     const orderTotal = Number(o.total_price) + domesticCourier;
 
     if (isCombined) {
-      tableRows += `<tr><td colspan="4" style="background:#eef5fc;padding:8px 14px;font-weight:700;font-size:12px;color:${ACCENT};border-bottom:2px solid #d4e6f6;">Order #${o.order_number}${o.invoice_name ? ` — ${o.invoice_name}` : ""}</td></tr>`;
+      tableRows += `<tr><td colspan="5" style="background:#eef5fc;padding:8px 14px;font-weight:700;font-size:12px;color:${ACCENT};border-bottom:2px solid #d4e6f6;">Order #${o.order_number}${o.invoice_name ? ` — ${o.invoice_name}` : ""}</td></tr>`;
     }
 
     lines.forEach((line, i) => {
       const bg = i % 2 === 1 ? "background:#f9fafb;" : "";
+      sn += 1;
       tableRows += `<tr style="${bg}">
+        <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:center;color:#6b7280;">${sn}</td>
         <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;font-size:13px;white-space:pre-line;">${line.name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</td>
         <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:center;">${line.qty}</td>
         <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:right;">৳${line.unitPrice.toLocaleString()}</td>
@@ -110,22 +120,33 @@ function buildPrintHTML(orders: OrderData[], settings: Record<string, string>) {
 
     if (domesticCourier > 0) {
       tableRows += `<tr style="background:#f9fafb;">
-        <td colspan="3" style="padding:8px 14px;border-bottom:1px solid #e5e7eb;font-size:12px;color:#6b7280;">Domestic Courier (China)</td>
+        <td colspan="4" style="padding:8px 14px;border-bottom:1px solid #e5e7eb;font-size:12px;color:#6b7280;">Domestic Courier (China)</td>
         <td style="padding:8px 14px;border-bottom:1px solid #e5e7eb;font-size:12px;text-align:right;font-weight:600;">৳${domesticCourier.toLocaleString()}</td>
       </tr>`;
     }
 
     if (isCombined) {
-      tableRows += `<tr><td colspan="3" style="padding:8px 14px;text-align:right;font-size:12px;font-weight:600;color:#6b7280;border-bottom:2px solid #e5e7eb;">Subtotal</td>
+      tableRows += `<tr><td colspan="4" style="padding:8px 14px;text-align:right;font-size:12px;font-weight:600;color:#6b7280;border-bottom:2px solid #e5e7eb;">Subtotal</td>
         <td style="padding:8px 14px;text-align:right;font-size:13px;font-weight:700;border-bottom:2px solid #e5e7eb;">৳${orderTotal.toLocaleString()}</td></tr>`;
     }
   }
 
+  const totalQty = calcTotalQty(orders);
+  tableRows += `<tr style="background:#eef5fc;">
+    <td colspan="2" style="padding:10px 14px;text-align:right;font-size:12px;font-weight:700;color:${ACCENT};">Total Quantity</td>
+    <td style="padding:10px 14px;text-align:center;font-size:13px;font-weight:800;color:${ACCENT};">${totalQty}</td>
+    <td colspan="2"></td>
+  </tr>`;
+
   // Summary rows
   let summaryRows = `
     <div style="display:flex;justify-content:space-between;padding:7px 0;font-size:13px;color:#4b5563;">
+      <span>Total Quantity</span><span style="font-weight:600;">${totalQty} pcs</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:7px 0;font-size:13px;color:#4b5563;">
       <span>Product Total</span><span style="font-weight:600;">৳${totals.productTotal.toLocaleString()}</span>
     </div>
+
     <div style="display:flex;justify-content:space-between;padding:7px 0;font-size:13px;color:#4b5563;">
       <span>Domestic Courier (China)</span><span style="font-weight:600;">৳${totals.domesticTotal.toLocaleString()}</span>
     </div>`;
@@ -189,6 +210,7 @@ function buildPrintHTML(orders: OrderData[], settings: Record<string, string>) {
     <table style="width:100%;border-collapse:collapse;margin-bottom:28px;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;">
       <thead>
         <tr>
+          <th style="background:${ACCENT};color:#fff;text-align:center;padding:12px 14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;width:44px;">SN</th>
           <th style="background:${ACCENT};color:#fff;text-align:left;padding:12px 14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;">Product</th>
           <th style="background:${ACCENT};color:#fff;text-align:center;padding:12px 14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;width:80px;">QTY</th>
           <th style="background:${ACCENT};color:#fff;text-align:right;padding:12px 14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;width:120px;">Unit Price</th>
@@ -400,6 +422,7 @@ export default function OrderInvoice({ order, orders: ordersProp, open, onOpenCh
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-primary text-primary-foreground">
+                  <th className="text-center py-3 px-3.5 font-bold text-[11px] uppercase tracking-wider w-10">SN</th>
                   <th className="text-left py-3 px-3.5 font-bold text-[11px] uppercase tracking-wider">Product</th>
                   <th className="text-center py-3 px-3.5 font-bold text-[11px] uppercase tracking-wider w-20">QTY</th>
                   <th className="text-right py-3 px-3.5 font-bold text-[11px] uppercase tracking-wider w-28">Unit Price</th>
@@ -409,18 +432,20 @@ export default function OrderInvoice({ order, orders: ordersProp, open, onOpenCh
               <tbody>
                 {orders.map((o, oi) => {
                   const lines = parseOrderLines(o);
+                  const snOffset = orders.slice(0, oi).reduce((n, po) => n + parseOrderLines(po).length, 0);
                   const domesticCourier = Number(o.domestic_courier_charge || 0);
                   const orderTotal = Number(o.total_price) + domesticCourier;
                   return (
                     <>{isCombined && (
                       <tr key={`h-${oi}`}>
-                        <td colSpan={4} className="py-2 px-3.5 font-bold text-xs text-primary bg-primary/5 border-b-2 border-primary/10">
+                        <td colSpan={5} className="py-2 px-3.5 font-bold text-xs text-primary bg-primary/5 border-b-2 border-primary/10">
                           Order #{o.order_number}{o.invoice_name ? ` — ${o.invoice_name}` : ""}
                         </td>
                       </tr>
                     )}
                     {lines.map((line, li) => (
                       <tr key={`${oi}-${li}`} className={li % 2 === 1 ? "bg-muted/30" : ""}>
+                        <td className="py-2.5 px-3.5 text-xs text-center text-muted-foreground">{snOffset + li + 1}</td>
                         <td className="py-2.5 px-3.5 text-xs font-medium whitespace-pre-line">{line.name}</td>
                         <td className="py-2.5 px-3.5 text-xs text-center">{line.qty}</td>
                         <td className="py-2.5 px-3.5 text-xs text-right">৳{line.unitPrice.toLocaleString()}</td>
@@ -429,20 +454,26 @@ export default function OrderInvoice({ order, orders: ordersProp, open, onOpenCh
                     ))}
                     {domesticCourier > 0 && (
                       <tr key={`d-${oi}`} className="bg-muted/20">
-                        <td colSpan={3} className="py-2 px-3.5 text-xs text-muted-foreground">Domestic Courier (China)</td>
+                        <td colSpan={4} className="py-2 px-3.5 text-xs text-muted-foreground">Domestic Courier (China)</td>
                         <td className="py-2 px-3.5 text-xs text-right font-semibold">৳{domesticCourier.toLocaleString()}</td>
                       </tr>
                     )}
                     {isCombined && (
                       <tr key={`s-${oi}`} className="border-t-2 border-border/60">
-                        <td colSpan={3} className="py-2 px-3.5 text-right text-xs font-semibold text-muted-foreground">Subtotal</td>
+                        <td colSpan={4} className="py-2 px-3.5 text-right text-xs font-semibold text-muted-foreground">Subtotal</td>
                         <td className="py-2 px-3.5 text-right text-xs font-bold">৳{orderTotal.toLocaleString()}</td>
                       </tr>
                     )}
                     </>
                   );
                 })}
+                <tr className="bg-primary/5 border-t-2 border-primary/20">
+                  <td colSpan={2} className="py-2.5 px-3.5 text-right text-xs font-bold text-primary">Total Quantity</td>
+                  <td className="py-2.5 px-3.5 text-center text-xs font-extrabold text-primary">{calcTotalQty(orders)}</td>
+                  <td colSpan={2} />
+                </tr>
               </tbody>
+
             </table>
           </div>
 
@@ -450,9 +481,14 @@ export default function OrderInvoice({ order, orders: ordersProp, open, onOpenCh
           <div className="flex justify-end mb-6">
             <div className="w-72 bg-muted/40 rounded-lg p-4 space-y-1.5 text-sm">
               <div className="flex justify-between">
+                <span className="text-muted-foreground">Total Quantity</span>
+                <span className="font-semibold">{calcTotalQty(orders)} pcs</span>
+              </div>
+              <div className="flex justify-between">
                 <span className="text-muted-foreground">Product Total</span>
                 <span className="font-semibold">৳{totals.productTotal.toLocaleString()}</span>
               </div>
+
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Domestic Courier (China)</span>
                 <span className="font-semibold">৳{totals.domesticTotal.toLocaleString()}</span>
