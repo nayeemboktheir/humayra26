@@ -481,9 +481,14 @@ export default function OrderInvoice({ order, orders: ordersProp, open, onOpenCh
           <div className="flex justify-end mb-6">
             <div className="w-72 bg-muted/40 rounded-lg p-4 space-y-1.5 text-sm">
               <div className="flex justify-between">
+                <span className="text-muted-foreground">Total Quantity</span>
+                <span className="font-semibold">{calcTotalQty(orders)} pcs</span>
+              </div>
+              <div className="flex justify-between">
                 <span className="text-muted-foreground">Product Total</span>
                 <span className="font-semibold">৳{totals.productTotal.toLocaleString()}</span>
               </div>
+
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Domestic Courier (China)</span>
                 <span className="font-semibold">৳{totals.domesticTotal.toLocaleString()}</span>
