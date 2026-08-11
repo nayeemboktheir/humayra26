@@ -70,6 +70,13 @@ function calcTotals(orders: OrderData[]) {
   return { productTotal, domesticTotal, shippingTotal, commissionTotal, grandTotal: productTotal + domesticTotal + shippingTotal + commissionTotal };
 }
 
+function calcTotalQty(orders: OrderData[]) {
+  let qty = 0;
+  for (const o of orders) for (const l of parseOrderLines(o)) qty += Number(l.qty || 0);
+  return qty;
+}
+
+
 const ACCENT = "#1874bd";
 
 function buildPrintHTML(orders: OrderData[], settings: Record<string, string>) {
