@@ -96,18 +96,21 @@ function buildPrintHTML(orders: OrderData[], settings: Record<string, string>) {
 
   // Build table rows
   let tableRows = "";
+  let sn = 0;
   for (const o of orders) {
     const lines = parseOrderLines(o);
     const domesticCourier = Number(o.domestic_courier_charge || 0);
     const orderTotal = Number(o.total_price) + domesticCourier;
 
     if (isCombined) {
-      tableRows += `<tr><td colspan="4" style="background:#eef5fc;padding:8px 14px;font-weight:700;font-size:12px;color:${ACCENT};border-bottom:2px solid #d4e6f6;">Order #${o.order_number}${o.invoice_name ? ` — ${o.invoice_name}` : ""}</td></tr>`;
+      tableRows += `<tr><td colspan="5" style="background:#eef5fc;padding:8px 14px;font-weight:700;font-size:12px;color:${ACCENT};border-bottom:2px solid #d4e6f6;">Order #${o.order_number}${o.invoice_name ? ` — ${o.invoice_name}` : ""}</td></tr>`;
     }
 
     lines.forEach((line, i) => {
       const bg = i % 2 === 1 ? "background:#f9fafb;" : "";
+      sn += 1;
       tableRows += `<tr style="${bg}">
+        <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:center;color:#6b7280;">${sn}</td>
         <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;font-size:13px;white-space:pre-line;">${line.name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</td>
         <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:center;">${line.qty}</td>
         <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:right;">৳${line.unitPrice.toLocaleString()}</td>
@@ -117,22 +120,33 @@ function buildPrintHTML(orders: OrderData[], settings: Record<string, string>) {
 
     if (domesticCourier > 0) {
       tableRows += `<tr style="background:#f9fafb;">
-        <td colspan="3" style="padding:8px 14px;border-bottom:1px solid #e5e7eb;font-size:12px;color:#6b7280;">Domestic Courier (China)</td>
+        <td colspan="4" style="padding:8px 14px;border-bottom:1px solid #e5e7eb;font-size:12px;color:#6b7280;">Domestic Courier (China)</td>
         <td style="padding:8px 14px;border-bottom:1px solid #e5e7eb;font-size:12px;text-align:right;font-weight:600;">৳${domesticCourier.toLocaleString()}</td>
       </tr>`;
     }
 
     if (isCombined) {
-      tableRows += `<tr><td colspan="3" style="padding:8px 14px;text-align:right;font-size:12px;font-weight:600;color:#6b7280;border-bottom:2px solid #e5e7eb;">Subtotal</td>
+      tableRows += `<tr><td colspan="4" style="padding:8px 14px;text-align:right;font-size:12px;font-weight:600;color:#6b7280;border-bottom:2px solid #e5e7eb;">Subtotal</td>
         <td style="padding:8px 14px;text-align:right;font-size:13px;font-weight:700;border-bottom:2px solid #e5e7eb;">৳${orderTotal.toLocaleString()}</td></tr>`;
     }
   }
 
+  const totalQty = calcTotalQty(orders);
+  tableRows += `<tr style="background:#eef5fc;">
+    <td colspan="2" style="padding:10px 14px;text-align:right;font-size:12px;font-weight:700;color:${ACCENT};">Total Quantity</td>
+    <td style="padding:10px 14px;text-align:center;font-size:13px;font-weight:800;color:${ACCENT};">${totalQty}</td>
+    <td colspan="2"></td>
+  </tr>`;
+
   // Summary rows
   let summaryRows = `
     <div style="display:flex;justify-content:space-between;padding:7px 0;font-size:13px;color:#4b5563;">
+      <span>Total Quantity</span><span style="font-weight:600;">${totalQty} pcs</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:7px 0;font-size:13px;color:#4b5563;">
       <span>Product Total</span><span style="font-weight:600;">৳${totals.productTotal.toLocaleString()}</span>
     </div>
+
     <div style="display:flex;justify-content:space-between;padding:7px 0;font-size:13px;color:#4b5563;">
       <span>Domestic Courier (China)</span><span style="font-weight:600;">৳${totals.domesticTotal.toLocaleString()}</span>
     </div>`;
