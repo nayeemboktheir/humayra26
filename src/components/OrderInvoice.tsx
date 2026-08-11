@@ -210,6 +210,7 @@ function buildPrintHTML(orders: OrderData[], settings: Record<string, string>) {
     <table style="width:100%;border-collapse:collapse;margin-bottom:28px;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;">
       <thead>
         <tr>
+          <th style="background:${ACCENT};color:#fff;text-align:center;padding:12px 14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;width:44px;">SN</th>
           <th style="background:${ACCENT};color:#fff;text-align:left;padding:12px 14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;">Product</th>
           <th style="background:${ACCENT};color:#fff;text-align:center;padding:12px 14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;width:80px;">QTY</th>
           <th style="background:${ACCENT};color:#fff;text-align:right;padding:12px 14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;width:120px;">Unit Price</th>
