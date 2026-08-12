@@ -10,16 +10,16 @@ import OrderInvoice from "@/components/OrderInvoice";
 import { Loader2, FileText, CreditCard, Wallet, PackageCheck, Warehouse, ShieldCheck, PackageOpen, CheckCircle, LayoutGrid } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
-type CategoryKey = "all" | "to_pay" | "ordered_china" | "warehouse" | "to_receive" | "delivered" | "refund";
+type CategoryKey = "all" | "to_pay" | "to_ship" | "rcv_cn_warehouse" | "bd_customs" | "rcv_bd_warehouse" | "delivered";
 
 const CATEGORIES: { key: CategoryKey; label: string; icon: any }[] = [
   { key: "all", label: "All Orders", icon: LayoutGrid },
   { key: "to_pay", label: "To Pay", icon: Wallet },
-  { key: "ordered_china", label: "Ordered to China Warehouse", icon: PackageCheck },
-  { key: "warehouse", label: "Shipped to Warehouse", icon: Warehouse },
-  { key: "to_receive", label: "To Receive", icon: Truck },
-  { key: "delivered", label: "Delivered", icon: PackageOpen },
-  { key: "refund", label: "Refund / Cancelled", icon: RotateCcw },
+  { key: "to_ship", label: "To Ship", icon: PackageCheck },
+  { key: "rcv_cn_warehouse", label: "Rcv in CN Warehouse", icon: Warehouse },
+  { key: "bd_customs", label: "BD Customs", icon: ShieldCheck },
+  { key: "rcv_bd_warehouse", label: "Rcv in BD Warehouse", icon: PackageOpen },
+  { key: "delivered", label: "Delivered", icon: CheckCircle },
 ];
 
 const statusColor: Record<string, string> = {
