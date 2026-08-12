@@ -7,8 +7,20 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import EmptyState from "@/components/dashboard/EmptyState";
 import OrderInvoice from "@/components/OrderInvoice";
-import { Loader2, FileText, CreditCard } from "lucide-react";
+import { Loader2, FileText, CreditCard, Wallet, PackageCheck, Warehouse, Truck, PackageOpen, RotateCcw, LayoutGrid } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+
+type CategoryKey = "all" | "to_pay" | "ordered_china" | "warehouse" | "to_receive" | "delivered" | "refund";
+
+const CATEGORIES: { key: CategoryKey; label: string; icon: any }[] = [
+  { key: "all", label: "All Orders", icon: LayoutGrid },
+  { key: "to_pay", label: "To Pay", icon: Wallet },
+  { key: "ordered_china", label: "Ordered to China Warehouse", icon: PackageCheck },
+  { key: "warehouse", label: "Shipped to Warehouse", icon: Warehouse },
+  { key: "to_receive", label: "To Receive", icon: Truck },
+  { key: "delivered", label: "Delivered", icon: PackageOpen },
+  { key: "refund", label: "Refund / Cancelled", icon: RotateCcw },
+];
 
 const statusColor: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-800",
@@ -35,6 +47,28 @@ const Orders = () => {
   const [invoiceOrder, setInvoiceOrder] = useState<any | null>(null);
   const [payingId, setPayingId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [shipments, setShipments] = useState<Record<string, string>>({});
+  const [category, setCategory] = useState<CategoryKey>("all");
+
+  const stageOf = (o: any) => shipments[o.id] || o.status || "Ordered";
+
+  const categoryOf = (o: any): CategoryKey => {
+    if (o.status === "cancelled" || o.status === "refunded") return "refund";
+    if (!isPaidStatus(o.payment_status)) return "to_pay";
+    const st = stageOf(o);
+    if (st === "Delivered" || o.status === "delivered" || o.status === "completed") return "delivered";
+    if (["Shipped to Bangladesh", "In Customs", "Out for Delivery", "shipped"].includes(st)) return "to_receive";
+    if (["Shipped to Warehouse", "Arrived at Warehouse"].includes(st)) return "warehouse";
+    return "ordered_china";
+  };
+
+  const counts = CATEGORIES.reduce((acc, c) => {
+    acc[c.key] = c.key === "all" ? orders.length : orders.filter((o) => categoryOf(o) === c.key).length;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const visibleOrders = category === "all" ? orders : orders.filter((o) => categoryOf(o) === category);
+
 
   const dueOf = (o: any) => {
     const grand = Number(o.total_price || 0) + Number(o.domestic_courier_charge || 0);
@@ -94,8 +128,17 @@ const Orders = () => {
 
   useEffect(() => {
     if (!user) return;
-    supabase.from("orders").select("*").eq("user_id", user.id).order("created_at", { ascending: false })
-      .then(({ data }) => { setOrders(data || []); setLoading(false); });
+    (async () => {
+      const [{ data: ord }, { data: ship }] = await Promise.all([
+        supabase.from("orders").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+        supabase.from("shipments").select("order_id, status").eq("user_id", user.id),
+      ]);
+      setOrders(ord || []);
+      const map: Record<string, string> = {};
+      (ship || []).forEach((s: any) => { if (s.order_id) map[s.order_id] = s.status; });
+      setShipments(map);
+      setLoading(false);
+    })();
   }, [user]);
 
   const handlePay = async (order: any) => {
@@ -165,7 +208,44 @@ const Orders = () => {
           </Button>
         )}
       </div>
-      {orders.length === 0 ? <EmptyState /> : (
+
+      {orders.length > 0 && (
+        <div className="rounded-2xl border bg-card p-4 sm:p-5 mb-6 shadow-sm">
+          <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 sm:gap-3">
+            {CATEGORIES.map((c) => {
+              const Icon = c.icon;
+              const active = category === c.key;
+              return (
+                <button
+                  key={c.key}
+                  onClick={() => setCategory(c.key)}
+                  className={`group flex flex-col items-center gap-2 rounded-xl px-2 py-3 transition-colors ${
+                    active ? "bg-primary/10 ring-1 ring-primary/30" : "hover:bg-muted"
+                  }`}
+                >
+                  <span className="relative">
+                    <Icon className={`h-7 w-7 ${active ? "text-primary" : "text-foreground/80"}`} strokeWidth={1.6} />
+                    {counts[c.key] > 0 && (
+                      <span className="absolute -top-2 -right-3 min-w-[20px] h-5 px-1 rounded-full bg-primary text-primary-foreground text-[11px] font-semibold flex items-center justify-center">
+                        {counts[c.key]}
+                      </span>
+                    )}
+                  </span>
+                  <span className={`text-[11px] sm:text-xs leading-tight text-center ${active ? "text-primary font-semibold" : "text-muted-foreground"}`}>
+                    {c.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {orders.length === 0 ? <EmptyState /> : visibleOrders.length === 0 ? (
+        <div className="rounded-lg border py-16 text-center text-muted-foreground text-sm">
+          এই ক্যাটাগরিতে কোনো অর্ডার নেই।
+        </div>
+      ) : (
         <div className="rounded-lg border overflow-x-auto">
           <Table>
             <TableHeader>
@@ -184,7 +264,7 @@ const Orders = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {orders.map((order) => {
+              {visibleOrders.map((order) => {
                 const pb = paymentBadge(order.payment_status);
                 const paid = isPaidStatus(order.payment_status);
                 const partial = isPartialStatus(order.payment_status);
@@ -213,7 +293,7 @@ const Orders = () => {
                       <Badge className={`${pb.cls} border text-[10px]`}>{pb.label}</Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge className={statusColor[order.status] || ""}>{order.status}</Badge>
+                      <Badge className={statusColor[order.status] || "bg-muted text-foreground"}>{stageOf(order)}</Badge>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{new Date(order.created_at).toLocaleDateString()}</TableCell>
                     <TableCell>
