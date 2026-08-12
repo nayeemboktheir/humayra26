@@ -52,14 +52,15 @@ const Orders = () => {
 
   const stageOf = (o: any) => shipments[o.id] || o.status || "Ordered";
 
-  const categoryOf = (o: any): CategoryKey => {
-    if (o.status === "cancelled" || o.status === "refunded") return "refund";
+  const categoryOf = (o: any): CategoryKey | null => {
+    if (o.status === "cancelled" || o.status === "refunded") return null;
     if (!isPaidStatus(o.payment_status)) return "to_pay";
     const st = stageOf(o);
     if (st === "Delivered" || o.status === "delivered" || o.status === "completed") return "delivered";
-    if (["Shipped to Bangladesh", "In Customs", "Out for Delivery", "shipped"].includes(st)) return "to_receive";
-    if (["Shipped to Warehouse", "Arrived at Warehouse"].includes(st)) return "warehouse";
-    return "ordered_china";
+    if (st === "Out for Delivery") return "rcv_bd_warehouse";
+    if (["Shipped to Bangladesh", "In Customs"].includes(st)) return "bd_customs";
+    if (["Shipped to Warehouse", "Arrived at Warehouse"].includes(st)) return "rcv_cn_warehouse";
+    return "to_ship";
   };
 
   const counts = CATEGORIES.reduce((acc, c) => {
