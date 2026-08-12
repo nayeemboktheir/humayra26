@@ -6,7 +6,7 @@ import {
   LayoutDashboard, ShoppingCart, Truck, Package, Ship, AlertCircle,
   FileText, Heart, Bell, Wallet, CreditCard, ArrowDownToLine,
   Receipt, RefreshCcw, UserCircle, Info, ChevronDown, ChevronRight,
-  LogOut, Menu, X, MessageSquare
+  LogOut, Menu, X, MessageSquare, ShoppingBag
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -19,6 +19,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { label: "Overview", icon: LayoutDashboard, path: "/dashboard" },
+  { label: "Cart", icon: ShoppingBag, path: "/dashboard/cart" },
   {
     label: "Buy & Ship for me", icon: ShoppingCart,
     children: [
