@@ -126,12 +126,12 @@ export default function CheckoutDialog({ open, onOpenChange, data }: CheckoutDia
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto p-0">
-        <DialogHeader className="px-5 pt-5 pb-0">
+      <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full max-w-lg max-h-[90vh] overflow-y-auto overflow-x-hidden p-0">
+        <DialogHeader className="px-4 sm:px-5 pt-5 pb-0">
           <DialogTitle className="text-lg font-bold">অর্ডার সামারি</DialogTitle>
         </DialogHeader>
 
-        <div className="px-5 pb-5 space-y-4">
+        <div className="px-4 sm:px-5 pb-5 space-y-4">
           {/* Customer Info */}
           {!profileLoaded ? (
             <div className="flex items-center justify-center py-4">
@@ -162,7 +162,7 @@ export default function CheckoutDialog({ open, onOpenChange, data }: CheckoutDia
               <MapPin className="h-4 w-4" /> ডেলিভারি পদ্ধতি
             </h3>
             <RadioGroup value={deliveryMethod} onValueChange={(v) => setDeliveryMethod(v as any)} className="space-y-2.5">
-              <div className={`flex items-center gap-3 border rounded-lg px-4 py-3 cursor-pointer transition-all ${deliveryMethod === "delivery" ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border"}`}>
+              <div className={`flex items-center gap-3 border rounded-lg px-3 sm:px-4 py-3 cursor-pointer transition-all ${deliveryMethod === "delivery" ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border"}`}>
                 <RadioGroupItem value="delivery" id="dm-delivery" />
                 <Label htmlFor="dm-delivery" className="cursor-pointer flex-1">
                   <div className="flex items-center gap-2">
@@ -174,7 +174,7 @@ export default function CheckoutDialog({ open, onOpenChange, data }: CheckoutDia
                   </div>
                 </Label>
               </div>
-              <div className={`flex items-center gap-3 border rounded-lg px-4 py-3 cursor-pointer transition-all ${deliveryMethod === "pickup" ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border"}`}>
+              <div className={`flex items-center gap-3 border rounded-lg px-3 sm:px-4 py-3 cursor-pointer transition-all ${deliveryMethod === "pickup" ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border"}`}>
                 <RadioGroupItem value="pickup" id="dm-pickup" />
                 <Label htmlFor="dm-pickup" className="cursor-pointer flex-1">
                   <div className="flex items-center gap-2">
@@ -212,7 +212,7 @@ export default function CheckoutDialog({ open, onOpenChange, data }: CheckoutDia
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-start gap-2 text-sm">
                       <MapPin className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
-                      <span>{profile.address}</span>
+                      <span className="break-words min-w-0">{profile.address}</span>
                     </div>
                     <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0" onClick={() => { setAddressDraft(profile.address); setEditingAddress(true); }}>
                       <Pencil className="h-3.5 w-3.5" />
@@ -245,7 +245,7 @@ export default function CheckoutDialog({ open, onOpenChange, data }: CheckoutDia
               <div className="flex gap-3">
                 <img src={data.productImage} alt="" referrerPolicy="no-referrer" loading="lazy" decoding="async" className="w-14 h-14 rounded-md object-cover border flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }} />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold leading-tight line-clamp-2">{data.productTitle}</p>
+                  <p className="text-sm font-semibold leading-tight line-clamp-2 break-words">{data.productTitle}</p>
                   <p className="text-xs text-muted-foreground mt-1">Qty: {data.totalQty} Pcs</p>
                 </div>
               </div>
@@ -253,7 +253,7 @@ export default function CheckoutDialog({ open, onOpenChange, data }: CheckoutDia
                 <div className="border-t pt-2 space-y-1.5">
                   {data.lines.map((line, i) => (
                     <div key={i} className="flex justify-between text-xs">
-                      <span className="text-muted-foreground truncate mr-2">{line.name} × {line.qty}</span>
+                      <span className="text-muted-foreground mr-2 break-words min-w-0 flex-1">{line.name} × {line.qty}</span>
                       <span className="font-semibold whitespace-nowrap">৳{line.total.toLocaleString()}</span>
                     </div>
                   ))}
@@ -270,29 +270,29 @@ export default function CheckoutDialog({ open, onOpenChange, data }: CheckoutDia
               <CreditCard className="h-4 w-4" /> পেমেন্ট অপশন
             </h3>
             <RadioGroup value={paymentOption} onValueChange={(v) => setPaymentOption(v as any)} className="space-y-2.5">
-              <div className={`flex items-center gap-3 border rounded-lg px-4 py-3 cursor-pointer transition-all ${paymentOption === "full" ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border"}`}>
+              <div className={`flex items-center gap-3 border rounded-lg px-3 sm:px-4 py-3 cursor-pointer transition-all ${paymentOption === "full" ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border"}`}>
                 <RadioGroupItem value="full" id="pay-full" />
                 <Label htmlFor="pay-full" className="cursor-pointer flex-1">
-                  <div className="flex items-center justify-between">
-                    <div>
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="min-w-0">
                       <p className="font-semibold text-sm">সম্পূর্ণ পেমেন্ট (100%)</p>
                       <p className="text-xs text-muted-foreground">পুরো টাকা একসাথে পরিশোধ করুন</p>
                     </div>
-                    <span className="font-bold text-primary">৳{grandTotal.toLocaleString()}</span>
+                    <span className="font-bold text-primary whitespace-nowrap">৳{grandTotal.toLocaleString()}</span>
                   </div>
                 </Label>
               </div>
-              <div className={`flex items-center gap-3 border rounded-lg px-4 py-3 cursor-pointer transition-all ${paymentOption === "partial" ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border"}`}>
+              <div className={`flex items-center gap-3 border rounded-lg px-3 sm:px-4 py-3 cursor-pointer transition-all ${paymentOption === "partial" ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border"}`}>
                 <RadioGroupItem value="partial" id="pay-partial" />
                 <Label htmlFor="pay-partial" className="cursor-pointer flex-1">
-                  <div className="flex items-center justify-between">
-                    <div>
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="min-w-0">
                       <p className="font-semibold text-sm flex items-center gap-1">
                         <Percent className="h-3.5 w-3.5" /> অগ্রিম পেমেন্ট (70%)
                       </p>
                       <p className="text-xs text-muted-foreground">বাকি ৳{(grandTotal - Math.round(grandTotal * 0.7)).toLocaleString()} ডেলিভারিতে পরিশোধ</p>
                     </div>
-                    <span className="font-bold text-primary">৳{Math.round(grandTotal * 0.7).toLocaleString()}</span>
+                    <span className="font-bold text-primary whitespace-nowrap">৳{Math.round(grandTotal * 0.7).toLocaleString()}</span>
                   </div>
                 </Label>
               </div>
