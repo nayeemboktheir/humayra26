@@ -47,6 +47,28 @@ const Orders = () => {
   const [invoiceOrder, setInvoiceOrder] = useState<any | null>(null);
   const [payingId, setPayingId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [shipments, setShipments] = useState<Record<string, string>>({});
+  const [category, setCategory] = useState<CategoryKey>("all");
+
+  const stageOf = (o: any) => shipments[o.id] || o.status || "Ordered";
+
+  const categoryOf = (o: any): CategoryKey => {
+    if (o.status === "cancelled" || o.status === "refunded") return "refund";
+    if (!isPaidStatus(o.payment_status)) return "to_pay";
+    const st = stageOf(o);
+    if (st === "Delivered" || o.status === "delivered" || o.status === "completed") return "delivered";
+    if (["Shipped to Bangladesh", "In Customs", "Out for Delivery", "shipped"].includes(st)) return "to_receive";
+    if (["Shipped to Warehouse", "Arrived at Warehouse"].includes(st)) return "warehouse";
+    return "ordered_china";
+  };
+
+  const counts = CATEGORIES.reduce((acc, c) => {
+    acc[c.key] = c.key === "all" ? orders.length : orders.filter((o) => categoryOf(o) === c.key).length;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const visibleOrders = category === "all" ? orders : orders.filter((o) => categoryOf(o) === category);
+
 
   const dueOf = (o: any) => {
     const grand = Number(o.total_price || 0) + Number(o.domestic_courier_charge || 0);
