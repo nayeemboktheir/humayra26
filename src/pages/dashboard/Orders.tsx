@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import EmptyState from "@/components/dashboard/EmptyState";
 import OrderInvoice from "@/components/OrderInvoice";
 import { Loader2, FileText, CreditCard } from "lucide-react";
@@ -33,6 +34,63 @@ const Orders = () => {
   const [loading, setLoading] = useState(true);
   const [invoiceOrder, setInvoiceOrder] = useState<any | null>(null);
   const [payingId, setPayingId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const dueOf = (o: any) => {
+    const grand = Number(o.total_price || 0) + Number(o.domestic_courier_charge || 0);
+    return isPartialStatus(o.payment_status) ? Math.max(grand - Number(o.payment_amount || 0), 0) : grand;
+  };
+  const payableOrders = orders.filter((o) => !isPaidStatus(o.payment_status) && o.status !== "cancelled");
+  const selectedOrders = payableOrders.filter((o) => selectedIds.includes(o.id));
+  const selectedTotal = selectedOrders.reduce((s, o) => s + dueOf(o), 0);
+  const allSelected = payableOrders.length > 0 && selectedIds.length === payableOrders.length;
+  const toggleOrder = (id: string) =>
+    setSelectedIds((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
+  const toggleAll = () => setSelectedIds(allSelected ? [] : payableOrders.map((o) => o.id));
+
+  const handlePayMany = async (list: any[]) => {
+    if (!user || list.length === 0) return;
+    setPayingId("bulk");
+    try {
+      const invoiceNumber = `PS-${Date.now()}`;
+      const callbackUrl = `${window.location.origin}/payment/callback`;
+      const { data: prof } = await supabase.from("profiles").select("full_name, phone").eq("user_id", user.id).maybeSingle();
+      const addrMatch = /\[Address: ([^\]]+)\]/.exec(list[0].notes || "");
+
+      let total = 0;
+      for (const o of list) {
+        const amount = Math.max(dueOf(o), 1);
+        total += amount;
+        const { error } = await supabase
+          .from("orders")
+          .update({ payment_invoice: invoiceNumber, payment_amount: amount })
+          .eq("id", o.id);
+        if (error) throw error;
+      }
+
+      const { data: psData, error: psError } = await supabase.functions.invoke("paystation-init-payment", {
+        body: {
+          invoice_number: invoiceNumber,
+          payment_amount: total,
+          cust_name: prof?.full_name || "Customer",
+          cust_phone: prof?.phone || "01700000000",
+          cust_email: user.email || "customer@example.com",
+          cust_address: addrMatch?.[1] || "",
+          callback_url: callbackUrl,
+          checkout_items: list.map((o) => o.product_name).join(", "),
+          reference: invoiceNumber,
+        },
+      });
+
+      if (psError || !psData?.success || !psData?.payment_url) {
+        throw new Error(psData?.error || "পেমেন্ট শুরু করতে সমস্যা হয়েছে।");
+      }
+      window.location.href = psData.payment_url;
+    } catch (e: any) {
+      toast({ title: "Payment Error", description: e.message || "Unable to start payment", variant: "destructive" });
+      setPayingId(null);
+    }
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -92,12 +150,29 @@ const Orders = () => {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">My Orders</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <h1 className="text-2xl font-bold">My Orders</h1>
+        {payableOrders.length > 0 && (
+          <Button
+            className="gap-2"
+            disabled={selectedOrders.length === 0 || payingId === "bulk"}
+            onClick={() => handlePayMany(selectedOrders)}
+          >
+            {payingId === "bulk" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+            {selectedOrders.length === 0
+              ? "অর্ডার সিলেক্ট করুন"
+              : `${selectedOrders.length}টি অর্ডার একসাথে পে করুন (৳${selectedTotal.toLocaleString()})`}
+          </Button>
+        )}
+      </div>
       {orders.length === 0 ? <EmptyState /> : (
         <div className="rounded-lg border overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[40px]">
+                  <Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label="Select all" disabled={payableOrders.length === 0} />
+                </TableHead>
                 <TableHead className="w-[110px]">Order #</TableHead>
                 <TableHead className="max-w-[280px]">Product</TableHead>
                 <TableHead className="w-[60px]">Qty</TableHead>
@@ -117,6 +192,14 @@ const Orders = () => {
                 const due = partial ? Math.max(grandTotal - Number(order.payment_amount || 0), 0) : grandTotal;
                 return (
                   <TableRow key={order.id}>
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedIds.includes(order.id)}
+                        onCheckedChange={() => toggleOrder(order.id)}
+                        disabled={paid || order.status === "cancelled"}
+                        aria-label="Select order"
+                      />
+                    </TableCell>
                     <TableCell className="font-mono text-sm">{order.order_number}</TableCell>
                     <TableCell className="max-w-[280px]">
                       <div className="flex items-center gap-2">

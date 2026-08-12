@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Trash2, Minus, Plus, ShoppingCart, Loader2, CreditCard } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -17,6 +18,26 @@ export default function Cart() {
   const navigate = useNavigate();
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutData, setCheckoutData] = useState<any>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  // Keep selection in sync with cart contents (default: all selected)
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      const ids = items.map((i) => i.id);
+      const kept = prev.filter((id) => ids.includes(id));
+      return prev.length === 0 ? ids : kept;
+    });
+  }, [items]);
+
+  const selectedItems = useMemo(
+    () => items.filter((i) => selectedIds.includes(i.id)),
+    [items, selectedIds]
+  );
+
+  const toggleItem = (id: string) =>
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const allSelected = items.length > 0 && selectedIds.length === items.length;
+  const toggleAll = () => setSelectedIds(allSelected ? [] : items.map((i) => i.id));
 
   if (loading) {
     return (
@@ -38,14 +59,15 @@ export default function Cart() {
     );
   }
 
-  const totalPrice = items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0);
-  const totalDomestic = items.reduce((sum, item) => sum + (item.domestic_shipping_fee || 0), 0);
-  const totalQty = items.reduce((sum, item) => sum + item.quantity, 0);
+  const totalPrice = selectedItems.reduce((sum, item) => sum + item.unit_price * item.quantity, 0);
+  const totalDomestic = selectedItems.reduce((sum, item) => sum + (item.domestic_shipping_fee || 0), 0);
+  const totalQty = selectedItems.reduce((sum, item) => sum + item.quantity, 0);
+  const cartQty = items.reduce((sum, item) => sum + item.quantity, 0);
 
   const handleCheckout = () => {
-    if (!user) return;
+    if (!user || selectedItems.length === 0) return;
 
-    const lines = items.map(item => ({
+    const lines = selectedItems.map(item => ({
       name: item.variant_name || item.product_name,
       qty: item.quantity,
       unitPrice: item.unit_price,
@@ -54,19 +76,19 @@ export default function Cart() {
     }));
 
     setCheckoutData({
-      productTitle: items.length === 1 ? items[0].product_name : `${items.length}টি পণ্য`,
-      productImage: items[0].product_image || "/placeholder.svg",
+      productTitle: selectedItems.length === 1 ? selectedItems[0].product_name : `${selectedItems.length}টি পণ্য`,
+      productImage: selectedItems[0].product_image || "/placeholder.svg",
       lines,
       totalQty,
       totalPrice,
       domesticShippingFeeBDT: totalDomestic,
-      sellerName: items[0].seller_name,
+      sellerName: selectedItems[0].seller_name,
       onConfirm: async (opts: { address: string; paymentOption: string; deliveryMethod: string }) => {
         const payableAmount = opts.paymentOption === "partial" ? Math.round((totalPrice + totalDomestic) * 0.7) : totalPrice + totalDomestic;
         const grandTotal = totalPrice + totalDomestic;
         const invoiceNumber = `PS-${Date.now()}`;
 
-        for (const item of items) {
+        for (const item of selectedItems) {
           const orderNumber = `HT-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
           const itemTotal = item.unit_price * item.quantity;
 
@@ -116,7 +138,7 @@ export default function Cart() {
             cust_email: userEmail,
             cust_address: opts.address || "",
             callback_url: callbackUrl,
-            checkout_items: items.map(i => i.product_name).join(", "),
+            checkout_items: selectedItems.map(i => i.product_name).join(", "),
             reference: invoiceNumber,
           },
         });
@@ -126,7 +148,10 @@ export default function Cart() {
           return;
         }
 
-        await clearCart();
+        // Remove only the paid (selected) items from the cart
+        for (const item of selectedItems) {
+          await removeFromCart(item.id);
+        }
         window.location.href = psData.payment_url;
       },
     });
@@ -137,11 +162,18 @@ export default function Cart() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold flex items-center gap-2">
-          <ShoppingCart className="h-5 w-5" /> কার্ট ({totalQty})
+          <ShoppingCart className="h-5 w-5" /> কার্ট ({cartQty})
         </h2>
         <Button variant="ghost" size="sm" className="text-destructive text-xs" onClick={() => clearCart()}>
           সব মুছুন
         </Button>
+      </div>
+
+      <div className="flex items-center gap-2 px-1">
+        <Checkbox id="select-all" checked={allSelected} onCheckedChange={toggleAll} />
+        <label htmlFor="select-all" className="text-sm font-medium cursor-pointer">
+          সব সিলেক্ট করুন ({selectedIds.length}/{items.length})
+        </label>
       </div>
 
       <div className="space-y-3">
@@ -149,6 +181,13 @@ export default function Cart() {
           <Card key={item.id} className="overflow-hidden">
             <CardContent className="p-3">
               <div className="flex gap-3">
+                <div className="pt-1">
+                  <Checkbox
+                    checked={selectedIds.includes(item.id)}
+                    onCheckedChange={() => toggleItem(item.id)}
+                    aria-label="Select item"
+                  />
+                </div>
                 <img
                   src={item.product_image || "/placeholder.svg"}
                   alt=""
@@ -203,7 +242,7 @@ export default function Cart() {
       <Card>
         <CardContent className="p-4 space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">মোট পণ্য ({totalQty} Pcs)</span>
+            <span className="text-muted-foreground">সিলেক্টেড পণ্য ({totalQty} Pcs)</span>
             <span className="font-semibold">৳{totalPrice.toLocaleString()}</span>
           </div>
           {totalDomestic > 0 && (
@@ -220,8 +259,15 @@ export default function Cart() {
         </CardContent>
       </Card>
 
-      <Button className="w-full h-12 text-base font-bold rounded-xl shadow-md" onClick={handleCheckout}>
-        <CreditCard className="h-5 w-5 mr-2" /> চেকআউট করুন
+      <Button
+        className="w-full h-12 text-base font-bold rounded-xl shadow-md"
+        onClick={handleCheckout}
+        disabled={selectedItems.length === 0}
+      >
+        <CreditCard className="h-5 w-5 mr-2" />
+        {selectedItems.length === 0
+          ? "পণ্য সিলেক্ট করুন"
+          : `${selectedItems.length}টি পণ্য একসাথে পে করুন (৳${(totalPrice + totalDomestic).toLocaleString()})`}
       </Button>
 
       <CheckoutDialog open={checkoutOpen} onOpenChange={setCheckoutOpen} data={checkoutData} />
