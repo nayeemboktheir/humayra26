@@ -264,7 +264,7 @@ const Orders = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {orders.map((order) => {
+              {visibleOrders.map((order) => {
                 const pb = paymentBadge(order.payment_status);
                 const paid = isPaidStatus(order.payment_status);
                 const partial = isPartialStatus(order.payment_status);
@@ -293,7 +293,7 @@ const Orders = () => {
                       <Badge className={`${pb.cls} border text-[10px]`}>{pb.label}</Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge className={statusColor[order.status] || ""}>{order.status}</Badge>
+                      <Badge className={statusColor[order.status] || "bg-muted text-foreground"}>{stageOf(order)}</Badge>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{new Date(order.created_at).toLocaleDateString()}</TableCell>
                     <TableCell>
