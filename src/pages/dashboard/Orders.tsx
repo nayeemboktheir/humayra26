@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import EmptyState from "@/components/dashboard/EmptyState";
 import OrderInvoice from "@/components/OrderInvoice";
-import { Loader2, FileText, CreditCard, Wallet, PackageCheck, Warehouse, Truck, PackageOpen, RotateCcw, LayoutGrid } from "lucide-react";
+import { Loader2, FileText, CreditCard, Wallet, PackageCheck, Warehouse, ShieldCheck, PackageOpen, CheckCircle, LayoutGrid } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 type CategoryKey = "all" | "to_pay" | "ordered_china" | "warehouse" | "to_receive" | "delivered" | "refund";
