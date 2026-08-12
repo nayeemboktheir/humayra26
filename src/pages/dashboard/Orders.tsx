@@ -7,19 +7,19 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import EmptyState from "@/components/dashboard/EmptyState";
 import OrderInvoice from "@/components/OrderInvoice";
-import { Loader2, FileText, CreditCard, Wallet, PackageCheck, Warehouse, Truck, PackageOpen, RotateCcw, LayoutGrid } from "lucide-react";
+import { Loader2, FileText, CreditCard, Wallet, PackageCheck, Warehouse, ShieldCheck, PackageOpen, CheckCircle, LayoutGrid } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
-type CategoryKey = "all" | "to_pay" | "ordered_china" | "warehouse" | "to_receive" | "delivered" | "refund";
+type CategoryKey = "all" | "to_pay" | "to_ship" | "rcv_cn_warehouse" | "bd_customs" | "rcv_bd_warehouse" | "delivered";
 
 const CATEGORIES: { key: CategoryKey; label: string; icon: any }[] = [
   { key: "all", label: "All Orders", icon: LayoutGrid },
   { key: "to_pay", label: "To Pay", icon: Wallet },
-  { key: "ordered_china", label: "Ordered to China Warehouse", icon: PackageCheck },
-  { key: "warehouse", label: "Shipped to Warehouse", icon: Warehouse },
-  { key: "to_receive", label: "To Receive", icon: Truck },
-  { key: "delivered", label: "Delivered", icon: PackageOpen },
-  { key: "refund", label: "Refund / Cancelled", icon: RotateCcw },
+  { key: "to_ship", label: "To Ship", icon: PackageCheck },
+  { key: "rcv_cn_warehouse", label: "Rcv in CN Warehouse", icon: Warehouse },
+  { key: "bd_customs", label: "BD Customs", icon: ShieldCheck },
+  { key: "rcv_bd_warehouse", label: "Rcv in BD Warehouse", icon: PackageOpen },
+  { key: "delivered", label: "Delivered", icon: CheckCircle },
 ];
 
 const statusColor: Record<string, string> = {
@@ -52,14 +52,15 @@ const Orders = () => {
 
   const stageOf = (o: any) => shipments[o.id] || o.status || "Ordered";
 
-  const categoryOf = (o: any): CategoryKey => {
-    if (o.status === "cancelled" || o.status === "refunded") return "refund";
+  const categoryOf = (o: any): CategoryKey | null => {
+    if (o.status === "cancelled" || o.status === "refunded") return null;
     if (!isPaidStatus(o.payment_status)) return "to_pay";
     const st = stageOf(o);
     if (st === "Delivered" || o.status === "delivered" || o.status === "completed") return "delivered";
-    if (["Shipped to Bangladesh", "In Customs", "Out for Delivery", "shipped"].includes(st)) return "to_receive";
-    if (["Shipped to Warehouse", "Arrived at Warehouse"].includes(st)) return "warehouse";
-    return "ordered_china";
+    if (st === "Out for Delivery") return "rcv_bd_warehouse";
+    if (["Shipped to Bangladesh", "In Customs"].includes(st)) return "bd_customs";
+    if (["Shipped to Warehouse", "Arrived at Warehouse"].includes(st)) return "rcv_cn_warehouse";
+    return "to_ship";
   };
 
   const counts = CATEGORIES.reduce((acc, c) => {
