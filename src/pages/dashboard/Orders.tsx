@@ -128,8 +128,17 @@ const Orders = () => {
 
   useEffect(() => {
     if (!user) return;
-    supabase.from("orders").select("*").eq("user_id", user.id).order("created_at", { ascending: false })
-      .then(({ data }) => { setOrders(data || []); setLoading(false); });
+    (async () => {
+      const [{ data: ord }, { data: ship }] = await Promise.all([
+        supabase.from("orders").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+        supabase.from("shipments").select("order_id, status").eq("user_id", user.id),
+      ]);
+      setOrders(ord || []);
+      const map: Record<string, string> = {};
+      (ship || []).forEach((s: any) => { if (s.order_id) map[s.order_id] = s.status; });
+      setShipments(map);
+      setLoading(false);
+    })();
   }, [user]);
 
   const handlePay = async (order: any) => {
