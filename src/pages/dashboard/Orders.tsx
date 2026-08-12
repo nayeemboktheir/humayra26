@@ -208,7 +208,44 @@ const Orders = () => {
           </Button>
         )}
       </div>
-      {orders.length === 0 ? <EmptyState /> : (
+
+      {orders.length > 0 && (
+        <div className="rounded-2xl border bg-card p-4 sm:p-5 mb-6 shadow-sm">
+          <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 sm:gap-3">
+            {CATEGORIES.map((c) => {
+              const Icon = c.icon;
+              const active = category === c.key;
+              return (
+                <button
+                  key={c.key}
+                  onClick={() => setCategory(c.key)}
+                  className={`group flex flex-col items-center gap-2 rounded-xl px-2 py-3 transition-colors ${
+                    active ? "bg-primary/10 ring-1 ring-primary/30" : "hover:bg-muted"
+                  }`}
+                >
+                  <span className="relative">
+                    <Icon className={`h-7 w-7 ${active ? "text-primary" : "text-foreground/80"}`} strokeWidth={1.6} />
+                    {counts[c.key] > 0 && (
+                      <span className="absolute -top-2 -right-3 min-w-[20px] h-5 px-1 rounded-full bg-primary text-primary-foreground text-[11px] font-semibold flex items-center justify-center">
+                        {counts[c.key]}
+                      </span>
+                    )}
+                  </span>
+                  <span className={`text-[11px] sm:text-xs leading-tight text-center ${active ? "text-primary font-semibold" : "text-muted-foreground"}`}>
+                    {c.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {orders.length === 0 ? <EmptyState /> : visibleOrders.length === 0 ? (
+        <div className="rounded-lg border py-16 text-center text-muted-foreground text-sm">
+          এই ক্যাটাগরিতে কোনো অর্ডার নেই।
+        </div>
+      ) : (
         <div className="rounded-lg border overflow-x-auto">
           <Table>
             <TableHeader>
