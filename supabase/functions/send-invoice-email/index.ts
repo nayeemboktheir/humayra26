@@ -19,6 +19,8 @@ interface OrderData {
   notes?: string | null;
   created_at: string;
   status: string;
+  payment_status?: string | null;
+  payment_amount?: number | null;
   invoice_name?: string | null;
   profile?: {
     full_name?: string | null;
