@@ -167,13 +167,7 @@ function buildPrintHTML(orders: OrderData[], settings: Record<string, string>) {
       <span>Commission</span><span style="font-weight:600;">৳${totals.commissionTotal.toLocaleString()}</span>
     </div>`;
   }
-  summaryRows += `
-    <div style="display:flex;justify-content:space-between;padding:7px 0;font-size:13px;color:#4b5563;">
-      <span>Paid</span><span style="font-weight:600;">৳${totals.paid.toLocaleString()}</span>
-    </div>
-    <div style="display:flex;justify-content:space-between;padding:7px 0;font-size:13px;color:#4b5563;">
-      <span>Due</span><span style="font-weight:600;">৳${totals.due.toLocaleString()}</span>
-    </div>`;
+  summaryRows += ``;
 
   return `<!DOCTYPE html>
 <html>
