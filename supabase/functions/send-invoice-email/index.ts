@@ -183,6 +183,14 @@ function buildInvoiceHTML(orders: OrderData[], settings: Record<string, string>)
           <span>Grand Total</span>
           <span style="color:${ACCENT};">৳${totals.grandTotal.toLocaleString()}</span>
         </div>
+        <div style="display:flex;justify-content:space-between;padding:7px 0;font-size:13px;color:#4b5563;">
+          <span>Paid</span>
+          <span style="font-weight:600;">৳${totals.paid.toLocaleString()}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:7px 0;font-size:15px;font-weight:800;color:#1a1a2e;">
+          <span>Due</span>
+          <span style="color:${ACCENT};">৳${totals.due.toLocaleString()}</span>
+        </div>
       </div>
     </div>
     <div style="text-align:center;padding-top:20px;border-top:1px solid #e5e7eb;">
