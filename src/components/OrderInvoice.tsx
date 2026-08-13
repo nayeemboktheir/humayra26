@@ -19,6 +19,8 @@ interface OrderData {
   notes?: string | null;
   created_at: string;
   status: string;
+  payment_status?: string | null;
+  payment_amount?: number | null;
   invoice_name?: string | null;
   profile?: {
     full_name?: string | null;
@@ -60,14 +62,19 @@ function parseOrderLines(order: OrderData) {
 }
 
 function calcTotals(orders: OrderData[]) {
-  let productTotal = 0, domesticTotal = 0, shippingTotal = 0, commissionTotal = 0;
+  let productTotal = 0, domesticTotal = 0, shippingTotal = 0, commissionTotal = 0, paid = 0;
   for (const o of orders) {
     productTotal += Number(o.total_price);
     domesticTotal += Number(o.domestic_courier_charge || 0);
     shippingTotal += Number(o.shipping_charges || 0);
     commissionTotal += Number(o.commission || 0);
+    const ps = (o.payment_status || "").toLowerCase();
+    if (ps === "paid" || ps === "completed" || ps === "partial" || ps === "deposit" || ps === "partially_paid") {
+      paid += Number(o.payment_amount || 0);
+    }
   }
-  return { productTotal, domesticTotal, shippingTotal, commissionTotal, grandTotal: productTotal + domesticTotal + shippingTotal + commissionTotal };
+  const grandTotal = productTotal + domesticTotal + shippingTotal + commissionTotal;
+  return { productTotal, domesticTotal, shippingTotal, commissionTotal, grandTotal, paid, due: Math.max(0, grandTotal - paid) };
 }
 
 function calcTotalQty(orders: OrderData[]) {
@@ -160,6 +167,7 @@ function buildPrintHTML(orders: OrderData[], settings: Record<string, string>) {
       <span>Commission</span><span style="font-weight:600;">৳${totals.commissionTotal.toLocaleString()}</span>
     </div>`;
   }
+  summaryRows += ``;
 
   return `<!DOCTYPE html>
 <html>
@@ -227,6 +235,14 @@ function buildPrintHTML(orders: OrderData[], settings: Record<string, string>) {
         <div style="border-top:3px solid ${ACCENT};margin-top:10px;padding-top:12px;display:flex;justify-content:space-between;font-size:18px;font-weight:800;">
           <span>Grand Total</span>
           <span style="color:${ACCENT};">৳${totals.grandTotal.toLocaleString()}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:7px 0;font-size:13px;color:#4b5563;">
+          <span>Paid</span>
+          <span style="font-weight:600;">৳${totals.paid.toLocaleString()}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:7px 0;font-size:15px;font-weight:800;color:#1a1a2e;">
+          <span>Due</span>
+          <span style="color:${ACCENT};">৳${totals.due.toLocaleString()}</span>
         </div>
       </div>
     </div>
@@ -510,6 +526,14 @@ export default function OrderInvoice({ order, orders: ordersProp, open, onOpenCh
                   <span>Grand Total</span>
                   <span className="text-primary">৳{totals.grandTotal.toLocaleString()}</span>
                 </div>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Paid</span>
+                <span className="font-semibold">৳{totals.paid.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Due</span>
+                <span className="font-semibold text-primary">৳{totals.due.toLocaleString()}</span>
               </div>
             </div>
           </div>
