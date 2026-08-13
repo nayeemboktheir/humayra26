@@ -525,6 +525,14 @@ export default function OrderInvoice({ order, orders: ordersProp, open, onOpenCh
                   <span className="text-primary">৳{totals.grandTotal.toLocaleString()}</span>
                 </div>
               </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Paid</span>
+                <span className="font-semibold">৳{totals.paid.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Due</span>
+                <span className="font-semibold text-primary">৳{totals.due.toLocaleString()}</span>
+              </div>
             </div>
           </div>
 
