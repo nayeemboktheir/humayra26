@@ -709,9 +709,33 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_category_products: {
+        Args: { _limit_per_category?: number }
+        Returns: {
+          category_query: string
+          detail_url: string
+          extra_images: string[]
+          image_url: string
+          location: string
+          price: number
+          product_id: string
+          sales: number
+          stock: number
+          title: string
+          vendor_name: string
+          weight: number
+        }[]
+      }
       get_my_role: {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]
+      }
+      get_shipment_stage_counts: {
+        Args: never
+        Returns: {
+          count: number
+          status: string
+        }[]
       }
       get_user_emails: {
         Args: never
