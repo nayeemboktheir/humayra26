@@ -169,7 +169,7 @@ function mapDetail(d: any, fallbackId: number, detailImgs: string[] = []) {
     OriginalValue: p.value,
     IsConfigurator: false,
   }));
-  const legacyQuantityRanges = (priceRange || [[minNum, price]]).map(([minQuantity, tierPrice]) => ({
+  const legacyQuantityRanges = ((priceRange || [[minNum, price]]) as [number, number][]).map(([minQuantity, tierPrice]: [number, number]) => ({
     MinQuantity: minQuantity,
     Price: { OriginalPrice: tierPrice },
   }));
