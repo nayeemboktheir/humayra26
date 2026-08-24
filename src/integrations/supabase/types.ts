@@ -709,31 +709,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_category_products: {
-        Args: { _limit_per_category?: number }
-        Returns: {
-          category_query: string
-          product_id: string
-          title: string
-          image_url: string
-          price: number
-          sales: number | null
-          detail_url: string | null
-          location: string | null
-          vendor_name: string | null
-          stock: number | null
-          weight: number | null
-          extra_images: string[] | null
-        }[]
-      }
-      get_shipment_stage_counts: {
-        Args: never
-        Returns: { status: string; count: number }[]
-      }
-      get_my_role: {
-        Args: never
-        Returns: Database["public"]["Enums"]["app_role"]
-      }
       get_user_emails: {
         Args: never
         Returns: {
