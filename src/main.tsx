@@ -4,8 +4,10 @@ import "./index.css";
 import { supabase } from "@/integrations/supabase/client";
 import { setCnyToBdtRate, setMarkupPercentage } from "@/lib/currency";
 
-// Preload currency settings before first render so prices use the correct rate
-async function preloadCurrencySettings() {
+// Load currency settings in the background. This deliberately does NOT block the
+// first render: prices paint with the fallback rate and correct themselves via the
+// currency subscription in App once the real values arrive.
+async function loadCurrencySettings() {
   try {
     const { data } = await supabase
       .from("app_settings")
@@ -44,6 +46,6 @@ if ("serviceWorker" in navigator) {
   });
 }
 
-preloadCurrencySettings().finally(() => {
-  createRoot(document.getElementById("root")!).render(<App />);
-});
+createRoot(document.getElementById("root")!).render(<App />);
+
+void loadCurrencySettings();

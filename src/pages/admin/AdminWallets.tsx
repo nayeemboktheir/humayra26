@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import AdminDataTable, { Column } from "@/components/admin/AdminDataTable";
 
@@ -10,23 +9,11 @@ const columns: Column[] = [
 ];
 
 export default function AdminWallets() {
-  const [data, setData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const fetch = async () => {
-    setLoading(true);
-    const { data: d } = await supabase.from("wallets").select("*").order("created_at", { ascending: false });
-    setData(d || []);
-    setLoading(false);
-  };
-
-  useEffect(() => { fetch(); }, []);
 
   const onUpdate = async (id: string, vals: Record<string, any>) => {
     const { error } = await supabase.from("wallets").update({ balance: Number(vals.balance) }).eq("id", id);
     if (error) throw error;
-    fetch();
   };
 
-  return <AdminDataTable title="Wallets" columns={columns} data={data} loading={loading} onUpdate={onUpdate} />;
+  return <AdminDataTable title="Wallets" columns={columns} table="wallets" onUpdate={onUpdate} />;
 }

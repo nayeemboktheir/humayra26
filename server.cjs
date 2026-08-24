@@ -197,7 +197,6 @@ http.createServer(async (req, res) => {
         'Cache-Control': cacheControl,
         'Pragma': 'no-cache',
         'Expires': '0',
-        'Clear-Site-Data': '"cache"',
       });
       res.end(data);
     });

@@ -4,12 +4,38 @@
 let _cachedRate: number | null = null;
 let _cachedMarkup: number | null = null;
 
+// Settings arrive asynchronously after first paint, so prices render with the
+// fallback rate and correct themselves once the real values land. Components read
+// this version through useSyncExternalStore to re-render at that moment.
+let _version = 0;
+const _listeners = new Set<() => void>();
+
+function bumpVersion() {
+  _version += 1;
+  for (const listener of _listeners) listener();
+}
+
+export function subscribeCurrency(listener: () => void): () => void {
+  _listeners.add(listener);
+  return () => {
+    _listeners.delete(listener);
+  };
+}
+
+export function getCurrencyVersion(): number {
+  return _version;
+}
+
 export function setCnyToBdtRate(rate: number) {
+  if (_cachedRate === rate) return;
   _cachedRate = rate;
+  bumpVersion();
 }
 
 export function setMarkupPercentage(markup: number) {
+  if (_cachedMarkup === markup) return;
   _cachedMarkup = markup;
+  bumpVersion();
 }
 
 export function getCnyToBdtRate(): number {

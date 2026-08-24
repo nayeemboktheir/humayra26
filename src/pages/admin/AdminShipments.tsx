@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import AdminDataTable, { Column } from "@/components/admin/AdminDataTable";
 import { Badge } from "@/components/ui/badge";
@@ -26,37 +26,38 @@ const stageColor: Record<string, string> = {
 };
 
 export default function AdminShipments() {
-  const [data, setData] = useState<any[]>([]);
-  const [filteredData, setFilteredData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [profileMap, setProfileMap] = useState<Map<string, string>>(new Map());
   const [stageFilter, setStageFilter] = useState<string | null>(null);
+  const [stageCounts, setStageCounts] = useState<Record<string, number>>({});
 
-  const fetchData = async () => {
-    setLoading(true);
-    const [shipmentsRes, profilesRes] = await Promise.all([
-      supabase.from("shipments").select("*").order("created_at", { ascending: false }),
-      supabase.from("profiles").select("user_id, full_name"),
-    ]);
+  // Stage badge counts come from a GROUP BY rather than from counting a fully
+  // downloaded table.
+  const loadStageCounts = useCallback(async () => {
+    const { data } = await supabase.rpc("get_shipment_stage_counts");
+    if (!data) return;
+    const map: Record<string, number> = {};
+    for (const row of data as any[]) map[row.status] = Number(row.count) || 0;
+    setStageCounts(map);
+  }, []);
+
+  useEffect(() => { void loadStageCounts(); }, [loadStageCounts]);
+
+  const totalShipments = Object.values(stageCounts).reduce((a, b) => a + b, 0);
+
+  // Resolve customer names for the visible page only.
+  const attachCustomerNames = useCallback(async (rows: any[]) => {
+    const ids = Array.from(new Set(rows.map((r) => r.user_id).filter(Boolean)));
+    if (ids.length === 0) return rows;
+    const { data: profiles } = await supabase
+      .from("profiles").select("user_id, full_name").in("user_id", ids);
     const pMap = new Map<string, string>();
-    (profilesRes.data || []).forEach((p: any) => pMap.set(p.user_id, p.full_name || "Unknown"));
-    setProfileMap(pMap);
-    setData((shipmentsRes.data || []).map((s: any) => ({
-      ...s,
-      customer_name: pMap.get(s.user_id) || "Unknown",
-    })));
-    setLoading(false);
-  };
+    (profiles || []).forEach((p: any) => pMap.set(p.user_id, p.full_name || "Unknown"));
+    return rows.map((r) => ({ ...r, customer_name: pMap.get(r.user_id) || "Unknown" }));
+  }, []);
 
-  useEffect(() => { fetchData(); }, []);
-
-  useEffect(() => {
-    if (!stageFilter) {
-      setFilteredData(data);
-    } else {
-      setFilteredData(data.filter((s) => s.status === stageFilter));
-    }
-  }, [data, stageFilter]);
+  const filters = useMemo(
+    () => (stageFilter ? { status: stageFilter } : undefined),
+    [stageFilter],
+  );
 
   const columns: Column[] = [
     { key: "customer_name", label: "Customer" },
@@ -79,19 +80,19 @@ export default function AdminShipments() {
     const { customer_name, ...dbVals } = vals;
     const { error } = await supabase.from("shipments").update(dbVals).eq("id", id);
     if (error) throw error;
-    fetchData();
+    await loadStageCounts();
   };
 
   const onDelete = async (id: string) => {
     const { error } = await supabase.from("shipments").delete().eq("id", id);
     if (error) throw error;
-    fetchData();
+    await loadStageCounts();
   };
 
   const onCreate = async (vals: Record<string, any>) => {
     const { error } = await supabase.from("shipments").insert([vals as any]);
     if (error) throw error;
-    fetchData();
+    await loadStageCounts();
   };
 
   return (
@@ -100,10 +101,10 @@ export default function AdminShipments() {
         <p className="text-sm font-medium mb-2">Filter by Stage:</p>
         <div className="flex flex-wrap gap-1.5">
           <button onClick={() => setStageFilter(null)}>
-            <Badge variant="outline" className={`cursor-pointer transition-all ${!stageFilter ? "ring-2 ring-primary ring-offset-1" : "opacity-60 hover:opacity-100"}`}>All ({data.length})</Badge>
+            <Badge variant="outline" className={`cursor-pointer transition-all ${!stageFilter ? "ring-2 ring-primary ring-offset-1" : "opacity-60 hover:opacity-100"}`}>All ({totalShipments})</Badge>
           </button>
           {DELIVERY_STAGES.map((stage) => {
-            const count = data.filter((s) => s.status === stage).length;
+            const count = stageCounts[stage] ?? 0;
             return (
               <button key={stage} onClick={() => setStageFilter(stageFilter === stage ? null : stage)}>
                 <Badge variant="outline" className={`cursor-pointer transition-all ${stageColor[stage]} ${stageFilter === stage ? "ring-2 ring-primary ring-offset-1" : "opacity-60 hover:opacity-100"}`}>
@@ -117,8 +118,10 @@ export default function AdminShipments() {
       <AdminDataTable
         title="Shipments & Tracking"
         columns={columns}
-        data={filteredData}
-        loading={loading}
+        table="shipments"
+        searchColumns={["tracking_number", "carrier", "status", "external_tracking_url"]}
+        filters={filters}
+        transformRows={attachCustomerNames}
         onUpdate={onUpdate}
         onDelete={onDelete}
         onCreate={onCreate}

@@ -70,6 +70,9 @@ const categories = [
   { name: "School Supplies", icon: "📚", query: "school supplies" },
 ];
 
+// CategorySection renders cachedProducts.slice(0, 12), so fetching more is wasted transfer.
+const CATEGORY_PREVIEW_SIZE = 12;
+
 const topCategories = [
   { name: "Shoes", icon: "👟", query: "shoes", price: "150" },
   { name: "Bag", icon: "👜", query: "bag", price: "384" },
@@ -260,47 +263,37 @@ const Index = () => {
     };
 
 
-    // Skip category fetch if already cached
-    if (_sessionCache.categoryProductsMap) {
-      refreshTrendingOnVisit();
-      return () => {
-        isMounted = false;
-      };
-    }
-
-    // Step 2: Load categories progressively
+    // Single round trip returning only the rows each section actually renders.
     const fetchCategories = async () => {
-      const [categoryRes1, categoryRes2] = await Promise.all([
-        supabase.from("category_products").select("*").order("created_at", { ascending: true }).range(0, 999),
-        supabase.from("category_products").select("*").order("created_at", { ascending: true }).range(1000, 1999),
-      ]);
-      const allCategoryData = [
-        ...(categoryRes1.data || []),
-        ...(categoryRes2.data || []),
-      ];
+      const { data } = await supabase.rpc("get_category_products", {
+        _limit_per_category: CATEGORY_PREVIEW_SIZE,
+      });
+      if (!isMounted || !data || data.length === 0) return;
 
-      if (allCategoryData.length > 0) {
-        const grouped: Record<string, any[]> = {};
-        for (const row of allCategoryData) {
-          if (!grouped[row.category_query]) grouped[row.category_query] = [];
-          grouped[row.category_query].push(row);
-        }
-        const categoryKeys = categories.map(c => c.query).filter(q => grouped[q]);
-        const buildMap: Record<string, any[]> = {};
-        for (let i = 0; i < categoryKeys.length; i++) {
-          buildMap[categoryKeys[i]] = grouped[categoryKeys[i]];
-          setCategoryProductsMap({ ...buildMap });
-          setLoadedCategoryCount(i + 1);
-          if (i < categoryKeys.length - 1) {
-            await new Promise(r => setTimeout(r, 80));
-          }
-        }
-        _sessionCache.categoryProductsMap = { ...buildMap };
-        _sessionCache.loadedCategoryCount = categoryKeys.length;
+      const grouped: Record<string, any[]> = {};
+      for (const row of data as any[]) {
+        if (!grouped[row.category_query]) grouped[row.category_query] = [];
+        grouped[row.category_query].push(row);
       }
+      const categoryKeys = categories.map(c => c.query).filter(q => grouped[q]);
+      const buildMap: Record<string, any[]> = {};
+      for (const key of categoryKeys) buildMap[key] = grouped[key];
+
+      // Commit once. This used to set state inside an 80ms-per-category loop, which
+      // added ~1.7s of pure setTimeout delay (21 categories) and 21 full re-renders
+      // of this component after the data had already arrived. Sections now stagger
+      // their entrance in CSS instead, which costs nothing.
+      setCategoryProductsMap(buildMap);
+      setLoadedCategoryCount(categoryKeys.length);
+      _sessionCache.categoryProductsMap = buildMap;
+      _sessionCache.loadedCategoryCount = categoryKeys.length;
     };
 
-    refreshTrendingOnVisit().then(fetchCategories);
+    // Trending and categories are independent queries against different tables; the
+    // previous `.then()` chain made the homepage wait for one before starting the other.
+    const tasks: Promise<unknown>[] = [refreshTrendingOnVisit()];
+    if (!_sessionCache.categoryProductsMap) tasks.push(fetchCategories());
+    void Promise.all(tasks);
 
     return () => {
       isMounted = false;
@@ -388,17 +381,11 @@ const Index = () => {
         setCategoryProducts(result.data.items);
         setCategoryTotal(result.data.total);
         setCategoryPage(page);
-        // Progressive reveal: show first row instantly, then add rows
-        const cols = window.innerWidth >= 1280 ? 6 : window.innerWidth >= 1024 ? 5 : window.innerWidth >= 768 ? 4 : window.innerWidth >= 640 ? 3 : 2;
-        const totalItems = result.data.items.length;
-        setVisibleCategoryCount(cols); // First row instant
+        // Show the full page immediately. The previous staggered reveal stepped one
+        // row every 60ms — roughly half a second of dead time on mobile (2 columns,
+        // 20 items) after the results had already arrived.
+        setVisibleCategoryCount(Infinity);
         setIsCategoryLoading(false);
-        // Reveal remaining rows progressively
-        for (let shown = cols * 2; shown <= totalItems; shown += cols) {
-          await new Promise(r => setTimeout(r, 60));
-          setVisibleCategoryCount(shown);
-        }
-        setVisibleCategoryCount(Infinity); // Show all
       } else {
         toast.error(result.error || "Failed to load page");
         setIsCategoryLoading(false);
@@ -1491,9 +1478,10 @@ const Index = () => {
           )}
 
           {/* Category-wise product sections */}
-          {categories.map((cat) => (
+          {categories.map((cat, i) => (
             <CategorySection
               key={cat.name}
+              index={i}
               name={cat.name}
               icon={cat.icon}
               query={cat.query}

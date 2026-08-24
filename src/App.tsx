@@ -1,4 +1,4 @@
-import { Suspense, useEffect } from "react";
+import { Suspense, lazy, useEffect, useSyncExternalStore } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -10,53 +10,59 @@ import { useAdmin } from "@/hooks/useAdmin";
 import { Loader2 } from "lucide-react";
 import PageLoader from "@/components/PageLoader";
 import TrackingScripts from "@/components/TrackingScripts";
+import { subscribeCurrency, getCurrencyVersion } from "@/lib/currency";
 
 import Index from "./pages/Index";
-import Install from "./pages/Install";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
-import AboutUs from "./pages/AboutUs";
-import ContactUs from "./pages/ContactUs";
-import PrivacyPolicy from "./pages/PrivacyPolicy";
-import ReturnRefundPolicy from "./pages/ReturnRefundPolicy";
-import ProhibitedItems from "./pages/ProhibitedItems";
-import SellerStore from "./pages/SellerStore";
-import PaymentCallback from "./pages/PaymentCallback";
-import DashboardLayout from "./components/dashboard/DashboardLayout";
-import Overview from "./pages/dashboard/Overview";
-import Orders from "./pages/dashboard/Orders";
-import Delivery from "./pages/dashboard/Delivery";
-import Shipments from "./pages/dashboard/Shipments";
-import Parcels from "./pages/dashboard/Parcels";
-import Actions from "./pages/dashboard/Actions";
-import RFQ from "./pages/dashboard/RFQ";
-import Wishlist from "./pages/dashboard/Wishlist";
-import Notifications from "./pages/dashboard/Notifications";
-import Messages from "./pages/dashboard/Messages";
-import Balance from "./pages/dashboard/Balance";
-import Withdrawal from "./pages/dashboard/Withdrawal";
-import Transactions from "./pages/dashboard/Transactions";
-import Refunds from "./pages/dashboard/Refunds";
-import Profile from "./pages/dashboard/Profile";
-import Cart from "./pages/dashboard/Cart";
-import AdminLayout from "./components/admin/AdminLayout";
-import AdminDashboard from "./pages/admin/AdminDashboard";
-import AdminOrders from "./pages/admin/AdminOrders";
-import AdminUsers from "./pages/admin/AdminUsers";
-import AdminRoles from "./pages/admin/AdminRoles";
-import AdminShipments from "./pages/admin/AdminShipments";
-import AdminRefunds from "./pages/admin/AdminRefunds";
-import AdminTransactions from "./pages/admin/AdminTransactions";
-import AdminWallets from "./pages/admin/AdminWallets";
-import AdminNotifications from "./pages/admin/AdminNotifications";
-import AdminWishlist from "./pages/admin/AdminWishlist";
-import AdminCustomers from "./pages/admin/AdminCustomers";
-import AdminAnalytics from "./pages/admin/AdminAnalytics";
-import AdminMessaging from "./pages/admin/AdminMessaging";
-import AdminSettings from "./pages/admin/AdminSettings";
-import AdminMarketing from "./pages/admin/AdminMarketing";
-import AdminSMS from "./pages/admin/AdminSMS";
-import AdminPermissions from "./pages/admin/AdminPermissions";
+
+// Route-level code splitting. Admin and dashboard screens (and the heavy libraries
+// they pull in — recharts, jspdf, html2canvas) are no longer part of the bundle a
+// first-time visitor downloads to browse products.
+const AboutUs = lazy(() => import("./pages/AboutUs"));
+const Actions = lazy(() => import("./pages/dashboard/Actions"));
+const AdminAnalytics = lazy(() => import("./pages/admin/AdminAnalytics"));
+const AdminCustomers = lazy(() => import("./pages/admin/AdminCustomers"));
+const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
+const AdminLayout = lazy(() => import("./components/admin/AdminLayout"));
+const AdminMarketing = lazy(() => import("./pages/admin/AdminMarketing"));
+const AdminMessaging = lazy(() => import("./pages/admin/AdminMessaging"));
+const AdminNotifications = lazy(() => import("./pages/admin/AdminNotifications"));
+const AdminOrders = lazy(() => import("./pages/admin/AdminOrders"));
+const AdminPermissions = lazy(() => import("./pages/admin/AdminPermissions"));
+const AdminRefunds = lazy(() => import("./pages/admin/AdminRefunds"));
+const AdminRoles = lazy(() => import("./pages/admin/AdminRoles"));
+const AdminSMS = lazy(() => import("./pages/admin/AdminSMS"));
+const AdminSettings = lazy(() => import("./pages/admin/AdminSettings"));
+const AdminShipments = lazy(() => import("./pages/admin/AdminShipments"));
+const AdminTransactions = lazy(() => import("./pages/admin/AdminTransactions"));
+const AdminUsers = lazy(() => import("./pages/admin/AdminUsers"));
+const AdminWallets = lazy(() => import("./pages/admin/AdminWallets"));
+const AdminWishlist = lazy(() => import("./pages/admin/AdminWishlist"));
+const Balance = lazy(() => import("./pages/dashboard/Balance"));
+const Cart = lazy(() => import("./pages/dashboard/Cart"));
+const ContactUs = lazy(() => import("./pages/ContactUs"));
+const DashboardLayout = lazy(() => import("./components/dashboard/DashboardLayout"));
+const Delivery = lazy(() => import("./pages/dashboard/Delivery"));
+const Install = lazy(() => import("./pages/Install"));
+const Messages = lazy(() => import("./pages/dashboard/Messages"));
+const Notifications = lazy(() => import("./pages/dashboard/Notifications"));
+const Orders = lazy(() => import("./pages/dashboard/Orders"));
+const Overview = lazy(() => import("./pages/dashboard/Overview"));
+const Parcels = lazy(() => import("./pages/dashboard/Parcels"));
+const PaymentCallback = lazy(() => import("./pages/PaymentCallback"));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
+const Profile = lazy(() => import("./pages/dashboard/Profile"));
+const ProhibitedItems = lazy(() => import("./pages/ProhibitedItems"));
+const RFQ = lazy(() => import("./pages/dashboard/RFQ"));
+const Refunds = lazy(() => import("./pages/dashboard/Refunds"));
+const ReturnRefundPolicy = lazy(() => import("./pages/ReturnRefundPolicy"));
+const SellerStore = lazy(() => import("./pages/SellerStore"));
+const Shipments = lazy(() => import("./pages/dashboard/Shipments"));
+const Transactions = lazy(() => import("./pages/dashboard/Transactions"));
+const Wishlist = lazy(() => import("./pages/dashboard/Wishlist"));
+const Withdrawal = lazy(() => import("./pages/dashboard/Withdrawal"));
+
 
 const queryClient = new QueryClient();
 const APP_VERSION = "20260717-force-hostinger-v8";
@@ -120,6 +126,9 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
 
 const App = () => {
   useBrowserCacheBust();
+  // Re-render the tree once the async currency settings land so every price that was
+  // painted with the fallback rate is recalculated.
+  useSyncExternalStore(subscribeCurrency, getCurrencyVersion, getCurrencyVersion);
 
   return (
     <QueryClientProvider client={queryClient}>

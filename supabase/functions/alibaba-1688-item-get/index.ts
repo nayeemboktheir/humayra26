@@ -1,13 +1,32 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
 const TMAPI_BASE = 'http://api.tmapi.top/1688';
+const CACHE_TTL_HOURS = 12;
+const TMAPI_TIMEOUT_MS = 12000;
+const DETAIL_PAGE_TIMEOUT_MS = 4000;
+
+// Every upstream fetch is bounded — an unbounded one leaves the caller hanging until
+// the client gives up, which is indistinguishable from the site being down.
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 function isNetworkFailure(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error ?? '');
-  return /dns error|failed to lookup|Name or service not known|Connect|network|fetch failed/i.test(message);
+  const name = error instanceof Error ? error.name : '';
+  if (name === 'AbortError' || name === 'TimeoutError') return true;
+  return /dns error|failed to lookup|Name or service not known|Connect|network|fetch failed|aborted|timed out/i.test(message);
 }
 
 function safeErrorMessage(error: unknown): string {
@@ -38,7 +57,11 @@ function uniqueImgs(urls: string[]): string[] {
 async function fetchDetailImages(detailUrl?: string): Promise<string[]> {
   if (!detailUrl) return [];
   try {
-    const resp = await fetch(normalizeImg(detailUrl), { headers: { Accept: 'text/html,*/*' } });
+    const resp = await fetchWithTimeout(
+      normalizeImg(detailUrl),
+      { headers: { Accept: 'text/html,*/*' } },
+      DETAIL_PAGE_TIMEOUT_MS,
+    );
     if (!resp.ok) return [];
     const text = await resp.text();
     const decoded = text.replace(/\\u002F/g, '/').replace(/\\\//g, '/').replace(/\\"/g, '"');
@@ -237,8 +260,27 @@ Deno.serve(async (req) => {
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
     const cleanId = String(numIid).replace(/^abb-/, '');
+
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
+
+    // Cache hit short-circuits both upstream fetches (TMAPI + the 1688 detail page).
+    const cutoff = new Date(Date.now() - CACHE_TTL_HOURS * 60 * 60 * 1000).toISOString();
+    const { data: cached } = await supabase
+      .from('product_cache')
+      .select('detail')
+      .eq('item_id', cleanId)
+      .gte('updated_at', cutoff)
+      .maybeSingle();
+    if (cached?.detail) {
+      return new Response(JSON.stringify({ success: true, data: cached.detail, cached: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     const url = `${TMAPI_BASE}/item_detail?apiToken=${encodeURIComponent(apiToken)}&item_id=${encodeURIComponent(cleanId)}&language=en`;
-    const resp = await fetch(url, { headers: { Accept: 'application/json' } });
+    const resp = await fetchWithTimeout(url, { headers: { Accept: 'application/json' } }, TMAPI_TIMEOUT_MS);
     const data = await resp.json();
     if (!resp.ok || (data?.code && data.code !== 200)) {
       const err = data?.msg || data?.message || `Request failed: ${resp.status}`;
@@ -247,7 +289,17 @@ Deno.serve(async (req) => {
     }
     const detailImages = await fetchDetailImages(data?.data?.detail_url);
     const mapped = mapDetail(data?.data || {}, parseInt(cleanId, 10) || 0, detailImages);
-    return new Response(JSON.stringify({ success: true, data: mapped }),
+
+    // Persist after responding — the cache write must not sit on the response path.
+    const writeCache = supabase
+      .from('product_cache')
+      .upsert({ item_id: cleanId, detail: mapped, updated_at: new Date().toISOString() }, { onConflict: 'item_id' })
+      .then(() => undefined, () => undefined);
+    const waitUntil = (globalThis as any).EdgeRuntime?.waitUntil;
+    if (typeof waitUntil === 'function') waitUntil.call((globalThis as any).EdgeRuntime, writeCache);
+    else await writeCache;
+
+    return new Response(JSON.stringify({ success: true, data: mapped, cached: false }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error) {
     const retryable = isNetworkFailure(error);

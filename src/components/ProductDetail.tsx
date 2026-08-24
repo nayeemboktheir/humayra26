@@ -47,6 +47,11 @@ interface ProductDetailProps {
   onBack?: () => void;
 }
 
+// Domestic shipping quotes are stable for a given (product, quantity) pair, but the
+// quantity stepper re-triggered the whole province probe on every click. Memoize per
+// session so repeated quantity changes cost nothing after the first lookup.
+const domesticShippingCache = new Map<string, { fee: number; unit: 'qty' | 'kg' }>();
+
 export default function ProductDetail({ product, isLoading, onBack }: ProductDetailProps) {
   const [selectedImage, setSelectedImage] = useState(0);
   const [variantOverrideImage, setVariantOverrideImage] = useState<string | null>(null);
@@ -73,11 +78,24 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
 
   const fetchDomesticShippingFee = async (qty: number): Promise<number> => {
     if (!product?.num_iid || qty <= 0) return 0;
+
+    const cacheKey = `${product.num_iid}:${qty}`;
+    const memoized = domesticShippingCache.get(cacheKey);
+    if (memoized) {
+      setDomesticShippingUnit(memoized.unit);
+      return memoized.fee;
+    }
+
+    // TMAPI returns "Get data error" for provinces it doesn't support, so we probe
+    // several. These used to run in a serial for-loop — three sequential edge-function
+    // invokes, each with a 15s timeout, so a bad first province delayed the fee by a
+    // full round trip (worst case 45s). Fire them together and pick the first usable
+    // result in priority order, so the cost is the slowest probe, not the sum.
     const provinces = ['Guangdong', 'Zhejiang', 'Shanghai'];
     const unitWeight = Number(product.item_weight || 0);
     const totalWeight = Number.isFinite(unitWeight) && unitWeight > 0 ? unitWeight * qty : undefined;
 
-    for (const province of provinces) {
+    const probes = provinces.map(async (province) => {
       try {
         const { data, error } = await supabase.functions.invoke('alibaba-1688-shipping-fee', {
           body: { numIid: String(product.num_iid), province, totalQuantity: qty, totalWeight },
@@ -88,11 +106,20 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
           // Fall back to the first-unit fee only when TMAPI cannot calculate a total.
           const fee = d.total_fee ?? d.first_unit_fee ?? null;
           if (fee != null && fee > 0) {
-            setDomesticShippingUnit(d.unit === 'kg' ? 'kg' : 'qty');
-            return fee;
+            return { fee: fee as number, unit: (d.unit === 'kg' ? 'kg' : 'qty') as 'qty' | 'kg' };
           }
         }
       } catch {}
+      return null;
+    });
+
+    // Awaiting in declaration order preserves the original province preference.
+    const settled = await Promise.all(probes);
+    const hit = settled.find(Boolean);
+    if (hit) {
+      domesticShippingCache.set(cacheKey, hit);
+      setDomesticShippingUnit(hit.unit);
+      return hit.fee;
     }
 
     return FALLBACK_FIRST_CNY;

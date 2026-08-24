@@ -171,7 +171,9 @@ export const alibaba1688Api = {
       const { data, error } = await supabase.functions.invoke('alibaba-1688-item-get', { body: { numIid } });
       if (error) return { success: false, error: error.message };
       if (data?.retryable && _retries < 2) {
-        await new Promise(r => setTimeout(r, 3000));
+        // Exponential backoff from a short first delay — the previous flat 3s sleep
+        // added up to 6s before the user saw anything on a transient upstream blip.
+        await new Promise(r => setTimeout(r, 600 * Math.pow(2, _retries)));
         return this.getProduct(numIid, _retries + 1);
       }
       if (!data?.success) return { success: false, error: data?.error || 'Failed to get product', retryable: Boolean(data?.retryable) };

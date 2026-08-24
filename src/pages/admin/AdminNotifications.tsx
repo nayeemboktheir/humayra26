@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import AdminDataTable, { Column } from "@/components/admin/AdminDataTable";
 import { Badge } from "@/components/ui/badge";
@@ -13,36 +12,23 @@ const columns: Column[] = [
 ];
 
 export default function AdminNotifications() {
-  const [data, setData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const fetch = async () => {
-    setLoading(true);
-    const { data: d } = await supabase.from("notifications").select("*").order("created_at", { ascending: false });
-    setData(d || []);
-    setLoading(false);
-  };
-
-  useEffect(() => { fetch(); }, []);
 
   const onDelete = async (id: string) => {
     const { error } = await supabase.from("notifications").delete().eq("id", id);
     if (error) throw error;
-    fetch();
   };
 
   const onCreate = async (vals: Record<string, any>) => {
     const { error } = await supabase.from("notifications").insert([vals as any]);
     if (error) throw error;
-    fetch();
   };
 
   return (
     <AdminDataTable
       title="Notifications"
       columns={columns}
-      data={data}
-      loading={loading}
+      table="notifications"
+      searchColumns={["title", "message", "type"]}
       onDelete={onDelete}
       onCreate={onCreate}
       createFields={[

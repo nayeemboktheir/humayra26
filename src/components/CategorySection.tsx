@@ -12,6 +12,8 @@ interface CategorySectionProps {
   cachedProducts: any[] | null;
   onProductClick: (product: Product1688) => void;
   onViewAll: (query: string) => void;
+  /** Position in the category list, used to stagger the entrance animation. */
+  index?: number;
 }
 
 const mapRowToProduct = (row: any): Product1688 => ({
@@ -28,7 +30,7 @@ const mapRowToProduct = (row: any): Product1688 => ({
   extra_images: row.extra_images || [],
 });
 
-export default function CategorySection({ name, icon, query, cachedProducts, onProductClick, onViewAll }: CategorySectionProps) {
+export default function CategorySection({ name, icon, query, cachedProducts, onProductClick, onViewAll, index = 0 }: CategorySectionProps) {
   const products = cachedProducts ? cachedProducts.slice(0, 12).map(mapRowToProduct) : [];
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -39,8 +41,15 @@ export default function CategorySection({ name, icon, query, cachedProducts, onP
   // Don't render section if no cached data available
   if (!cachedProducts || products.length === 0) return null;
 
+  // Sections stagger in via CSS rather than by delaying their data with setTimeout.
+  // Capped so late sections aren't held back on long lists.
+  const staggerDelay = `${Math.min(index, 8) * 60}ms`;
+
   return (
-    <section className="mb-10 animate-fade-in">
+    <section
+      className="mb-10 animate-fade-in-up motion-reduce:animate-none"
+      style={{ animationDelay: staggerDelay }}
+    >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <span className="text-2xl">{icon}</span>

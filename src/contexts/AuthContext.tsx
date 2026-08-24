@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { clearRoleCache } from "@/lib/roles";
 
 interface AuthContextType {
   user: User | null;
@@ -24,7 +25,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      // The resolved role is cached per session; drop it whenever identity changes.
+      if (event === "SIGNED_OUT" || event === "SIGNED_IN" || event === "USER_UPDATED") {
+        clearRoleCache();
+      }
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);

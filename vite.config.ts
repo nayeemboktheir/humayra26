@@ -33,12 +33,37 @@ export default defineConfig(({ mode }) => ({
   build: {
     rollupOptions: {
       output: {
-        // Hostinger has been rate-limiting many parallel JS chunk requests on the live domain.
-        // Keep the SPA in a single JS bundle so product pages do not fail while loading lazy chunks.
-        inlineDynamicImports: true,
         entryFileNames: "assets/tradeon-app-20260717-v8.js",
         chunkFileNames: "assets/tradeon-chunk-20260717-v8-[hash].js",
         assetFileNames: "assets/tradeon-asset-20260717-v8-[hash][extname]",
+        // Hostinger rate-limits many parallel JS chunk requests, which is why this was
+        // previously built as one inlined bundle. Rather than going back to per-route
+        // chunks (dozens of parallel requests), collapse everything into a handful of
+        // deliberate groups: a visitor browsing products loads only entry + vendor,
+        // and the admin/dashboard/chart/pdf groups are fetched on demand.
+        manualChunks(id: string) {
+          // Vite's preload helper is statically imported by the entry. If Rollup parks
+          // it inside one of the lazy vendor groups, that whole group (e.g. jspdf +
+          // html2canvas) becomes a static dependency of the entry and lands back on the
+          // homepage critical path. Pin it to the always-loaded vendor chunk.
+          if (id.includes("vite/preload-helper") || id.includes("vite/modulepreload-polyfill")) {
+            return "vendor";
+          }
+          if (id.includes("node_modules")) {
+            if (/[\/]node_modules[\/](recharts|d3-|victory-|internmap|delaunator|robust-predicates)/.test(id)) {
+              return "vendor-charts";
+            }
+            if (/[\/]node_modules[\/](jspdf|html2canvas|canvg)/.test(id)) {
+              return "vendor-pdf";
+            }
+            return "vendor";
+          }
+          // Application code is left to Rollup, which splits it along the lazy()
+          // route boundaries. Forcing src/ into manual groups here made the entry
+          // chunk statically depend on the admin group (and through it, recharts),
+          // which put both back on the homepage's critical path.
+          return undefined;
+        },
       },
     },
   },
