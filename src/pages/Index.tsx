@@ -137,11 +137,15 @@ const Index = () => {
   const { user } = useAuth();
   const { settings } = useAppSettings();
   const { count: cartCount } = useCart();
-  // Set dynamic exchange rate and markup from settings
-  const rate = parseFloat(settings.cny_to_bdt_rate || "17.5");
-  if (rate > 0) setCnyToBdtRate(rate);
-  const markup = parseFloat(settings.price_markup_percentage || "15");
-  if (markup >= 0) setMarkupPercentage(markup);
+  // Set dynamic exchange rate and markup from settings (in an effect —
+  // calling the setters during render bumps the currency store and triggers
+  // a setState on App mid-render, which crashes the page)
+  useEffect(() => {
+    const rate = parseFloat(settings.cny_to_bdt_rate || "17.5");
+    if (rate > 0) setCnyToBdtRate(rate);
+    const markup = parseFloat(settings.price_markup_percentage || "15");
+    if (markup >= 0) setMarkupPercentage(markup);
+  }, [settings.cny_to_bdt_rate, settings.price_markup_percentage]);
 
   const [query, setQuery] = useState(_sessionCache.searchState?.query || "");
   const [products, setProducts] = useState<Product1688[]>(_sessionCache.searchState?.products || []);
