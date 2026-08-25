@@ -33,9 +33,12 @@ export default defineConfig(({ mode }) => ({
   build: {
     rollupOptions: {
       output: {
-        entryFileNames: "assets/tradeon-app-20260717-v8.js",
-        chunkFileNames: "assets/tradeon-chunk-20260717-v8-[hash].js",
-        assetFileNames: "assets/tradeon-asset-20260717-v8-[hash][extname]",
+        // Let Rollup fingerprint every output file. The HTML and assets are then
+        // deployed as one immutable set, avoiding references to CI-renamed files
+        // that may not exist on the web root.
+        entryFileNames: "assets/tradeon-app-[hash].js",
+        chunkFileNames: "assets/tradeon-chunk-[hash].js",
+        assetFileNames: "assets/tradeon-asset-[hash][extname]",
         // Hostinger rate-limits many parallel JS chunk requests, which is why this was
         // previously built as one inlined bundle. Rather than going back to per-route
         // chunks (dozens of parallel requests), collapse everything into a handful of
