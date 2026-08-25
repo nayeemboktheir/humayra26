@@ -75,7 +75,7 @@ serve(async (req) => {
     }
 
     // Send SMS via BulkSMS BD
-    const message = `Your login OTP is: ${otp}. Valid for 5 minutes.`;
+    const message = `Your OTP is: ${otp}. Valid for 10 minutes.`;
     const smsUrl = `http://bulksmsbd.net/api/smsapi?api_key=${BULKSMS_API_KEY}&type=text&number=${normalizedPhone}&senderid=${BULKSMS_SENDER_ID}&message=${encodeURIComponent(message)}`;
 
     const smsResponse = await fetch(smsUrl);
