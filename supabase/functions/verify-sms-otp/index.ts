@@ -13,7 +13,8 @@ serve(async (req) => {
   }
 
   try {
-    const { phone, otp } = await req.json();
+    const { phone, otp: rawOtp } = await req.json();
+    const otp = String(rawOtp || "").replace(/[^0-9]/g, "");
 
     if (!phone || !otp) {
       return new Response(
@@ -35,7 +36,7 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Find valid OTP
+    // Find valid OTP (latest matching, still-valid code for this phone)
     const { data: otpRecord, error: otpError } = await supabase
       .from("phone_otps")
       .select("*")
@@ -43,6 +44,8 @@ serve(async (req) => {
       .eq("otp_code", otp)
       .eq("verified", false)
       .gte("expires_at", new Date().toISOString())
+      .order("created_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     if (otpError || !otpRecord) {
@@ -52,8 +55,12 @@ serve(async (req) => {
       );
     }
 
-    // Mark OTP as verified
-    await supabase.from("phone_otps").update({ verified: true }).eq("id", otpRecord.id);
+    // Mark all matching OTPs for this phone as verified
+    await supabase
+      .from("phone_otps")
+      .update({ verified: true })
+      .eq("phone", normalizedPhone)
+      .eq("verified", false);
 
     // Check if user with this phone exists in profiles
     const { data: profile } = await supabase

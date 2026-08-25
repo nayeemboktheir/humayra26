@@ -53,10 +53,15 @@ serve(async (req) => {
 
     // Generate 6-digit OTP
     const otp = String(Math.floor(100000 + Math.random() * 900000));
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 5 minutes
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes (SMS can arrive late)
 
-    // Delete old OTPs for this phone
-    await supabase.from("phone_otps").delete().eq("phone", normalizedPhone);
+    // Clean up only EXPIRED OTPs for this phone. Keep still-valid ones so a
+    // delayed SMS with the previous code can still verify after a resend.
+    await supabase
+      .from("phone_otps")
+      .delete()
+      .eq("phone", normalizedPhone)
+      .lt("expires_at", new Date().toISOString());
 
     // Store OTP
     const { error: insertError } = await supabase.from("phone_otps").insert({
