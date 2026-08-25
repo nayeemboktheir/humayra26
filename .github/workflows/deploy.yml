@@ -127,7 +127,7 @@ jobs:
             fi
 
             if [ -n "$ASSET" ] \
-              && printf '%s' "$HEADERS" | grep -qiE '^content-type: *(text/javascript|application/javascript|text/css)'; then
+              && printf '%s' "$HEADERS" | grep -qiE '^content-type: *(text/javascript|application/(x-)?javascript|text/css)'; then
               echo "✅ tradeon.global is serving index.html and its referenced build asset"
               exit 0
             fi
