@@ -1,5 +1,6 @@
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
+import ErrorBoundary from "./components/ErrorBoundary";
 import "./index.css";
 import { supabase } from "@/integrations/supabase/client";
 import { setCnyToBdtRate, setMarkupPercentage } from "@/lib/currency";
@@ -46,6 +47,35 @@ if ("serviceWorker" in navigator) {
   });
 }
 
-createRoot(document.getElementById("root")!).render(<App />);
+// Chrome/Google Translate (and some in-app webview translators) rewrite text
+// nodes into <font> wrappers. When React later tries to remove or reorder those
+// nodes it crashes with "Failed to execute 'removeChild' on 'Node'" and the
+// whole page goes blank. Make the DOM mutations tolerant of externally-moved
+// nodes so translation can never white-screen the app.
+if (typeof Node === "function" && Node.prototype) {
+  const originalRemoveChild = Node.prototype.removeChild;
+  Node.prototype.removeChild = function <T extends Node>(child: T): T {
+    if (child.parentNode !== this) {
+      console.warn("removeChild skipped: node already moved (browser translation)");
+      return child;
+    }
+    return originalRemoveChild.call(this, child) as T;
+  };
+
+  const originalInsertBefore = Node.prototype.insertBefore;
+  Node.prototype.insertBefore = function <T extends Node>(newNode: T, referenceNode: Node | null): T {
+    if (referenceNode && referenceNode.parentNode !== this) {
+      console.warn("insertBefore skipped: reference moved (browser translation)");
+      return newNode;
+    }
+    return originalInsertBefore.call(this, newNode, referenceNode) as T;
+  };
+}
+
+createRoot(document.getElementById("root")!).render(
+  <ErrorBoundary>
+    <App />
+  </ErrorBoundary>
+);
 
 void loadCurrencySettings();
