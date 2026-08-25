@@ -54,7 +54,6 @@ if ("serviceWorker" in navigator) {
 // nodes so translation can never white-screen the app.
 if (typeof Node === "function" && Node.prototype) {
   const originalRemoveChild = Node.prototype.removeChild;
-  // @ts-expect-error - intentionally permissive signature for resilience
   Node.prototype.removeChild = function <T extends Node>(child: T): T {
     if (child.parentNode !== this) {
       console.warn("removeChild skipped: node already moved (browser translation)");
@@ -64,7 +63,6 @@ if (typeof Node === "function" && Node.prototype) {
   };
 
   const originalInsertBefore = Node.prototype.insertBefore;
-  // @ts-expect-error - intentionally permissive signature for resilience
   Node.prototype.insertBefore = function <T extends Node>(newNode: T, referenceNode: Node | null): T {
     if (referenceNode && referenceNode.parentNode !== this) {
       console.warn("insertBefore skipped: reference moved (browser translation)");
