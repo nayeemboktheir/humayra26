@@ -46,6 +46,33 @@ if ("serviceWorker" in navigator) {
   });
 }
 
+// Chrome/Google Translate (and some in-app webview translators) rewrite text
+// nodes into <font> wrappers. When React later tries to remove or reorder those
+// nodes it crashes with "Failed to execute 'removeChild' on 'Node'" and the
+// whole page goes blank. Make the DOM mutations tolerant of externally-moved
+// nodes so translation can never white-screen the app.
+if (typeof Node === "function" && Node.prototype) {
+  const originalRemoveChild = Node.prototype.removeChild;
+  // @ts-expect-error - intentionally permissive signature for resilience
+  Node.prototype.removeChild = function <T extends Node>(child: T): T {
+    if (child.parentNode !== this) {
+      console.warn("removeChild skipped: node already moved (browser translation)");
+      return child;
+    }
+    return originalRemoveChild.call(this, child) as T;
+  };
+
+  const originalInsertBefore = Node.prototype.insertBefore;
+  // @ts-expect-error - intentionally permissive signature for resilience
+  Node.prototype.insertBefore = function <T extends Node>(newNode: T, referenceNode: Node | null): T {
+    if (referenceNode && referenceNode.parentNode !== this) {
+      console.warn("insertBefore skipped: reference moved (browser translation)");
+      return newNode;
+    }
+    return originalInsertBefore.call(this, newNode, referenceNode) as T;
+  };
+}
+
 createRoot(document.getElementById("root")!).render(<App />);
 
 void loadCurrencySettings();
