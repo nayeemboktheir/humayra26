@@ -1,5 +1,6 @@
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
+import ErrorBoundary from "./components/ErrorBoundary";
 import "./index.css";
 import { supabase } from "@/integrations/supabase/client";
 import { setCnyToBdtRate, setMarkupPercentage } from "@/lib/currency";
