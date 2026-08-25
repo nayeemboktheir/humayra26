@@ -74,6 +74,10 @@ if (typeof Node === "function" && Node.prototype) {
   };
 }
 
-createRoot(document.getElementById("root")!).render(<App />);
+createRoot(document.getElementById("root")!).render(
+  <ErrorBoundary>
+    <App />
+  </ErrorBoundary>
+);
 
 void loadCurrencySettings();
