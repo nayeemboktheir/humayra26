@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   ExternalLink, UserCircle, Search, Trash2, Pencil, Package,
   Truck, DollarSign, Calendar, Hash, StickyNote, ImageIcon, Copy,
@@ -44,6 +45,7 @@ interface OrderWithProfile {
     address: string | null;
     avatar_url: string | null;
   } | null;
+  payment_status?: string | null;
 }
 
 const statusConfig: Record<string, { color: string; label: string }> = {
@@ -95,6 +97,7 @@ export default function AdminOrders() {
   const [invoiceOrder, setInvoiceOrder] = useState<OrderWithProfile | null>(null);
   const [combinedInvoiceOrders, setCombinedInvoiceOrders] = useState<OrderWithProfile[]>([]);
   const [sendingEmailId, setSendingEmailId] = useState<string | null>(null);
+  const [updatingPaymentId, setUpdatingPaymentId] = useState<string | null>(null);
   const [emailMap, setEmailMap] = useState<Map<string, string>>(new Map());
 
   const { settings } = useAppSettings();
@@ -216,6 +219,24 @@ export default function AdminOrders() {
       toast({ title: "Error", description: e.message, variant: "destructive" });
     }
     setSaving(false);
+  };
+
+  const handlePaymentStatusChange = async (order: OrderWithProfile, paymentStatus: string) => {
+    setUpdatingPaymentId(order.id);
+    try {
+      const updates: Record<string, unknown> = { payment_status: paymentStatus };
+      if (paymentStatus === "paid") updates.payment_amount = grandTotal(order);
+      const { error } = await supabase.from("orders").update(updates).eq("id", order.id);
+      if (error) throw error;
+      setData((current) => current.map((item) => (
+        item.id === order.id ? { ...item, ...updates } as OrderWithProfile : item
+      )));
+      toast({ title: `Payment marked ${paymentStatus === "paid" ? "Paid" : paymentStatus === "partial" ? "Partial / Deposit" : "Unpaid"}` });
+    } catch (e: any) {
+      toast({ title: "Payment status update failed", description: e.message, variant: "destructive" });
+    } finally {
+      setUpdatingPaymentId(null);
+    }
   };
 
   const handleDelete = async () => {
@@ -559,7 +580,7 @@ export default function AdminOrders() {
             const displayStatus = shipment ? shipment.status : (order.status || "Ordered");
             const sc = statusConfig[displayStatus] || { color: "bg-muted text-foreground border-border", label: displayStatus };
             const isSelected = selectedIds.has(order.id);
-            const ps = (order as any).payment_status || "unpaid";
+            const ps = (order.payment_status || "unpaid").toLowerCase();
             const payLabel =
               ps === "paid" || ps === "completed" ? "Paid"
               : ps === "partial" || ps === "deposit" || ps === "partially_paid" ? "70% Deposit"
@@ -582,7 +603,23 @@ export default function AdminOrders() {
                     <span className="font-mono text-sm font-semibold truncate">{order.order_number}</span>
                   </div>
                   <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
-                    <Badge className={`${payColor} border text-[10px] font-medium px-2 py-0.5`}>{payLabel}</Badge>
+                    <Select
+                      value={ps === "completed" ? "paid" : ps === "deposit" || ps === "partially_paid" ? "partial" : ps}
+                      onValueChange={(value) => handlePaymentStatusChange(order, value)}
+                      disabled={updatingPaymentId === order.id}
+                    >
+                      <SelectTrigger
+                        aria-label={`Payment status for order ${order.order_number}`}
+                        className={`h-7 w-[104px] border px-2 text-[10px] font-medium ${payColor}`}
+                      >
+                        <SelectValue>{updatingPaymentId === order.id ? "Saving..." : payLabel}</SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="unpaid">Unpaid</SelectItem>
+                        <SelectItem value="partial">Partial / Deposit</SelectItem>
+                        <SelectItem value="paid">Paid</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <Badge className={`${sc.color} border text-[10px] font-medium px-2 py-0.5`}>{sc.label}</Badge>
                   </div>
                 </div>

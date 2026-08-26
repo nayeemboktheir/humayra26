@@ -140,10 +140,10 @@ Deno.serve(async (req) => {
           fbc: meta_browser_ids?.fbc,
         });
       }
-    } else if (isFailed || isCanceled) {
+    } else if (isCanceled) {
       await supabase
         .from('orders')
-        .update({ payment_status: isCanceled ? 'canceled' : 'failed' })
+        .update({ payment_status: 'canceled' })
         .eq('payment_invoice', invoice_number);
     }
 

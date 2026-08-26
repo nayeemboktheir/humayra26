@@ -82,17 +82,13 @@ export default function PaymentCallback() {
             await fetchOrderNumber(true);
             return;
           }
-          if (lastStatus === "failed") {
-            if (!cancelled) setStatus("failed");
-            await fetchOrderNumber();
-            return;
-          }
           if (lastStatus === "canceled" || lastStatus === "cancelled") {
             if (!cancelled) setStatus("canceled");
             await fetchOrderNumber();
             return;
           }
-          // initiated / pending / processing / unknown → keep polling
+          // initiated / pending / processing / failed / unknown → keep polling.
+          // Some mobile payment methods briefly report failed before settlement.
         } catch {
           // network blip — keep polling
         }
@@ -101,7 +97,7 @@ export default function PaymentCallback() {
 
       // Timed out without a definitive answer — DO NOT mark as failed.
       // Payment may still complete on gateway side. Show a "still verifying" state.
-      if (!cancelled) setStatus("loading");
+      if (!cancelled) setStatus(lastStatus === "failed" ? "failed" : "loading");
       await fetchOrderNumber();
     };
 
