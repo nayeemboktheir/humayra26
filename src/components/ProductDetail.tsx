@@ -589,7 +589,9 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
               </div>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
+
 
         {/* Title + Sold */}
         <h1 className="text-base sm:text-lg md:text-xl font-bold leading-tight">{product.title}</h1>
