@@ -66,14 +66,14 @@ function calcTotals(orders: OrderData[]) {
   for (const o of orders) {
     productTotal += Number(o.total_price);
     domesticTotal += Number(o.domestic_courier_charge || 0);
-    shippingTotal += Number(o.shipping_charges || 0);
+    shippingTotal += 0;
     commissionTotal += Number(o.commission || 0);
     const ps = (o.payment_status || "").toLowerCase();
     if (ps === "paid" || ps === "completed" || ps === "partial" || ps === "deposit" || ps === "partially_paid") {
       paid += Number(o.payment_amount || 0);
     }
   }
-  const grandTotal = productTotal + domesticTotal + shippingTotal + commissionTotal;
+  const grandTotal = productTotal + domesticTotal + commissionTotal;
   return { productTotal, domesticTotal, shippingTotal, commissionTotal, grandTotal, paid, due: Math.max(0, grandTotal - paid) };
 }
 
@@ -157,11 +157,6 @@ function buildPrintHTML(orders: OrderData[], settings: Record<string, string>) {
     <div style="display:flex;justify-content:space-between;padding:7px 0;font-size:13px;color:#4b5563;">
       <span>Domestic Courier (China)</span><span style="font-weight:600;">৳${totals.domesticTotal.toLocaleString()}</span>
     </div>`;
-  if (totals.shippingTotal > 0) {
-    summaryRows += `<div style="display:flex;justify-content:space-between;padding:7px 0;font-size:13px;color:#4b5563;">
-      <span>International Shipping</span><span style="font-weight:600;">৳${totals.shippingTotal.toLocaleString()}</span>
-    </div>`;
-  }
   if (totals.commissionTotal > 0) {
     summaryRows += `<div style="display:flex;justify-content:space-between;padding:7px 0;font-size:13px;color:#4b5563;">
       <span>Commission</span><span style="font-weight:600;">৳${totals.commissionTotal.toLocaleString()}</span>
@@ -509,12 +504,6 @@ export default function OrderInvoice({ order, orders: ordersProp, open, onOpenCh
                 <span className="text-muted-foreground">Domestic Courier (China)</span>
                 <span className="font-semibold">৳{totals.domesticTotal.toLocaleString()}</span>
               </div>
-              {totals.shippingTotal > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">International Shipping</span>
-                  <span className="font-semibold">৳{totals.shippingTotal.toLocaleString()}</span>
-                </div>
-              )}
               {totals.commissionTotal > 0 && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Commission</span>

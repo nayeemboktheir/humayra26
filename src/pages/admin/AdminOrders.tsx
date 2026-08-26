@@ -367,7 +367,7 @@ export default function AdminOrders() {
       total: o.total_price,
       shipping: o.shipping_charges || 0,
       commission: o.commission || 0,
-      grand_total: Number(o.total_price) + Number(o.shipping_charges || 0) + Number(o.commission || 0),
+      grand_total: Number(o.total_price) + Number(o.commission || 0),
       status: o.status,
       date: new Date(o.created_at).toLocaleDateString(),
     }));
@@ -409,7 +409,7 @@ export default function AdminOrders() {
   }, {} as Record<string, number>);
 
   const grandTotal = (order: OrderWithProfile) =>
-    Number(order.total_price) + Number(order.shipping_charges || 0) + Number(order.commission || 0) + Number((order as any).domestic_courier_charge || 0);
+    Number(order.total_price) + Number(order.commission || 0) + Number((order as any).domestic_courier_charge || 0);
 
   return (
     <div className="space-y-6">
