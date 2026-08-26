@@ -59,14 +59,14 @@ function calcTotals(orders: OrderData[]) {
   for (const o of orders) {
     productTotal += Number(o.total_price);
     domesticTotal += Number(o.domestic_courier_charge || 0);
-    shippingTotal += Number(o.shipping_charges || 0);
+    shippingTotal += 0;
     commissionTotal += Number(o.commission || 0);
     const ps = (o.payment_status || "").toLowerCase();
     if (ps === "paid" || ps === "completed" || ps === "partial" || ps === "deposit" || ps === "partially_paid") {
       paid += Number(o.payment_amount || 0);
     }
   }
-  const grandTotal = productTotal + domesticTotal + shippingTotal + commissionTotal;
+  const grandTotal = productTotal + domesticTotal + commissionTotal;
   return { productTotal, domesticTotal, shippingTotal, commissionTotal, grandTotal, paid, due: Math.max(0, grandTotal - paid) };
 }
 
