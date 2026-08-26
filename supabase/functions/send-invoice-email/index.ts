@@ -127,11 +127,6 @@ function buildInvoiceHTML(orders: OrderData[], settings: Record<string, string>)
     <div style="display:flex;justify-content:space-between;padding:7px 0;font-size:13px;color:#4b5563;">
       <span>Domestic Courier (China)</span><span style="font-weight:600;">৳${totals.domesticTotal.toLocaleString()}</span>
     </div>`;
-  if (totals.shippingTotal > 0) {
-    summaryRows += `<div style="display:flex;justify-content:space-between;padding:7px 0;font-size:13px;color:#4b5563;">
-      <span>International Shipping</span><span style="font-weight:600;">৳${totals.shippingTotal.toLocaleString()}</span>
-    </div>`;
-  }
   if (totals.commissionTotal > 0) {
     summaryRows += `<div style="display:flex;justify-content:space-between;padding:7px 0;font-size:13px;color:#4b5563;">
       <span>Commission</span><span style="font-weight:600;">৳${totals.commissionTotal.toLocaleString()}</span>
