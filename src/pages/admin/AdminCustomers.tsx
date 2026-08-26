@@ -154,12 +154,11 @@ export default function AdminCustomers() {
 
   const statusColorMap: Record<string, string> = {
     Ordered: "bg-amber-100 text-amber-800",
-    "Purchased from 1688": "bg-blue-100 text-blue-800",
-    "Shipped to Warehouse": "bg-indigo-100 text-indigo-800",
-    "Arrived at Warehouse": "bg-violet-100 text-violet-800",
-    "Shipped to Bangladesh": "bg-purple-100 text-purple-800",
-    "In Customs": "bg-orange-100 text-orange-800",
-    "Out for Delivery": "bg-cyan-100 text-cyan-800",
+    "Purchased From factory": "bg-blue-100 text-blue-800",
+    "Shipped": "bg-indigo-100 text-indigo-800",
+    "RCV CN Warehouse": "bg-violet-100 text-violet-800",
+    "Dhaka Airport": "bg-purple-100 text-purple-800",
+    "Dhaka Warehouse": "bg-cyan-100 text-cyan-800",
     Delivered: "bg-emerald-100 text-emerald-800",
   };
 

@@ -57,9 +57,9 @@ const Orders = () => {
     if (!isPaidStatus(o.payment_status)) return "to_pay";
     const st = stageOf(o);
     if (st === "Delivered" || o.status === "delivered" || o.status === "completed") return "delivered";
-    if (st === "Out for Delivery") return "rcv_bd_warehouse";
-    if (["Shipped to Bangladesh", "In Customs"].includes(st)) return "bd_customs";
-    if (["Shipped to Warehouse", "Arrived at Warehouse"].includes(st)) return "rcv_cn_warehouse";
+    if (st === "Dhaka Warehouse") return "rcv_bd_warehouse";
+    if (["Dhaka Airport"].includes(st)) return "bd_customs";
+    if (["RCV CN Warehouse"].includes(st)) return "rcv_cn_warehouse";
     return "to_ship";
   };
 
