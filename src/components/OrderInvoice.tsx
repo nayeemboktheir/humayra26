@@ -509,12 +509,6 @@ export default function OrderInvoice({ order, orders: ordersProp, open, onOpenCh
                 <span className="text-muted-foreground">Domestic Courier (China)</span>
                 <span className="font-semibold">৳{totals.domesticTotal.toLocaleString()}</span>
               </div>
-              {totals.shippingTotal > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">International Shipping</span>
-                  <span className="font-semibold">৳{totals.shippingTotal.toLocaleString()}</span>
-                </div>
-              )}
               {totals.commissionTotal > 0 && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Commission</span>
