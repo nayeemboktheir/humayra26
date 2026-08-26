@@ -78,7 +78,7 @@ Deno.serve(async (req) => {
 
       const orders = invoiceOrders || [];
       const sumGrand = orders.reduce((s: number, o: any) =>
-        s + Number(o.total_price || 0) + Number(o.domestic_courier_charge || 0) + Number(o.shipping_charges || 0) + Number(o.commission || 0), 0);
+        s + Number(o.total_price || 0) + Number(o.domestic_courier_charge || 0) + Number(o.commission || 0), 0);
       const sumPayable = orders.reduce((s: number, o: any) => s + Number(o.payment_amount || 0), 0);
 
       // If the payable amount is less than the true grand total, this is a 70% deposit
