@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -56,6 +56,7 @@ const domesticShippingCache = new Map<string, { fee: number; unit: 'qty' | 'kg' 
 export default function ProductDetail({ product, isLoading, onBack }: ProductDetailProps) {
   const [selectedImage, setSelectedImage] = useState(0);
   const [variantOverrideImage, setVariantOverrideImage] = useState<string | null>(null);
+  const skuScrollRef = useRef<HTMLDivElement>(null);
   const [showVideo, setShowVideo] = useState(false);
   const [quantity, setQuantity] = useState(0);
   const [skuQuantities, setSkuQuantities] = useState<Record<string, number>>({});
@@ -746,7 +747,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
 
                   {/* Specifications Table — filtered by selected color */}
                   <div>
-                    <div className="border rounded-lg overflow-hidden max-h-[340px] overflow-y-auto">
+                    <div ref={skuScrollRef} className="border rounded-lg overflow-hidden max-h-[340px] overflow-y-auto">
                       <table className="w-full text-sm">
                         <thead className="sticky top-0 z-10">
                           <tr className="border-b bg-muted/80 backdrop-blur-sm">
@@ -797,9 +798,15 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                         </tbody>
                       </table>
                     </div>
-                    <button className="w-full text-center text-sm text-muted-foreground py-2 hover:text-foreground transition-colors flex items-center justify-center gap-1">
-                      <ChevronDown className="h-3.5 w-3.5" /> Scroll More
-                    </button>
+                    {filteredSkus.length > 4 && (
+                      <button
+                        type="button"
+                        onClick={() => skuScrollRef.current?.scrollBy({ top: 240, behavior: "smooth" })}
+                        className="w-full text-center text-sm text-muted-foreground py-2 hover:text-foreground transition-colors flex items-center justify-center gap-1"
+                      >
+                        <ChevronDown className="h-3.5 w-3.5" /> Scroll More
+                      </button>
+                    )}
                   </div>
                 </>
               );
