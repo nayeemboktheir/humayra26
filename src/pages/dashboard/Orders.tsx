@@ -328,14 +328,14 @@ const Orders = () => {
                             className="h-8 gap-1"
                             disabled={payingId === order.id}
                             onClick={() => handlePay(order)}
-                            title={partial ? `Pay remaining ৳${due.toLocaleString()}` : `Pay ৳${due.toLocaleString()}`}
+                            title={partial ? `Pay remaining ৳${due.toLocaleString()}` : `Pay ৳${amountToPay(order).toLocaleString()}`}
                           >
                             {payingId === order.id ? (
                               <Loader2 className="h-3.5 w-3.5 animate-spin" />
                             ) : (
                               <CreditCard className="h-3.5 w-3.5" />
                             )}
-                            <span className="text-xs whitespace-nowrap">Pay ৳{due.toLocaleString()}</span>
+                            <span className="text-xs whitespace-nowrap">Pay ৳{amountToPay(order).toLocaleString()}</span>
                           </Button>
                         )}
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setInvoiceOrder(order)} title="View invoice">
