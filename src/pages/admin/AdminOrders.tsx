@@ -50,12 +50,11 @@ const statusConfig: Record<string, { color: string; label: string }> = {
   awaiting_payment: { color: "bg-amber-100 text-amber-800 border-amber-200", label: "Awaiting Payment" },
   pending: { color: "bg-amber-100 text-amber-800 border-amber-200", label: "Pending" },
   "Ordered": { color: "bg-amber-100 text-amber-800 border-amber-200", label: "Ordered" },
-  "Purchased from 1688": { color: "bg-blue-100 text-blue-800 border-blue-200", label: "Purchased from 1688" },
-  "Shipped to Warehouse": { color: "bg-indigo-100 text-indigo-800 border-indigo-200", label: "Shipped to Warehouse" },
-  "Arrived at Warehouse": { color: "bg-violet-100 text-violet-800 border-violet-200", label: "Arrived at Warehouse" },
-  "Shipped to Bangladesh": { color: "bg-purple-100 text-purple-800 border-purple-200", label: "Shipped to BD" },
-  "In Customs": { color: "bg-orange-100 text-orange-800 border-orange-200", label: "In Customs" },
-  "Out for Delivery": { color: "bg-cyan-100 text-cyan-800 border-cyan-200", label: "Out for Delivery" },
+  "Purchased From factory": { color: "bg-blue-100 text-blue-800 border-blue-200", label: "Purchased From factory" },
+  "Shipped": { color: "bg-indigo-100 text-indigo-800 border-indigo-200", label: "Shipped" },
+  "RCV CN Warehouse": { color: "bg-violet-100 text-violet-800 border-violet-200", label: "RCV CN Warehouse" },
+  "Dhaka Airport": { color: "bg-purple-100 text-purple-800 border-purple-200", label: "Dhaka Airport" },
+  "Dhaka Warehouse": { color: "bg-cyan-100 text-cyan-800 border-cyan-200", label: "Dhaka Warehouse" },
   "Delivered": { color: "bg-emerald-100 text-emerald-800 border-emerald-200", label: "Delivered" },
   processing: { color: "bg-blue-100 text-blue-800 border-blue-200", label: "Processing" },
   shipped: { color: "bg-purple-100 text-purple-800 border-purple-200", label: "Shipped" },
@@ -64,7 +63,7 @@ const statusConfig: Record<string, { color: string; label: string }> = {
   cancelled: { color: "bg-red-100 text-red-800 border-red-200", label: "Cancelled" },
 };
 
-const SHIPMENT_STAGES = ["Ordered", "Purchased from 1688", "Shipped to Warehouse", "Arrived at Warehouse", "Shipped to Bangladesh", "In Customs", "Out for Delivery", "Delivered"];
+const SHIPMENT_STAGES = ["Ordered", "Purchased From factory", "Shipped", "RCV CN Warehouse", "Dhaka Airport", "Dhaka Warehouse", "Delivered"];
 
 const ORDER_STATUS_OPTIONS = [
   { value: "awaiting_payment", label: "Awaiting Payment" },
