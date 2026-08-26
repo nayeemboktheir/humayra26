@@ -49,6 +49,7 @@ const Orders = () => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [shipments, setShipments] = useState<Record<string, string>>({});
   const [category, setCategory] = useState<CategoryKey>("all");
+  const [payMode, setPayMode] = useState<"full" | "partial">("full");
 
   const stageOf = (o: any) => shipments[o.id] || o.status || "Ordered";
 
