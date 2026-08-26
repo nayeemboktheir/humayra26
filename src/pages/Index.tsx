@@ -44,6 +44,7 @@ const ProductGridSkeleton = ({ count = 12 }: { count?: number }) => (
 );
 
 import { convertToBDT } from "@/lib/currency";
+import CopyLinkButton from "@/components/CopyLinkButton";
 
 // Categories matching chinaonlinebd.com
 const categories = [
@@ -1550,6 +1551,7 @@ const SiteHeader = ({ query, setQuery, handleSearch, isLoading, handleImageButto
           <Button variant="ghost" size="icon" className="h-9 w-9" onClick={handleImageButtonClick} title="Image Search">
             <Camera className="h-5 w-5 text-foreground" />
           </Button>
+          <CopyLinkButton className="h-9 w-9" />
         </div>
       </div>
       {/* Search bar */}
@@ -1590,6 +1592,7 @@ const SiteHeader = ({ query, setQuery, handleSearch, isLoading, handleImageButto
             </Button>
           </form>
           <div className="flex items-center gap-2">
+            <CopyLinkButton />
             <Button variant="ghost" size="icon" onClick={handleInstallClick} title="Install App"><Download className="h-5 w-5" /></Button>
             <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard/wishlist")} title="Wishlist"><Heart className="h-5 w-5" /></Button>
             <Button variant="ghost" size="icon" className="relative" onClick={() => navigate(user ? "/dashboard/cart" : "/auth")} title="Cart">
