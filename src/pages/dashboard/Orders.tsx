@@ -76,9 +76,15 @@ const Orders = () => {
     const grand = Number(o.total_price || 0) + Number(o.domestic_courier_charge || 0);
     return isPartialStatus(o.payment_status) ? Math.max(grand - Number(o.payment_amount || 0), 0) : grand;
   };
+  // 70% advance is only offered on orders where nothing has been paid yet
+  const canPayPartial = (o: any) => !isPartialStatus(o.payment_status);
+  const amountToPay = (o: any) => {
+    const due = dueOf(o);
+    return payMode === "partial" && canPayPartial(o) ? Math.round(due * 0.7) : due;
+  };
   const payableOrders = orders.filter((o) => !isPaidStatus(o.payment_status) && o.status !== "cancelled");
   const selectedOrders = payableOrders.filter((o) => selectedIds.includes(o.id));
-  const selectedTotal = selectedOrders.reduce((s, o) => s + dueOf(o), 0);
+  const selectedTotal = selectedOrders.reduce((s, o) => s + amountToPay(o), 0);
   const allSelected = payableOrders.length > 0 && selectedIds.length === payableOrders.length;
   const toggleOrder = (id: string) =>
     setSelectedIds((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
