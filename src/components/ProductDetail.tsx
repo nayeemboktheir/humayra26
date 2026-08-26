@@ -1070,25 +1070,42 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                   {/* Seller name & location */}
                   <div>
                     <div className="font-bold text-base">{product.seller_info.shop_name || "1688 Seller"}</div>
-                    {product.seller_info.vendor_id && (
-                      <div className="text-xs text-muted-foreground mt-0.5 break-all">{product.seller_info.vendor_id}</div>
+                    {product.seller_info.location && (
+                      <div className="text-xs text-muted-foreground mt-0.5">{product.seller_info.location}</div>
                     )}
                   </div>
                   {/* Stats row */}
                   <div className="grid grid-cols-3 w-full border rounded-lg divide-x">
                     <div className="py-2.5 px-1">
-                      <div className="text-base font-bold">{product.total_sold?.toLocaleString() || '—'}</div>
-                      <div className="text-[10px] text-muted-foreground uppercase">Total Sale</div>
+                      <div className="text-base font-bold">
+                        {(product.seller_info.product_count ?? 0) > 0
+                          ? product.seller_info.product_count!.toLocaleString()
+                          : '—'}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground uppercase">Products</div>
                     </div>
                     <div className="py-2.5 px-1">
-                      <div className="text-base font-bold">{product.seller_info.rating || '—'}</div>
-                      <div className="text-[10px] text-muted-foreground uppercase">Rating</div>
+                      <div className="text-base font-bold">
+                        {(product.total_sold ?? product.seller_info.total_sales ?? 0) > 0
+                          ? (product.total_sold ?? product.seller_info.total_sales!).toLocaleString()
+                          : '—'}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground uppercase">Sold</div>
                     </div>
                     <div className="py-2.5 px-1">
-                      <div className="text-base font-bold">{product.seller_info.service_score || '—'}</div>
-                      <div className="text-[10px] text-muted-foreground uppercase">Service</div>
+                      <div className="text-base font-bold">{product.seller_info.service_tags?.length || '—'}</div>
+                      <div className="text-[10px] text-muted-foreground uppercase">Guarantees</div>
                     </div>
                   </div>
+                  {product.seller_info.service_tags && product.seller_info.service_tags.length > 0 && (
+                    <div className="flex flex-wrap justify-center gap-1.5">
+                      {product.seller_info.service_tags.slice(0, 4).map((tag) => (
+                        <span key={tag} className="text-[10px] px-2 py-1 rounded-full bg-primary/10 text-primary">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   {/* Visit Seller Store button */}
                   <Button
                     variant="outline"

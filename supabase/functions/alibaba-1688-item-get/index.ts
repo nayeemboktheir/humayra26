@@ -54,6 +54,21 @@ function uniqueImgs(urls: string[]): string[] {
   });
 }
 
+async function fetchShopProductCount(apiToken: string, memberId?: string): Promise<number> {
+  if (!memberId) return 0;
+  try {
+    const resp = await fetchWithTimeout(
+      `${TMAPI_BASE}/shop/items?apiToken=${encodeURIComponent(apiToken)}&member_id=${encodeURIComponent(memberId)}&page=1`,
+      { headers: { Accept: 'application/json' } },
+      DETAIL_PAGE_TIMEOUT_MS,
+    );
+    const j = await resp.json();
+    return parseInt(String(j?.data?.total_count ?? 0), 10) || 0;
+  } catch {
+    return 0;
+  }
+}
+
 async function fetchDetailImages(detailUrl?: string): Promise<string[]> {
   if (!detailUrl) return [];
   try {
@@ -82,7 +97,7 @@ function parseIntSafe(value: any): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-function mapDetail(d: any, fallbackId: number, detailImgs: string[] = []) {
+function mapDetail(d: any, fallbackId: number, detailImgs: string[] = [], shopProductCount = 0) {
   const mainImgs: string[] = uniqueImgs(Array.isArray(d?.main_imgs) ? d.main_imgs : []);
   const descriptionImgs = detailImgs.length > 0 ? detailImgs : mainImgs;
   const props: any[] = Array.isArray(d?.product_props) ? d.product_props : [];
@@ -193,6 +208,10 @@ function mapDetail(d: any, fallbackId: number, detailImgs: string[] = []) {
     composite_score: '',
     rating: '',
     service_score: '',
+    // TMAPI exposes no seller rating/service score, so surface the facts it does return.
+    location: d?.delivery_info?.location || '',
+    service_tags: Array.isArray(d?.service_tags) ? d.service_tags : [],
+    product_count: shopProductCount,
     total_sales: totalSold,
   };
 
@@ -287,8 +306,12 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ success: false, error: err }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
-    const detailImages = await fetchDetailImages(data?.data?.detail_url);
-    const mapped = mapDetail(data?.data || {}, parseInt(cleanId, 10) || 0, detailImages);
+    const memberId = data?.data?.shop_info?.seller_member_id || data?.data?.shop_info?.member_id || '';
+    const [detailImages, shopProductCount] = await Promise.all([
+      fetchDetailImages(data?.data?.detail_url),
+      fetchShopProductCount(apiToken, memberId),
+    ]);
+    const mapped = mapDetail(data?.data || {}, parseInt(cleanId, 10) || 0, detailImages, shopProductCount);
 
     // Persist after responding — the cache write must not sit on the response path.
     const writeCache = supabase
