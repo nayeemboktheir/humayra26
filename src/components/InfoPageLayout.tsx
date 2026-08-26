@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { ChevronRight, Home } from "lucide-react";
 import Footer from "@/components/Footer";
+import CopyLinkButton from "@/components/CopyLinkButton";
 
 interface InfoPageLayoutProps {
   title: string;
@@ -23,12 +24,15 @@ const InfoPageLayout = ({ title, subtitle, breadcrumb, children }: InfoPageLayou
           >
             TradeOn<span className="text-foreground">.global</span>
           </button>
+          <div className="flex items-center gap-1">
+          <CopyLinkButton />
           <button
             onClick={() => navigate(-1)}
             className="text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             ← Go Back
           </button>
+          </div>
         </div>
       </div>
 

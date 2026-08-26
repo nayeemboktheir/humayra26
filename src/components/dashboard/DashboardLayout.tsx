@@ -9,6 +9,7 @@ import {
   LogOut, Menu, X, MessageSquare, ShoppingBag
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import CopyLinkButton from "@/components/CopyLinkButton";
 
 interface NavItem {
   label: string;
@@ -173,7 +174,8 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
           <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}>
             <Menu className="h-5 w-5" />
           </Button>
-          <h1 className="font-semibold">Dashboard</h1>
+          <h1 className="font-semibold flex-1">Dashboard</h1>
+          <CopyLinkButton />
         </header>
         <main className="flex-1 p-4 lg:p-6">
           {children}

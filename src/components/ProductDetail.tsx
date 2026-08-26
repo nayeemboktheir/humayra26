@@ -26,6 +26,7 @@ import { useCart } from "@/contexts/CartContext";
 import { convertToBDT, getTierCnyPrice, getSkuTierCnyPrice } from "@/lib/currency";
 import CheckoutDialog from "@/components/CheckoutDialog";
 import { trackViewContent } from "@/lib/tracking";
+import CopyLinkButton from "@/components/CopyLinkButton";
 
 const translateLocation = (location: string): string => {
   if (location.includes("省") || location.includes("市")) return "China";
@@ -549,6 +550,8 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
             <span className="text-muted-foreground/50">›</span>
             <span className="text-foreground font-medium">Product</span>
           </div>
+          <div className="flex items-center gap-2">
+          <CopyLinkButton variant="outline" size="sm" label="Copy Link" className="text-xs font-semibold rounded-full" />
           <Dialog>
             <DialogTrigger asChild>
               <Button size="sm" variant="outline" className="gap-1.5 text-xs font-semibold rounded-full border-primary text-primary hover:bg-primary hover:text-primary-foreground">
@@ -586,7 +589,9 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
               </div>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
+
 
         {/* Title + Sold */}
         <h1 className="text-base sm:text-lg md:text-xl font-bold leading-tight">{product.title}</h1>
