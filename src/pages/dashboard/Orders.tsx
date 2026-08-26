@@ -202,16 +202,34 @@ const Orders = () => {
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h1 className="text-2xl font-bold">My Orders</h1>
         {payableOrders.length > 0 && (
-          <Button
-            className="gap-2"
-            disabled={selectedOrders.length === 0 || payingId === "bulk"}
-            onClick={() => handlePayMany(selectedOrders)}
-          >
-            {payingId === "bulk" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-            {selectedOrders.length === 0
-              ? "অর্ডার সিলেক্ট করুন"
-              : `${selectedOrders.length}টি অর্ডার একসাথে পে করুন (৳${selectedTotal.toLocaleString()})`}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center rounded-lg border p-0.5 bg-muted/40">
+              <button
+                type="button"
+                onClick={() => setPayMode("full")}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${payMode === "full" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+              >
+                সম্পূর্ণ (100%)
+              </button>
+              <button
+                type="button"
+                onClick={() => setPayMode("partial")}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${payMode === "partial" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+              >
+                অগ্রিম (70%)
+              </button>
+            </div>
+            <Button
+              className="gap-2"
+              disabled={selectedOrders.length === 0 || payingId === "bulk"}
+              onClick={() => handlePayMany(selectedOrders)}
+            >
+              {payingId === "bulk" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+              {selectedOrders.length === 0
+                ? "অর্ডার সিলেক্ট করুন"
+                : `${selectedOrders.length}টি অর্ডার একসাথে পে করুন (৳${selectedTotal.toLocaleString()})`}
+            </Button>
+          </div>
         )}
       </div>
 
