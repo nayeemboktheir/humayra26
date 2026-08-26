@@ -34,7 +34,7 @@ export interface ProductDetail1688 {
   props: { name: string; value: string }[];
   priceRange?: number[][];
   configuredItems?: { id: string; title: string; imageUrl?: string; price: number; stock: number; }[];
-  seller_info: { nick: string; shop_name: string; vendor_id?: string; item_score: string; delivery_score: string; composite_score: string; rating?: string; service_score?: string; total_sales?: number; };
+  seller_info: { nick: string; shop_name: string; vendor_id?: string; item_score: string; delivery_score: string; composite_score: string; rating?: string; service_score?: string; total_sales?: number; location?: string; service_tags?: string[]; product_count?: number; };
   total_sold?: number;
   item_weight?: number;
 }
