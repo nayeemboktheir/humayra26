@@ -318,11 +318,11 @@ export default function AdminSettings() {
             <CardContent className="space-y-3">
               {[
                 { key: "sms_tpl_ordered", label: "1️⃣ Order Confirmation (Stage: Ordered)" },
-                { key: "sms_tpl_purchased", label: "2️⃣ Purchasing from Supplier (Stage: Purchased from 1688)" },
-                { key: "sms_tpl_china_warehouse", label: "3️⃣ Arrived at China Warehouse" },
-                { key: "sms_tpl_shipped_bd", label: "4️⃣ Shipped to Bangladesh" },
-                { key: "sms_tpl_customs", label: "5️⃣ In Customs Clearance" },
-                { key: "sms_tpl_bd_warehouse", label: "6️⃣ Arrived at BD Warehouse / Out for Delivery / Delivered" },
+                { key: "sms_tpl_purchased", label: "2️⃣ Purchasing from Supplier (Stage: Purchased From factory)" },
+                { key: "sms_tpl_china_warehouse", label: "3️⃣ RCV CN Warehouse" },
+                { key: "sms_tpl_shipped_bd", label: "4️⃣ Dhaka Airport" },
+                { key: "sms_tpl_customs", label: "5️⃣ Dhaka Warehouse / Delivered" },
+                { key: "sms_tpl_bd_warehouse", label: "6️⃣ Dhaka Warehouse / Delivered" },
               ].map((t) => (
                 <Field key={t.key} label={t.label} span={2}>
                   <Textarea

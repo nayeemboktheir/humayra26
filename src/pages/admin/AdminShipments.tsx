@@ -5,23 +5,21 @@ import { Badge } from "@/components/ui/badge";
 
 const DELIVERY_STAGES = [
   "Ordered",
-  "Purchased from 1688",
-  "Shipped to Warehouse",
-  "Arrived at Warehouse",
-  "Shipped to Bangladesh",
-  "In Customs",
-  "Out for Delivery",
+  "Purchased From factory",
+  "Shipped",
+  "RCV CN Warehouse",
+  "Dhaka Airport",
+  "Dhaka Warehouse",
   "Delivered",
 ];
 
 const stageColor: Record<string, string> = {
   "Ordered": "bg-gray-100 text-gray-800",
-  "Purchased from 1688": "bg-blue-100 text-blue-800",
-  "Shipped to Warehouse": "bg-indigo-100 text-indigo-800",
-  "Arrived at Warehouse": "bg-purple-100 text-purple-800",
-  "Shipped to Bangladesh": "bg-orange-100 text-orange-800",
-  "In Customs": "bg-yellow-100 text-yellow-800",
-  "Out for Delivery": "bg-teal-100 text-teal-800",
+  "Purchased From factory": "bg-blue-100 text-blue-800",
+  "Shipped": "bg-indigo-100 text-indigo-800",
+  "RCV CN Warehouse": "bg-purple-100 text-purple-800",
+  "Dhaka Airport": "bg-orange-100 text-orange-800",
+  "Dhaka Warehouse": "bg-teal-100 text-teal-800",
   "Delivered": "bg-green-100 text-green-800",
 };
 

@@ -10,12 +10,11 @@ const corsHeaders = {
 // Map shipment stage label -> setting key for the SMS template
 const STAGE_TO_TEMPLATE_KEY: Record<string, string> = {
   "Ordered": "sms_tpl_ordered",
-  "Purchased from 1688": "sms_tpl_purchased",
-  "Shipped to Warehouse": "sms_tpl_purchased",
-  "Arrived at Warehouse": "sms_tpl_china_warehouse",
-  "Shipped to Bangladesh": "sms_tpl_shipped_bd",
-  "In Customs": "sms_tpl_customs",
-  "Out for Delivery": "sms_tpl_bd_warehouse",
+  "Purchased From factory": "sms_tpl_purchased",
+  "Shipped": "sms_tpl_purchased",
+  "RCV CN Warehouse": "sms_tpl_china_warehouse",
+  "Dhaka Airport": "sms_tpl_shipped_bd",
+  "Dhaka Warehouse": "sms_tpl_bd_warehouse",
   "Delivered": "sms_tpl_bd_warehouse",
 };
 

@@ -9,23 +9,21 @@ import { Button } from "@/components/ui/button";
 
 const DELIVERY_STAGES = [
   "Ordered",
-  "Purchased from 1688",
-  "Shipped to Warehouse",
-  "Arrived at Warehouse",
-  "Shipped to Bangladesh",
-  "In Customs",
-  "Out for Delivery",
+  "Purchased From factory",
+  "Shipped",
+  "RCV CN Warehouse",
+  "Dhaka Airport",
+  "Dhaka Warehouse",
   "Delivered",
 ];
 
 const stageIcons: Record<string, string> = {
   "Ordered": "📦",
-  "Purchased from 1688": "🛒",
-  "Shipped to Warehouse": "🚚",
-  "Arrived at Warehouse": "🏭",
-  "Shipped to Bangladesh": "✈️",
-  "In Customs": "🛃",
-  "Out for Delivery": "🏍️",
+  "Purchased From factory": "🛒",
+  "Shipped": "🚚",
+  "RCV CN Warehouse": "🏭",
+  "Dhaka Airport": "✈️",
+  "Dhaka Warehouse": "🏢",
   "Delivered": "✅",
 };
 
