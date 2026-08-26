@@ -193,6 +193,10 @@ function mapDetail(d: any, fallbackId: number, detailImgs: string[] = []) {
     composite_score: '',
     rating: '',
     service_score: '',
+    // TMAPI exposes no seller rating/service score, so surface the facts it does return.
+    location: d?.delivery_info?.location || '',
+    service_tags: Array.isArray(d?.service_tags) ? d.service_tags : [],
+    product_count: shopProductCount,
     total_sales: totalSold,
   };
 
