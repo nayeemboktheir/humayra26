@@ -101,7 +101,7 @@ const Orders = () => {
 
       let total = 0;
       for (const o of list) {
-        const amount = Math.max(dueOf(o), 1);
+        const amount = Math.max(amountToPay(o), 1);
         total += amount;
         const { error } = await supabase
           .from("orders")
