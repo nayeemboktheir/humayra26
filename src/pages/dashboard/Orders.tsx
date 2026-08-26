@@ -49,6 +49,7 @@ const Orders = () => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [shipments, setShipments] = useState<Record<string, string>>({});
   const [category, setCategory] = useState<CategoryKey>("all");
+  const [payMode, setPayMode] = useState<"full" | "partial">("full");
 
   const stageOf = (o: any) => shipments[o.id] || o.status || "Ordered";
 
@@ -75,9 +76,15 @@ const Orders = () => {
     const grand = Number(o.total_price || 0) + Number(o.domestic_courier_charge || 0);
     return isPartialStatus(o.payment_status) ? Math.max(grand - Number(o.payment_amount || 0), 0) : grand;
   };
+  // 70% advance is only offered on orders where nothing has been paid yet
+  const canPayPartial = (o: any) => !isPartialStatus(o.payment_status);
+  const amountToPay = (o: any) => {
+    const due = dueOf(o);
+    return payMode === "partial" && canPayPartial(o) ? Math.round(due * 0.7) : due;
+  };
   const payableOrders = orders.filter((o) => !isPaidStatus(o.payment_status) && o.status !== "cancelled");
   const selectedOrders = payableOrders.filter((o) => selectedIds.includes(o.id));
-  const selectedTotal = selectedOrders.reduce((s, o) => s + dueOf(o), 0);
+  const selectedTotal = selectedOrders.reduce((s, o) => s + amountToPay(o), 0);
   const allSelected = payableOrders.length > 0 && selectedIds.length === payableOrders.length;
   const toggleOrder = (id: string) =>
     setSelectedIds((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
@@ -94,7 +101,7 @@ const Orders = () => {
 
       let total = 0;
       for (const o of list) {
-        const amount = Math.max(dueOf(o), 1);
+        const amount = Math.max(amountToPay(o), 1);
         total += amount;
         const { error } = await supabase
           .from("orders")
@@ -146,9 +153,7 @@ const Orders = () => {
     if (!user) return;
     setPayingId(order.id);
     try {
-      const grandTotal = Number(order.total_price || 0) + Number(order.domestic_courier_charge || 0);
-      const alreadyPaid = isPartialStatus(order.payment_status) ? Number(order.payment_amount || 0) : 0;
-      const payableAmount = Math.max(grandTotal - alreadyPaid, 1);
+      const payableAmount = Math.max(amountToPay(order), 1);
 
       const invoiceNumber = `PS-${Date.now()}`;
       const callbackUrl = `${window.location.origin}/payment/callback`;
@@ -197,16 +202,34 @@ const Orders = () => {
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h1 className="text-2xl font-bold">My Orders</h1>
         {payableOrders.length > 0 && (
-          <Button
-            className="gap-2"
-            disabled={selectedOrders.length === 0 || payingId === "bulk"}
-            onClick={() => handlePayMany(selectedOrders)}
-          >
-            {payingId === "bulk" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-            {selectedOrders.length === 0
-              ? "অর্ডার সিলেক্ট করুন"
-              : `${selectedOrders.length}টি অর্ডার একসাথে পে করুন (৳${selectedTotal.toLocaleString()})`}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center rounded-lg border p-0.5 bg-muted/40">
+              <button
+                type="button"
+                onClick={() => setPayMode("full")}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${payMode === "full" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+              >
+                সম্পূর্ণ (100%)
+              </button>
+              <button
+                type="button"
+                onClick={() => setPayMode("partial")}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${payMode === "partial" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+              >
+                অগ্রিম (70%)
+              </button>
+            </div>
+            <Button
+              className="gap-2"
+              disabled={selectedOrders.length === 0 || payingId === "bulk"}
+              onClick={() => handlePayMany(selectedOrders)}
+            >
+              {payingId === "bulk" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+              {selectedOrders.length === 0
+                ? "অর্ডার সিলেক্ট করুন"
+                : `${selectedOrders.length}টি অর্ডার একসাথে পে করুন (৳${selectedTotal.toLocaleString()})`}
+            </Button>
+          </div>
         )}
       </div>
 
@@ -305,14 +328,14 @@ const Orders = () => {
                             className="h-8 gap-1"
                             disabled={payingId === order.id}
                             onClick={() => handlePay(order)}
-                            title={partial ? `Pay remaining ৳${due.toLocaleString()}` : `Pay ৳${due.toLocaleString()}`}
+                            title={partial ? `Pay remaining ৳${due.toLocaleString()}` : `Pay ৳${amountToPay(order).toLocaleString()}`}
                           >
                             {payingId === order.id ? (
                               <Loader2 className="h-3.5 w-3.5 animate-spin" />
                             ) : (
                               <CreditCard className="h-3.5 w-3.5" />
                             )}
-                            <span className="text-xs whitespace-nowrap">Pay ৳{due.toLocaleString()}</span>
+                            <span className="text-xs whitespace-nowrap">Pay ৳{amountToPay(order).toLocaleString()}</span>
                           </Button>
                         )}
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setInvoiceOrder(order)} title="View invoice">
