@@ -153,9 +153,7 @@ const Orders = () => {
     if (!user) return;
     setPayingId(order.id);
     try {
-      const grandTotal = Number(order.total_price || 0) + Number(order.domestic_courier_charge || 0);
-      const alreadyPaid = isPartialStatus(order.payment_status) ? Number(order.payment_amount || 0) : 0;
-      const payableAmount = Math.max(grandTotal - alreadyPaid, 1);
+      const payableAmount = Math.max(amountToPay(order), 1);
 
       const invoiceNumber = `PS-${Date.now()}`;
       const callbackUrl = `${window.location.origin}/payment/callback`;
