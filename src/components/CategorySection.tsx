@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Product1688 } from "@/lib/api/alibaba1688";
+import { cdnImage, cdnImageFallback } from "@/lib/cdnImage";
 import { convertToBDT } from "@/lib/currency";
 
 interface CategorySectionProps {
@@ -79,12 +80,13 @@ export default function CategorySection({ name, icon, query, cachedProducts, onP
             >
               <div className="aspect-square overflow-hidden bg-muted relative">
                 <img
-                  src={product.pic_url}
+                  src={cdnImage(product.pic_url, 400)}
                   alt={product.title}
                   referrerPolicy="no-referrer"
                   loading="lazy"
+                  decoding="async"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                  onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder.svg"; }}
+                  onError={cdnImageFallback(product.pic_url)}
                 />
               </div>
               <CardContent className="p-2.5 space-y-1">

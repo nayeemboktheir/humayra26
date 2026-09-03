@@ -7,6 +7,19 @@ const corsHeaders = {
 
 const CACHE_TTL_HOURS = 12;
 const TMAPI_BASE = 'http://api.tmapi.top/1688';
+const TMAPI_TIMEOUT_MS = 15000;
+
+// Without a timeout a stalled upstream connection hangs the caller until the browser
+// gives up, which is indistinguishable from the site being down.
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 function normalizeImg(u: string): string {
   if (!u) return '';
@@ -100,7 +113,7 @@ Deno.serve(async (req) => {
     const url = `${TMAPI_BASE}/global/search/items?apiToken=${encodeURIComponent(apiToken)}&keyword=${encodeURIComponent(query)}&language=en&page=${page}&page_size=${effectivePageSize}&sort=default`;
     console.log(`TMAPI global search: "${query}" page=${page}`);
 
-    const resp = await fetch(url, { headers: { Accept: 'application/json' } });
+    const resp = await fetchWithTimeout(url, { headers: { Accept: 'application/json' } }, TMAPI_TIMEOUT_MS);
     const data = await resp.json();
     if (!resp.ok || (data?.code && data.code !== 200)) {
       return new Response(JSON.stringify({ success: false, error: data?.msg || data?.message || `Request failed: ${resp.status}` }),
@@ -112,10 +125,15 @@ Deno.serve(async (req) => {
     const totalCount = result?.total_count || (result?.has_next_page ? (page * effectivePageSize + 1) : rawItems.length);
     const items = rawItems.map(mapTmapiItem);
 
-    await supabase.from('search_cache').upsert(
+    // Persist after responding. The upsert used to sit between the upstream result and
+    // the reply, adding a full database round trip to every cache-miss search.
+    const writeCache = supabase.from('search_cache').upsert(
       { query_key: queryKey, page, total_results: totalCount, items, translated: true },
       { onConflict: 'query_key,page' }
-    );
+    ).then(() => undefined, () => undefined);
+    const waitUntil = (globalThis as any).EdgeRuntime?.waitUntil;
+    if (typeof waitUntil === 'function') waitUntil.call((globalThis as any).EdgeRuntime, writeCache);
+    else await writeCache;
 
     return new Response(JSON.stringify({ success: true, data: { items, total: totalCount }, cached: false, translated: true }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });

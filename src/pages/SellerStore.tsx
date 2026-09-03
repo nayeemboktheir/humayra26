@@ -9,6 +9,7 @@ import { ArrowLeft, Package, Store, Loader2 } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 
 import { convertToBDT } from "@/lib/currency";
+import { cdnImage, cdnImageFallback } from "@/lib/cdnImage";
 
 interface SellerProduct {
   num_iid: number;
@@ -142,13 +143,13 @@ export default function SellerStore() {
                 >
                   <div className="aspect-square overflow-hidden bg-muted">
                     <img
-                      src={product.pic_url}
+                      src={cdnImage(product.pic_url, 400)}
                       alt={product.title}
                       referrerPolicy="no-referrer"
                       loading="lazy"
                       decoding="async"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
+                      onError={cdnImageFallback(product.pic_url)}
                     />
                   </div>
                   <CardContent className="p-2 sm:p-3">

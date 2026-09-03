@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { alibaba1688Api, Product1688, ProductDetail1688 } from "@/lib/api/alibaba1688";
+import { cdnImage, cdnImageFallback } from "@/lib/cdnImage";
 import { supabase } from "@/integrations/supabase/client";
 import ProductDetail from "@/components/ProductDetail";
 import Footer from "@/components/Footer";
@@ -1173,12 +1174,13 @@ const Index = () => {
                       >
                         <div className="aspect-square overflow-hidden bg-muted relative">
                           <img
-                            src={product.pic_url}
+                            src={cdnImage(product.pic_url, 400)}
                             alt={product.title}
                             referrerPolicy="no-referrer"
                             loading="lazy"
+                            decoding="async"
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                            onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
+                            onError={cdnImageFallback(product.pic_url)}
                           />
                           <Badge className="absolute top-2 left-2 bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5">
                             3% OFF
@@ -1442,21 +1444,24 @@ const Index = () => {
               </div>
               <div className="border-b border-primary/20 mb-4" />
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                {trendingProducts.map((product) => (
+                {trendingProducts.map((product, i) => (
                   <Card
                     key={product.id}
                     className="overflow-hidden cursor-pointer hover:shadow-lg transition-all group border-0 shadow-sm"
                     onClick={() => handleTrendingClick(product.id)}
                   >
                     <div className="aspect-square overflow-hidden bg-muted relative">
+                      {/* The first row is above the fold and holds the LCP element:
+                          load it eagerly at high priority instead of lazily. */}
                       <img
-                        src={product.image}
+                        src={cdnImage(product.image, 400)}
                         alt={product.title}
                         referrerPolicy="no-referrer"
-                        loading="lazy"
+                        loading={i < 6 ? "eager" : "lazy"}
+                        fetchPriority={i < 6 ? "high" : "auto"}
                         decoding="async"
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
+                        onError={cdnImageFallback(product.image)}
                       />
                       <Badge className="absolute top-2 left-2 bg-primary text-primary-foreground text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm">
                         3% OFF
@@ -1637,9 +1642,9 @@ const ProductCard = ({ product, getDisplayTitle, onClick }: { product: Product16
     <a href={`/?product=${product.num_iid}`} onClick={handleClick} className="block">
     <Card className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow group">
       <div className="aspect-square overflow-hidden bg-muted relative">
-        <img src={product.pic_url} alt={getDisplayTitle(product)} referrerPolicy="no-referrer" loading="lazy"
+        <img src={cdnImage(product.pic_url, 400)} alt={getDisplayTitle(product)} referrerPolicy="no-referrer" loading="lazy" decoding="async"
           className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-          onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
+          onError={cdnImageFallback(product.pic_url)}
         />
         {product.location && (
           <div className="absolute bottom-2 left-2 bg-background/80 backdrop-blur-sm text-foreground text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1">

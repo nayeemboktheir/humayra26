@@ -4,6 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="referrer" content="no-referrer" />
+
+    <!-- The first paint needs Supabase (settings, trending, categories) and the Alibaba
+         image CDN. Opening those connections during HTML parse removes a DNS+TLS
+         handshake from the critical path of each. -->
+    <link rel="preconnect" href="%VITE_SUPABASE_URL%" crossorigin />
+    <link rel="dns-prefetch" href="%VITE_SUPABASE_URL%" />
+    <link rel="preconnect" href="https://cbu01.alicdn.com" crossorigin />
+    <link rel="dns-prefetch" href="https://cbu01.alicdn.com" />
     <!-- TODO: Set the document title to the name of your application -->
     <title>TradeOn Global</title>
     <meta name="description" content="TradeOn Global - Search and browse wholesale products with prices in BDT" />
