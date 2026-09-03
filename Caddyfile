@@ -1,17 +1,16 @@
-{
-	# Uncomment to switch Let's Encrypt to the staging CA while testing DNS/ACME, so you
-	# don't hit LE's production rate limits on repeated failed attempts:
-	# acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
-}
-
-trade.botbhai.net {
+# Deployed behind Coolify's Traefik, which already terminates TLS on the host and
+# obtains the Let's Encrypt certificate for whatever domain is assigned to this app in
+# the Coolify UI. Caddy therefore listens on plain HTTP — no site hostname, no
+# automatic-HTTPS/ACME here — Traefik reaches this container over Coolify's internal
+# network and Coolify's own port (see docker-compose.yml's `expose: ["80"]`).
+:80 {
 	encode gzip zstd
 
 	# Staging is not the canonical site — keep it out of search results.
 	header X-Robots-Tag "noindex, nofollow"
 
-	# /api/* is proxied to the cache-api container. Same-origin, so the frontend needs no
-	# CORS handling and only one public port (443) is ever exposed.
+	# /api/* is proxied to the cache-api container. Same-origin (from the browser's
+	# perspective, through Traefik), so the frontend needs no CORS handling.
 	handle /api/* {
 		reverse_proxy cache-api:8787
 	}

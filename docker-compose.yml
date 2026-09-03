@@ -1,9 +1,13 @@
 # Staging instance for tradeon.global — a separate VPS deployment, entirely independent
 # of the Hostinger/Lovable production setup. Nothing here touches production.
 #
-#   docker compose --env-file staging.env up -d --build
+# Deployed via Coolify (build_pack: dockercompose), which runs its own Traefik reverse
+# proxy already bound to host ports 80/443 and terminates TLS itself once a domain is
+# assigned to this app in the Coolify UI. Containers here must NOT publish those ports —
+# `expose:` puts the frontend container on Coolify's internal network only; Traefik
+# reaches it there and handles the public-facing HTTPS side, including the certificate.
 #
-# See DEPLOY-STAGING.md for the full runbook.
+# See DEPLOY-STAGING.md for the full runbook (Coolify UI steps, not raw `docker compose`).
 
 services:
   frontend:
@@ -15,12 +19,8 @@ services:
         VITE_SUPABASE_PROJECT_ID: ${VITE_SUPABASE_PROJECT_ID}
         VITE_API_BASE: /api
     restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - caddy_data:/data
-      - caddy_config:/config
+    expose:
+      - "80"
     depends_on:
       - cache-api
 
@@ -53,6 +53,4 @@ services:
     # No `ports:` — internal only, same reasoning as cache-api.
 
 volumes:
-  caddy_data:
-  caddy_config:
   redis_data:

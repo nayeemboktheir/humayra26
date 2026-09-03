@@ -1,17 +1,23 @@
-# Staging deploy — trade.botbhai.net (VPS)
+# Staging deploy — trade.botbhai.net (Coolify)
 
 A parallel, independent instance for testing performance work before it touches
 `tradeon.global`. Nothing in this document affects the production Hostinger/Lovable
 deployment — that still runs through `.github/workflows/deploy.yml` exactly as before.
 
+Deployed via **Coolify** (`build_pack: dockercompose`), pointed at this repo's
+`optimization` branch. Coolify runs its own Traefik reverse proxy, which already owns
+host ports 80/443 and handles TLS — that shapes several things below that would look
+different on a bare VPS.
+
 ## What this is
 
 ```
-Caddy (TLS, :80/:443)
- ├─ /              → the built SPA (Vite dist/), correct cache headers, no Clear-Site-Data
- └─ /api/*         → reverse-proxied to cache-api
-                        cache-api → Redis (cache-aside + stale-while-revalidate)
-                                  → TMAPI (only on a cache miss)
+Traefik (Coolify's proxy — TLS, :80/:443, owns the domain)
+ └─ frontend (Caddy, internal :80 only)
+     ├─ /              → the built SPA (Vite dist/), correct cache headers, no Clear-Site-Data
+     └─ /api/*         → reverse-proxied to cache-api
+                            cache-api → Redis (cache-aside + stale-while-revalidate)
+                                      → TMAPI (only on a cache miss)
 ```
 
 Everything else — auth, orders, wallets, admin, the 20 edge functions not covered here —
@@ -31,64 +37,69 @@ uses. This build only changes **where search and product-detail results are cach
   origin there if you need signup/reset emails to work, or just don't test those flows
   yet.
 
-## Prerequisites on the VPS
+## Why `docker-compose.yml` and `Caddyfile` look the way they do
 
-- Docker Engine + the Compose plugin (`docker compose version` should work)
-- Ports 80 and 443 open and not already bound by anything else
-- DNS: an A record for `trade.botbhai.net` pointing at this VPS's public IP. Caddy
-  requests a Let's Encrypt certificate automatically the first time it starts — if the
-  DNS record isn't propagated yet, that request just fails and retries; it is not fatal.
+Two things are shaped by running behind Coolify's Traefik rather than standing alone:
 
-## 1. Get the code onto the VPS
+- **No `ports:` on the `frontend` service** — only `expose: ["80"]`. Publishing `80:80`/
+  `443:443` to the host, as a standalone Caddy setup normally would, collides with
+  Traefik, which is already bound to those ports. This is exactly what caused the first
+  deploy attempt to crash-loop (`port is already allocated`).
+- **Caddy listens on plain `:80`, not `trade.botbhai.net {...}`** — a hostname site
+  address makes Caddy request its own Let's Encrypt certificate via ACME. Traefik already
+  does that once you assign the domain in Coolify's UI (see step 2), so Caddy would
+  either fail to bind 80/443 for its own ACME challenge or end up racing Traefik for the
+  same certificate. Caddy here only serves HTTP internally; Traefik does the public
+  HTTPS side.
 
-Any method that lands this repository's contents in a directory on the VPS works. Two
-common options:
+## 1. Confirm the Coolify application
 
-```bash
-# Option A — git (if this repo has a remote the VPS can reach)
-git clone <your-remote-url> tradeon && cd tradeon
+This should already exist (`build_pack: dockercompose`, repo `nayeemboktheir/humayra26`,
+branch `optimization`, compose file at the repo root). If you're starting from scratch in
+Coolify: **New Resource → Docker Compose**, point it at this repo/branch, base directory
+`/`, compose location `/docker-compose.yml`.
 
-# Option B — rsync from your machine (works regardless of git hosting)
-rsync -az --delete \
-  --exclude node_modules --exclude cache-api/node_modules --exclude dist \
-  --exclude .git \
-  ./ user@your-vps:/opt/tradeon/
-ssh user@your-vps
-cd /opt/tradeon
-```
+## 2. Environment variables
 
-## 2. Configure secrets
+Set these in Coolify's **Environment Variables** tab for the application (not a
+`.env` file you upload — Coolify generates one from what's configured there and passes
+it to `docker compose` at deploy time):
 
-```bash
-cp staging.env.example staging.env
-nano staging.env
-```
-
-Fill in:
 - `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_PROJECT_ID` —
   copied verbatim from your local `.env` (same production Supabase project).
 - `TMAPI_TOKEN` — the same token already used by the Supabase edge functions (Lovable
   secrets → `TMAPI_TOKEN`). Do not request a second one; TMAPI billing is per-token.
+- Optionally the cache tuning vars (`SEARCH_FRESH_MS`, `SEARCH_TTL_SEC`,
+  `PRODUCT_FRESH_MS`, `PRODUCT_TTL_SEC`, `TMAPI_TIMEOUT_MS`, `DETAIL_PAGE_TIMEOUT_MS`) —
+  compose falls back to sensible defaults (see `cache-api/.env.example`) if you leave
+  them unset.
 
-`staging.env` is gitignored. Never commit it.
+`staging.env.example` in the repo documents the same keys for reference, and still
+applies if you ever run this stack on a bare VPS instead of through Coolify — see
+"Running this without Coolify" at the bottom.
 
-## 3. Build and start
+## 3. Assign the domain
+
+In the Coolify UI, open this application → **Domains**, select the `frontend` service,
+port `80`, and set the FQDN to `trade.botbhai.net`. Coolify/Traefik requests the Let's
+Encrypt certificate itself once this is saved and the app is (re)deployed — there is
+nothing to configure in `Caddyfile` for this.
+
+DNS: an A record for `trade.botbhai.net` must point at the Coolify server's public IP.
+(This was already confirmed live during setup — `trade.botbhai.net` resolves to
+`72.61.248.65`.)
+
+## 4. Deploy
+
+Trigger a deploy from the Coolify UI (or push to the `optimization` branch, if this
+application has auto-deploy enabled). Coolify runs `docker compose up -d --build` for
+you — first run pulls `oven/bun:1-alpine`, `caddy:2-alpine`, `redis:7-alpine`, and builds
+the frontend and cache-api images.
+
+## 5. Verify
 
 ```bash
-docker compose --env-file staging.env up -d --build
-```
-
-First run pulls `node:20-alpine`, `caddy:2-alpine`, `redis:7-alpine`, builds the frontend
-and cache-api images, and Caddy requests its TLS certificate. Expect this to take a few
-minutes the first time.
-
-## 4. Verify
-
-```bash
-# Containers healthy?
-docker compose ps
-
-# cache-api + Redis reachable through Caddy's proxy
+# cache-api + Redis reachable through the proxy chain
 curl -s https://trade.botbhai.net/api/healthz
 # -> {"ok":true,"redis":"up"}
 
@@ -108,44 +119,45 @@ search for the same term, the response should come back near-instantly — check
 `cacheStatus` in the network tab's response body (`"hit"` or `"stale"` rather than
 `"miss"`).
 
-## 5. Logs / troubleshooting
+## 6. Logs / troubleshooting
 
-```bash
-docker compose logs -f frontend      # Caddy: TLS issuance, request errors
-docker compose logs -f cache-api     # TMAPI calls, cache read/write failures
-docker compose logs -f redis
-```
+Use Coolify's own log viewer for the application (per-service: `frontend`, `cache-api`,
+`redis`), or its MCP/API deployment tooling if you're driving this from an agent.
 
-If TLS issuance is stuck (DNS not propagated yet, or you're iterating quickly and
-hitting Let's Encrypt's rate limit), switch to the staging CA while you debug — uncomment
-the `acme_ca` line at the top of `Caddyfile`, then:
+- **`port is already allocated`** — a service in `docker-compose.yml` is publishing a
+  host port that collides with Traefik (or anything else already bound on the Coolify
+  server). Only `frontend` should ever need `expose:`, never `ports:`.
+- **Certificate not issuing / domain not resolving** — check the Domains tab, confirm
+  the FQDN is saved against the `frontend` service on port 80, and confirm DNS actually
+  resolves to the Coolify server's IP.
+- **`/api/*` calls fail but `/` loads fine** — check `cache-api` logs for a startup
+  failure; the service exits immediately if `TMAPI_TOKEN` is unset (see `src/server.js`).
 
-```bash
-docker compose up -d --build frontend
-```
+## 7. Redeploy after a code change
 
-Switch it back (delete/comment that line) once DNS and the setup are confirmed working,
-then rebuild once more to get a real, browser-trusted certificate.
-
-## 6. Redeploy after a code change
-
-```bash
-git pull   # or re-rsync
-docker compose --env-file staging.env up -d --build
-```
-
-Compose only rebuilds images whose inputs changed, so this is safe to run after any
+Push to the `optimization` branch (if auto-deploy is on) or trigger a redeploy from the
+Coolify UI. Compose only rebuilds images whose inputs changed, so this is safe after any
 change, however small.
 
-## 7. Tear down
+## 8. Tear down
 
-```bash
-docker compose down          # stop and remove containers, keep volumes (Redis data, TLS certs)
-docker compose down -v       # also remove volumes — next start re-issues a TLS cert from scratch
-```
+Delete or stop the application from the Coolify UI. There is nothing to roll back —
+this instance is entirely separate from production; `tradeon.global` is unaffected
+throughout its lifecycle.
 
-## Rollback
+---
 
-There is nothing to roll back — this instance is entirely separate from production.
-`docker compose down` at any time simply removes it; `tradeon.global` is unaffected
-throughout.
+## Running this without Coolify (bare VPS)
+
+The compose file as committed is shaped for Coolify (no host port bindings, Caddy on
+plain HTTP). To run it standalone instead — publishing ports and letting Caddy manage
+its own TLS — you'd need to reverse both adjustments described above:
+
+1. In `docker-compose.yml`, change the `frontend` service's `expose: ["80"]` back to
+   `ports: ["80:80", "443:443"]`, and add back `caddy_data`/`caddy_config` volumes
+   mounted at `/data` and `/config` (so the certificate persists across restarts).
+2. In `Caddyfile`, change the site address from `:80` to `trade.botbhai.net` so Caddy's
+   automatic HTTPS takes over.
+3. Use `staging.env.example` → `staging.env` and
+   `docker compose --env-file staging.env up -d --build` directly on the VPS, with ports
+   80/443 free and DNS pointed at that VPS.
