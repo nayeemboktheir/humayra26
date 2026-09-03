@@ -1,5 +1,26 @@
 import { supabase } from '@/integrations/supabase/client';
 
+// Set only on the VPS staging build (see /Dockerfile, /Caddyfile). When present,
+// search and product-detail — the two hot, cacheable paths — call this instance's
+// cache-api + Redis layer instead of the Supabase edge functions. Every other API
+// method, and the production Hostinger build (where this is unset), is unaffected.
+const CACHE_API_BASE = import.meta.env.VITE_API_BASE as string | undefined;
+
+async function callCacheApi(path: string, body: unknown): Promise<{ data: any; error: { message: string } | null }> {
+  try {
+    const resp = await fetch(`${CACHE_API_BASE}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await resp.json().catch(() => null);
+    if (!resp.ok && !data) return { data: null, error: { message: `Request failed: ${resp.status}` } };
+    return { data, error: null };
+  } catch (err) {
+    return { data: null, error: { message: err instanceof Error ? err.message : 'Network error' } };
+  }
+}
+
 export interface Product1688 {
   num_iid: number;
   title: string;
@@ -49,7 +70,9 @@ function getFeaturedValue(item: any, name: string): string {
 export const alibaba1688Api = {
   async search(query: string, page = 1, pageSize = 40): Promise<ApiResponse<{ items: Product1688[]; total: number }>> {
     try {
-      const { data, error } = await supabase.functions.invoke('alibaba-1688-cached-search', { body: { query, page, pageSize } });
+      const { data, error } = CACHE_API_BASE
+        ? await callCacheApi('/search', { query, page, pageSize })
+        : await supabase.functions.invoke('alibaba-1688-cached-search', { body: { query, page, pageSize } });
       if (error) return { success: false, error: error.message };
       if (!data?.success) return { success: false, error: data?.error || 'Search failed' };
       return { success: true, data: { items: data.data?.items || [], total: data.data?.total || 0 } };
@@ -168,7 +191,9 @@ export const alibaba1688Api = {
 
   async getProduct(numIid: number, _retries = 0): Promise<ApiResponse<ProductDetail1688>> {
     try {
-      const { data, error } = await supabase.functions.invoke('alibaba-1688-item-get', { body: { numIid } });
+      const { data, error } = CACHE_API_BASE
+        ? await callCacheApi('/product', { numIid })
+        : await supabase.functions.invoke('alibaba-1688-item-get', { body: { numIid } });
       if (error) return { success: false, error: error.message };
       if (data?.retryable && _retries < 2) {
         // Exponential backoff from a short first delay — the previous flat 3s sleep

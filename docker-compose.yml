@@ -1,0 +1,58 @@
+# Staging instance for tradeon.global — a separate VPS deployment, entirely independent
+# of the Hostinger/Lovable production setup. Nothing here touches production.
+#
+#   docker compose --env-file staging.env up -d --build
+#
+# See DEPLOY-STAGING.md for the full runbook.
+
+services:
+  frontend:
+    build:
+      context: .
+      args:
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
+        VITE_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY}
+        VITE_SUPABASE_PROJECT_ID: ${VITE_SUPABASE_PROJECT_ID}
+        VITE_API_BASE: /api
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - cache-api
+
+  cache-api:
+    build: ./cache-api
+    restart: unless-stopped
+    environment:
+      TMAPI_TOKEN: ${TMAPI_TOKEN}
+      REDIS_URL: redis://redis:6379
+      TMAPI_TIMEOUT_MS: ${TMAPI_TIMEOUT_MS:-15000}
+      DETAIL_PAGE_TIMEOUT_MS: ${DETAIL_PAGE_TIMEOUT_MS:-4000}
+      SEARCH_FRESH_MS: ${SEARCH_FRESH_MS:-604800000}
+      SEARCH_TTL_SEC: ${SEARCH_TTL_SEC:-1209600}
+      PRODUCT_FRESH_MS: ${PRODUCT_FRESH_MS:-43200000}
+      PRODUCT_TTL_SEC: ${PRODUCT_TTL_SEC:-259200}
+    depends_on:
+      - redis
+    # No `ports:` — only reachable from other containers on this compose network
+    # (Caddy proxies /api/* to it). Not exposed to the public internet directly.
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # Persistence deliberately disabled (--save ""): this Redis holds only a
+    # cache-aside layer with TTLs. Losing it on restart just means a brief burst of
+    # cache misses, not data loss, and skipping RDB/AOF keeps the container simpler.
+    command: ["redis-server", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru", "--save", ""]
+    volumes:
+      - redis_data:/data
+    # No `ports:` — internal only, same reasoning as cache-api.
+
+volumes:
+  caddy_data:
+  caddy_config:
+  redis_data:

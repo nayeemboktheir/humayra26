@@ -1,0 +1,38 @@
+{
+	# Uncomment to switch Let's Encrypt to the staging CA while testing DNS/ACME, so you
+	# don't hit LE's production rate limits on repeated failed attempts:
+	# acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+}
+
+trade.botbhai.net {
+	encode gzip zstd
+
+	# Staging is not the canonical site — keep it out of search results.
+	header X-Robots-Tag "noindex, nofollow"
+
+	# /api/* is proxied to the cache-api container. Same-origin, so the frontend needs no
+	# CORS handling and only one public port (443) is ever exposed.
+	handle /api/* {
+		reverse_proxy cache-api:8787
+	}
+
+	handle {
+		root * /srv
+
+		# This is the actual fix for the "Clear-Site-Data on every load" bug found on
+		# production: hashed build assets get real long-lived immutable caching, and
+		# nothing here ever purges the browser's cache.
+		@hashed {
+			path /assets/tradeon-app-*.js /assets/tradeon-chunk-*.js /assets/tradeon-asset-*.* /assets/tradeon-style-*.css /assets/tradeon-live-*.*
+		}
+		header @hashed Cache-Control "public, max-age=31536000, immutable"
+
+		@entry {
+			path / /index.html /manifest.webmanifest /favicon.ico /favicon.png /favicon-20260701.png /registerSW.js
+		}
+		header @entry Cache-Control "no-cache"
+
+		try_files {path} /index.html
+		file_server
+	}
+}

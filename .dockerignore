@@ -1,0 +1,13 @@
+node_modules
+cache-api/node_modules
+dist
+.git
+.github
+.lovable
+supabase/.temp
+*.md
+.env
+.env.*
+!staging.env.example
+LOVABLE-MIGRATION-PLAN.md
+tradeon-global-site-report.md
