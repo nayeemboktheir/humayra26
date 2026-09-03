@@ -52,7 +52,10 @@ interface ProductDetailProps {
 // Domestic shipping quotes are stable for a given (product, quantity) pair, but the
 // quantity stepper re-triggered the whole province probe on every click. Memoize per
 // session so repeated quantity changes cost nothing after the first lookup.
-const domesticShippingCache = new Map<string, { fee: number; unit: 'qty' | 'kg' }>();
+// `null` is cached too: a product TMAPI has no shipping data for would otherwise
+// re-probe every province on every stepper click, at full API cost, forever.
+type DomesticShippingQuote = { fee: number; unit: 'qty' | 'kg' };
+const domesticShippingCache = new Map<string, DomesticShippingQuote | null>();
 
 export default function ProductDetail({ product, isLoading, onBack }: ProductDetailProps) {
   const [selectedImage, setSelectedImage] = useState(0);
@@ -83,22 +86,17 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
     if (!product?.num_iid || qty <= 0) return 0;
 
     const cacheKey = `${product.num_iid}:${qty}`;
-    const memoized = domesticShippingCache.get(cacheKey);
-    if (memoized) {
+    if (domesticShippingCache.has(cacheKey)) {
+      const memoized = domesticShippingCache.get(cacheKey);
+      if (!memoized) return FALLBACK_FIRST_CNY;
       setDomesticShippingUnit(memoized.unit);
       return memoized.fee;
     }
 
-    // TMAPI returns "Get data error" for provinces it doesn't support, so we probe
-    // several. These used to run in a serial for-loop — three sequential edge-function
-    // invokes, each with a 15s timeout, so a bad first province delayed the fee by a
-    // full round trip (worst case 45s). Fire them together and pick the first usable
-    // result in priority order, so the cost is the slowest probe, not the sum.
-    const provinces = ['Guangdong', 'Zhejiang', 'Shanghai'];
     const unitWeight = Number(product.item_weight || 0);
     const totalWeight = Number.isFinite(unitWeight) && unitWeight > 0 ? unitWeight * qty : undefined;
 
-    const probes = provinces.map(async (province) => {
+    const probeProvince = async (province: string): Promise<DomesticShippingQuote | null> => {
       try {
         const { data, error } = await supabase.functions.invoke('alibaba-1688-shipping-fee', {
           body: { numIid: String(product.num_iid), province, totalQuantity: qty, totalWeight },
@@ -114,17 +112,25 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
         }
       } catch {}
       return null;
-    });
+    };
 
-    // Awaiting in declaration order preserves the original province preference.
-    const settled = await Promise.all(probes);
-    const hit = settled.find(Boolean);
+    // TMAPI is billed per call and Guangdong answers for the overwhelming majority of
+    // listings, so probe it alone first — one call in the common case. (A previous
+    // revision fired all three provinces with Promise.all, which cut worst-case latency
+    // but tripled the API spend on every single lookup.)
+    let hit = await probeProvince('Guangdong');
+    if (!hit) {
+      // Only pay for the fallbacks on a miss, and run them together so the retry costs
+      // one extra round trip rather than two.
+      const rest = await Promise.all([probeProvince('Zhejiang'), probeProvince('Shanghai')]);
+      hit = rest.find(Boolean) ?? null;
+    }
+
+    domesticShippingCache.set(cacheKey, hit);
     if (hit) {
-      domesticShippingCache.set(cacheKey, hit);
       setDomesticShippingUnit(hit.unit);
       return hit.fee;
     }
-
     return FALLBACK_FIRST_CNY;
   };
 

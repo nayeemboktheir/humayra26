@@ -130,7 +130,10 @@ Deno.serve(async (req) => {
     const writeCache = supabase.from('search_cache').upsert(
       { query_key: queryKey, page, total_results: totalCount, items, translated: true },
       { onConflict: 'query_key,page' }
-    ).then(() => undefined, () => undefined);
+    ).then(
+      ({ error }) => { if (error) console.error('search_cache write failed:', error.message); },
+      (err) => { console.error('search_cache write threw:', err?.message ?? err); },
+    );
     const waitUntil = (globalThis as any).EdgeRuntime?.waitUntil;
     if (typeof waitUntil === 'function') waitUntil.call((globalThis as any).EdgeRuntime, writeCache);
     else await writeCache;

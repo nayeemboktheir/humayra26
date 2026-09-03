@@ -271,10 +271,20 @@ const Index = () => {
 
     // Single round trip returning only the rows each section actually renders.
     const fetchCategories = async () => {
-      const { data } = await supabase.rpc("get_category_products", {
+      const { data, error } = await supabase.rpc("get_category_products", {
         _limit_per_category: CATEGORY_PREVIEW_SIZE,
       });
-      if (!isMounted || !data || data.length === 0) return;
+      if (!isMounted) return;
+
+      // The error used to be discarded. When the RPC failed (it is a recent addition and
+      // is not present in every environment) `data` came back null, this returned early,
+      // and loadedCategoryCount stayed at 0 — so the homepage sat on category skeletons
+      // forever with nothing logged. Settle the count so the skeletons resolve.
+      if (error || !data || data.length === 0) {
+        if (error) console.error("get_category_products failed", error);
+        setLoadedCategoryCount(categories.length);
+        return;
+      }
 
       const grouped: Record<string, any[]> = {};
       for (const row of data as any[]) {

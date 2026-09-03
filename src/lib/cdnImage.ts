@@ -38,11 +38,32 @@ export function cdnImageFallback(
   return (e: React.SyntheticEvent<HTMLImageElement>) => {
     const img = e.currentTarget;
     const original = String(originalUrl ?? "").trim();
-    if (original && img.src !== original && !img.dataset.triedOriginal) {
-      img.dataset.triedOriginal = "1";
+    // Read the attribute, not the property: `img.src` resolves to an absolute URL, so
+    // comparing it against a root-relative placeholder was always unequal and a failing
+    // placeholder would re-enter onError forever.
+    const currentSrc = img.getAttribute("src") ?? "";
+
+    // React recycles <img> DOM nodes between list items. A plain boolean flag therefore
+    // leaked across products, and the next product to fail skipped its original-URL
+    // retry and dropped straight to the placeholder. Key the attempt to this specific
+    // URL and reset whenever the node is reused for a different image.
+    if (img.dataset.cdnFallbackFor !== original) {
+      img.dataset.cdnFallbackFor = original;
+      img.dataset.cdnFallbackState = "";
+    }
+
+    const state = img.dataset.cdnFallbackState;
+
+    // Already showing the placeholder and it still errored — stop, or we loop.
+    if (state === "placeholder") return;
+
+    if (original && currentSrc !== original && state !== "original") {
+      img.dataset.cdnFallbackState = "original";
       img.src = original;
       return;
     }
-    if (img.src !== placeholder) img.src = placeholder;
+
+    img.dataset.cdnFallbackState = "placeholder";
+    img.src = placeholder;
   };
 }

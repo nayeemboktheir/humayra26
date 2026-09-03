@@ -287,12 +287,18 @@ Deno.serve(async (req) => {
 
     // Cache hit short-circuits both upstream fetches (TMAPI + the 1688 detail page).
     const cutoff = new Date(Date.now() - CACHE_TTL_HOURS * 60 * 60 * 1000).toISOString();
-    const { data: cached } = await supabase
+    const { data: cached, error: cacheReadError } = await supabase
       .from('product_cache')
       .select('detail')
       .eq('item_id', cleanId)
       .gte('updated_at', cutoff)
       .maybeSingle();
+    // A read failure here is non-fatal — the TMAPI path below still serves the request —
+    // but silently discarding it meant an unapplied product_cache migration looked
+    // identical to a cache miss, and every product view quietly paid full upstream cost.
+    if (cacheReadError) {
+      console.error('product_cache read failed (is the migration applied?):', cacheReadError.message);
+    }
     if (cached?.detail) {
       return new Response(JSON.stringify({ success: true, data: cached.detail, cached: true }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -317,7 +323,10 @@ Deno.serve(async (req) => {
     const writeCache = supabase
       .from('product_cache')
       .upsert({ item_id: cleanId, detail: mapped, updated_at: new Date().toISOString() }, { onConflict: 'item_id' })
-      .then(() => undefined, () => undefined);
+      .then(
+        ({ error }) => { if (error) console.error('product_cache write failed:', error.message); },
+        (err) => { console.error('product_cache write threw:', err?.message ?? err); },
+      );
     const waitUntil = (globalThis as any).EdgeRuntime?.waitUntil;
     if (typeof waitUntil === 'function') waitUntil.call((globalThis as any).EdgeRuntime, writeCache);
     else await writeCache;

@@ -22,15 +22,14 @@
     Header unset Expires
   </FilesMatch>
 
+  # Kept no-cache so any stale copy still lingering on the server is never reused.
+  # The Clear-Site-Data header that used to be here also carried "storage", which wipes
+  # localStorage - where the Supabase auth session lives - so every service-worker update
+  # check silently signed the user out.
   <FilesMatch "^sw\.js$">
     Header set Cache-Control "no-cache, no-store, must-revalidate"
     Header set Pragma "no-cache"
     Header set Expires "0"
-    Header set Clear-Site-Data '"cache", "storage", "executionContexts"'
-  </FilesMatch>
-
-  <FilesMatch "^index\.html$">
-    Header set Clear-Site-Data '"cache"'
   </FilesMatch>
 </IfModule>
 

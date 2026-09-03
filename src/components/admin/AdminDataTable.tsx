@@ -86,17 +86,19 @@ export default function AdminDataTable({
     return () => clearTimeout(t);
   }, [search, serverMode]);
 
-  // A new search term invalidates the current page offset.
-  useEffect(() => {
-    if (serverMode) setPage(0);
-  }, [debouncedSearch, serverMode]);
-
   // Callers usually pass an inline object literal; key on its contents, not identity.
   const filterKey = JSON.stringify(filters ?? {});
 
-  useEffect(() => {
-    if (serverMode) setPage(0);
-  }, [filterKey, serverMode]);
+  // A new search term or filter invalidates the current page offset. This resets during
+  // render rather than inside an effect: an effect let `load` fire once with the new term
+  // but the stale page, and again after setPage(0) landed — two queries per change, the
+  // first of them against the wrong offset.
+  const resetKey = JSON.stringify([debouncedSearch, filterKey]);
+  const [prevResetKey, setPrevResetKey] = useState(resetKey);
+  if (serverMode && resetKey !== prevResetKey) {
+    setPrevResetKey(resetKey);
+    setPage(0);
+  }
 
   const orderColumn = orderBy?.column ?? "created_at";
   const orderAscending = orderBy?.ascending ?? false;
@@ -134,11 +136,23 @@ export default function AdminDataTable({
         setRows([]);
         setTotal(0);
       } else {
+        const totalCount = count ?? 0;
+
+        // Deleting the last row of the last page leaves `page` past the end, which would
+        // render an empty table with no indication why. Step back and let the page change
+        // retrigger the load.
+        const lastPage = totalCount === 0 ? 0 : Math.ceil(totalCount / pageSize) - 1;
+        if (page > lastPage) {
+          setTotal(totalCount);
+          setPage(lastPage);
+          return;
+        }
+
         const fetched = d || [];
         const enriched = transformRows ? await transformRows(fetched) : fetched;
         if (reqId !== reqIdRef.current) return;
         setRows(enriched);
-        setTotal(count ?? 0);
+        setTotal(totalCount);
       }
     } finally {
       if (reqId === reqIdRef.current) setServerLoading(false);
@@ -265,12 +279,12 @@ export default function AdminDataTable({
                     <TableCell>
                       <div className="flex gap-1">
                         {onUpdate && (
-                          <Button variant="ghost" size="icon" onClick={() => handleEdit(row)}>
+                          <Button variant="ghost" size="icon" aria-label="Edit row" onClick={() => handleEdit(row)}>
                             <Pencil className="h-4 w-4" />
                           </Button>
                         )}
                         {onDelete && (
-                          <Button variant="ghost" size="icon" onClick={() => setDeleteId(row.id)}>
+                          <Button variant="ghost" size="icon" aria-label="Delete row" onClick={() => setDeleteId(row.id)}>
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         )}

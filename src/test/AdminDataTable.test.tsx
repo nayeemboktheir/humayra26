@@ -166,6 +166,67 @@ describe("AdminDataTable server mode", () => {
     await waitFor(() => expect(screen.getByText("Ada")).toBeInTheDocument());
   });
 
+  it("does not double-query when the search changes while on a later page", async () => {
+    nextResult = { data: [{ id: "1", description: "x", status: "y" }], count: 500, error: null };
+    render(
+      <AdminDataTable
+        title="T"
+        columns={columns}
+        table="transactions"
+        searchColumns={["description"]}
+        pageSize={50}
+      />,
+    );
+    await waitFor(() => expect(calls.length).toBe(1));
+
+    // move off page 0
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    await waitFor(() => expect(calls.length).toBe(2));
+    expect(calls[1].range).toEqual({ from: 50, to: 99 });
+
+    // now search: exactly ONE further query, and it must start at offset 0.
+    fireEvent.change(screen.getByPlaceholderText("Search..."), { target: { value: "abc" } });
+    await waitFor(() => expect(calls.length).toBe(3), { timeout: 2000 });
+    await new Promise((r) => setTimeout(r, 400)); // let any stray effect settle
+    expect(calls.length).toBe(3);
+    expect(calls[2].range).toEqual({ from: 0, to: 49 });
+    expect(calls[2].or).toBe("description.ilike.%abc%");
+  });
+
+  it("clamps back to the last page when rows are deleted out from under it", async () => {
+    // 120 rows / 50 per page => pages 0,1,2. Walk to the last page.
+    nextResult = { data: [{ id: "r1", description: "x", status: "y" }], count: 120, error: null };
+    const onDelete = vi.fn(async () => {});
+    render(
+      <AdminDataTable
+        title="T"
+        columns={columns}
+        table="transactions"
+        pageSize={50}
+        onDelete={onDelete}
+      />,
+    );
+    await waitFor(() => expect(calls.length).toBe(1));
+
+    // Next is disabled while a request is in flight, so wait for each load to settle.
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    await waitFor(() => expect(calls.length).toBe(2));
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    await waitFor(() => expect(calls.length).toBe(3));
+    expect(calls[2].range).toEqual({ from: 100, to: 149 });
+
+    // The table shrinks to 60 rows while we sit on offset 100.
+    nextResult = { data: [], count: 60, error: null };
+    fireEvent.click(screen.getAllByRole("button", { name: /delete row/i })[0]);
+    fireEvent.click(screen.getByRole("button", { name: /^delete$/i }));
+
+    // It must re-query a page that actually exists rather than stranding an empty table.
+    await waitFor(
+      () => expect(calls[calls.length - 1].range!.from).toBeLessThanOrEqual(50),
+      { timeout: 2000 },
+    );
+  });
+
   it("still filters client-side when no table is given", async () => {
     render(
       <AdminDataTable
