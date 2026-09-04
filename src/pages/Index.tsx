@@ -822,8 +822,14 @@ const Index = () => {
   const handleProductClick = (product: Product1688) => {
     setSearchParams({ product: String(product.num_iid) });
     setIsLoadingProduct(true);
-    setSelectedProduct(null);
     const fallbackDetail = buildCachedProductDetail(product);
+    // Paint what we already know (title, price, thumbnail — from the list item just
+    // clicked) immediately instead of blanking to a full-page skeleton. ProductDetail
+    // already renders a small "Loading product..." pill over real content when
+    // isLoading is true and product is set; the harsh full skeleton only fires when
+    // product is undefined. The deep-link effect below detects this placeholder (empty
+    // desc/props/configuredItems) and knows to keep fetching the real data.
+    setSelectedProduct(fallbackDetail);
     const removeUnavailableProduct = () => {
       setProducts(prev => prev.filter(p => p.num_iid !== product.num_iid));
       setCategoryProducts(prev => prev.filter(p => p.num_iid !== product.num_iid));
@@ -864,9 +870,13 @@ const Index = () => {
   const handleTrendingClick = async (productId: string) => {
     const numIid = parseInt(productId.replace('abb-', ''));
     setIsLoadingProduct(true);
-    setSelectedProduct(null);
     setSearchParams({ product: String(numIid) });
     const fallbackDetail = findCachedProductDetail(numIid);
+    // Same instant-paint as handleProductClick above. This path also serves deep links
+    // and the browser back/forward button (via the searchParams effect further down),
+    // so the fallback may be null (nothing cached client-side yet) — in that case this
+    // is a no-op and the full skeleton still shows, exactly as before.
+    setSelectedProduct(fallbackDetail);
     const removeUnavailableTrending = () => {
       setTrendingProducts(prev => {
         const next = prev.filter(p => String(p.id).replace(/^abb-/, '') !== String(numIid));
