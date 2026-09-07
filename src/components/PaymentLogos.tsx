@@ -1,4 +1,4 @@
-import payStationBanner from "@/assets/payments/pay-station-banner.jpeg";
+import payStationBanner from "@/assets/payments/pay-station-banner.jpeg?w=800&format=webp";
 
 const PaymentLogos = () => {
   return (

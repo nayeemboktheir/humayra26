@@ -1,5 +1,5 @@
 /* deploy test v2 */ import { useState, useEffect, useRef, useCallback } from "react";
-import logoFull from "@/assets/logo-full.png";
+import logoFull from "@/assets/logo-full.png?w=640&format=webp";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Search, Camera, ImageIcon, Loader2, ChevronLeft, ChevronRight, Star, BadgeCheck, Flame, Truck, Heart, ShoppingCart, User, Zap, SlidersHorizontal, Download, X, ArrowRight } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";

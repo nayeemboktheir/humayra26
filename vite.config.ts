@@ -1,5 +1,6 @@
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react-swc";
+import { imagetools } from "vite-imagetools";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 
@@ -27,6 +28,9 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
+    imagetools({
+      include: /\.(heif|avif|jpe?g|png|tiff|webp|gif)(\?.*)?$/i,
+    }),
     mode === "development" && componentTagger(),
     nonBlockingCss(),
   ].filter(Boolean),
