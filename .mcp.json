@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "supabase": {
+      "type": "http",
+      "url": "https://supabasekong-wokkyc531r9nh5mg1bs2ooyg.botbhai.net/mcp?features=database%2Cdebugging%2Cdevelopment%2Cdocs"
+    }
+  }
+}
