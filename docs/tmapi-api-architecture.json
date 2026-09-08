@@ -1,0 +1,262 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "TMAPI Calling Architecture",
+    "output": "tmapi-api-architecture.html",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1340,
+      480
+    ],
+    "views": [
+      {
+        "id": "dual-path",
+        "label": "Dual call path",
+        "focus": [
+          "client",
+          "cacheapi",
+          "edge",
+          "tmapi"
+        ],
+        "note": "One client method picks the self-hosted cache-api or the Supabase edge function at call time."
+      },
+      {
+        "id": "caching",
+        "label": "Cache layers",
+        "focus": [
+          "cacheapi",
+          "redis",
+          "edge",
+          "pg"
+        ],
+        "note": "Each path owns its own cache store; the two never share state."
+      },
+      {
+        "id": "upstream",
+        "label": "Upstream fetches",
+        "focus": [
+          "cacheapi",
+          "edge",
+          "tmapi",
+          "scrape"
+        ],
+        "note": "TMAPI over plain HTTP, plus a direct HTML scrape for description images."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "client",
+      "type": "frontend",
+      "label": "alibaba1688Api",
+      "sublabel": "src/lib/api/alibaba1688.ts",
+      "tag": "VITE_API_BASE switch",
+      "pos": [
+        30,
+        200
+      ],
+      "size": [
+        200,
+        72
+      ]
+    },
+    {
+      "id": "redis",
+      "type": "database",
+      "label": "Redis",
+      "sublabel": "search: / product: keys",
+      "pos": [
+        400,
+        30
+      ],
+      "size": [
+        200,
+        56
+      ]
+    },
+    {
+      "id": "cacheapi",
+      "type": "backend",
+      "label": "cache-api",
+      "sublabel": "Node / Express",
+      "tag": "search + detail only",
+      "pos": [
+        400,
+        135
+      ],
+      "size": [
+        200,
+        72
+      ]
+    },
+    {
+      "id": "edge",
+      "type": "cloud",
+      "label": "Supabase Edge Functions",
+      "sublabel": "Deno, 8 functions",
+      "tag": "all endpoints",
+      "pos": [
+        400,
+        275
+      ],
+      "size": [
+        200,
+        72
+      ]
+    },
+    {
+      "id": "pg",
+      "type": "database",
+      "label": "Postgres",
+      "sublabel": "product_cache (12h)",
+      "pos": [
+        400,
+        390
+      ],
+      "size": [
+        200,
+        56
+      ]
+    },
+    {
+      "id": "scrape",
+      "type": "external",
+      "label": "detail.1688.com",
+      "sublabel": "raw HTML page",
+      "pos": [
+        1090,
+        55
+      ],
+      "size": [
+        230,
+        60
+      ]
+    },
+    {
+      "id": "tmapi",
+      "type": "external",
+      "label": "TMAPI",
+      "sublabel": "api.tmapi.top/1688",
+      "tag": "apiToken in query string",
+      "pos": [
+        1090,
+        190
+      ],
+      "size": [
+        230,
+        76
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Self-hosted VPS (docker-compose)",
+      "wraps": [
+        "cacheapi",
+        "redis"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "Supabase managed",
+      "wraps": [
+        "edge",
+        "pg"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "to-cacheapi",
+      "from": "client",
+      "to": "cacheapi",
+      "label": "POST /api/search",
+      "variant": "emphasis"
+    },
+    {
+      "id": "to-edge",
+      "from": "client",
+      "to": "edge",
+      "label": "functions.invoke()"
+    },
+    {
+      "id": "cache-lookup",
+      "from": "cacheapi",
+      "to": "redis",
+      "label": "12h fresh / 3d stale",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "pg-cache",
+      "from": "edge",
+      "to": "pg",
+      "label": "12h hard cutoff",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 24
+    },
+    {
+      "id": "cacheapi-upstream",
+      "from": "cacheapi",
+      "to": "tmapi",
+      "label": "GET on miss, 15s abort",
+      "variant": "emphasis"
+    },
+    {
+      "id": "edge-upstream",
+      "from": "edge",
+      "to": "tmapi",
+      "label": "GET ?apiToken="
+    },
+    {
+      "id": "detail-scrape",
+      "from": "cacheapi",
+      "to": "scrape",
+      "label": "detail_url scrape (both paths)",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Endpoints called",
+      "items": [
+        "/global/search/items, /global/search/keyword",
+        "/item_detail",
+        "/search/image, /global/search/image/v2",
+        "/shop/items, /shop/shop_info, /item/shipping"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Call shape",
+      "items": [
+        "Plain GET, no SDK, no auth header",
+        "apiToken query param + language=en",
+        "Success needs resp.ok AND body code 200",
+        "Detail flow also scrapes 1688 HTML for desc images"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Failure handling",
+      "items": [
+        "fetchWithTimeout aborts every upstream call",
+        "Network errors return HTTP 200 + retryable",
+        "TMAPI_TOKEN read from env, never sent to browser"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Duplication risk",
+      "items": [
+        "tmapiMap.js is a hand port of two edge functions",
+        "No shared module - sync by hand",
+        "server.cjs holds a third /item_detail copy"
+      ]
+    }
+  ]
+}
