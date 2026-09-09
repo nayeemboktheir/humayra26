@@ -15,21 +15,21 @@ interface RateCategory {
 
 const shippingCategories: RateCategory[] = [
   {
-    heading: "Category A — 750 Tk/Kg",
+    heading: "Category A — 770 Tk/Kg",
     description: "Without Battery, Liquid, Magnet",
     items: [
-      { name: "Shoes & Sandals", rate: "750 Tk/Kg" },
-      { name: "Bags (all types)", rate: "750 Tk/Kg" },
-      { name: "Jewelry & Accessories", rate: "750 Tk/Kg" },
-      { name: "Appliances", rate: "750 Tk/Kg" },
-      { name: "Stickers & Decals", rate: "750 Tk/Kg" },
-      { name: "Electronics (no battery)", rate: "750 Tk/Kg" },
-      { name: "Computer Accessories", rate: "750 Tk/Kg" },
-      { name: "Ceramics", rate: "750 Tk/Kg" },
-      { name: "Metal Products", rate: "750 Tk/Kg" },
-      { name: "Leather Products", rate: "750 Tk/Kg" },
-      { name: "Rubber & Plastic Products", rate: "750 Tk/Kg" },
-      { name: "Toys", rate: "750 Tk/Kg" },
+      { name: "Shoes & Sandals", rate: "770 Tk/Kg" },
+      { name: "Bags (all types)", rate: "770 Tk/Kg" },
+      { name: "Jewelry & Accessories", rate: "770 Tk/Kg" },
+      { name: "Appliances", rate: "770 Tk/Kg" },
+      { name: "Stickers & Decals", rate: "770 Tk/Kg" },
+      { name: "Electronics (no battery)", rate: "770 Tk/Kg" },
+      { name: "Computer Accessories", rate: "770 Tk/Kg" },
+      { name: "Ceramics", rate: "770 Tk/Kg" },
+      { name: "Metal Products", rate: "770 Tk/Kg" },
+      { name: "Leather Products", rate: "770 Tk/Kg" },
+      { name: "Rubber & Plastic Products", rate: "770 Tk/Kg" },
+      { name: "Toys", rate: "770 Tk/Kg" },
     ],
   },
   {
@@ -45,7 +45,7 @@ const shippingCategories: RateCategory[] = [
   {
     heading: "Category C — Special Items",
     items: [
-      { name: "Clothing / Garments", rate: "750 Tk/Kg" },
+      { name: "Clothing / Garments", rate: "770 Tk/Kg" },
       { name: "Hijab / Veil", rate: "850 Tk/Kg" },
       { name: "Bluetooth Headphones", rate: "1100 Tk/Kg" },
       { name: "Ordinary Watch", rate: "1200 Tk/Kg" },
