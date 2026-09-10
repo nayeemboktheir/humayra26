@@ -1,6 +1,5 @@
 import { useNavigate, Link } from "react-router-dom";
-import logoFull from "@/assets/logo-full.png?w=640&format=webp";
-import otcommerceLogo from "@/assets/otcommerce-logo.png?w=320&format=webp";
+import logoFull from "@/assets/logo-full.png";
 import { MapPin, Mail, Phone, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import PaymentLogos from "@/components/PaymentLogos";
@@ -122,13 +121,6 @@ const Footer = () => {
           {(settings.footer_developer_name) && (
             <p>Developed by <a href={settings.footer_developer_url || "#"} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium">{settings.footer_developer_name}</a></p>
           )}
-          <p className="flex items-center justify-center gap-2 pt-2">
-            <span>Powered by</span>
-            <a href="https://otcommerce.com" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 hover:opacity-80 transition-opacity">
-              <img src={otcommerceLogo} alt="OT Commerce" loading="lazy" decoding="async" className="h-5 w-auto" />
-              <span className="font-semibold text-foreground">OT Commerce</span>
-            </a>
-          </p>
         </div>
         </div>
       </div>
