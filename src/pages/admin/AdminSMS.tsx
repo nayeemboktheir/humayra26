@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, MessageSquare, Send, Users, History, Search, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import AdminPagination, { usePagination } from "@/components/admin/AdminPagination";
 
 type Tab = "single" | "bulk" | "history";
 
@@ -148,6 +149,8 @@ export default function AdminSMS() {
       return l.phone.toLowerCase().includes(s) || l.message.toLowerCase().includes(s);
     });
   }, [logs, search, filterType]);
+
+  const logPages = usePagination(filteredLogs, 24, [search, filterType]);
 
   return (
     <div className="space-y-5 max-w-5xl">
@@ -324,7 +327,7 @@ export default function AdminSMS() {
             </div>
 
             <div className="border rounded-lg overflow-hidden">
-              <div className="max-h-[600px] overflow-y-auto">
+              <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-muted/50 text-xs sticky top-0">
                     <tr>
@@ -341,7 +344,7 @@ export default function AdminSMS() {
                     ) : filteredLogs.length === 0 ? (
                       <tr><td colSpan={5} className="text-center py-10 text-muted-foreground text-xs">No SMS records yet</td></tr>
                     ) : (
-                      filteredLogs.map((l) => (
+                      logPages.paged.map((l) => (
                         <tr key={l.id} className="border-t hover:bg-muted/30">
                           <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">
                             {new Date(l.created_at).toLocaleString()}
@@ -369,7 +372,18 @@ export default function AdminSMS() {
                 </table>
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">Showing latest 500 records.</p>
+            <AdminPagination
+              page={logPages.page}
+              pageSize={logPages.pageSize}
+              totalPages={logPages.totalPages}
+              pageStart={logPages.pageStart}
+              totalItems={filteredLogs.length}
+              onPageChange={logPages.setPage}
+              onPageSizeChange={logPages.setPageSize}
+              label="messages"
+              className="mt-3"
+            />
+            <p className="text-xs text-muted-foreground">Loaded from the latest 500 SMS records.</p>
           </CardContent>
         </Card>
       )}

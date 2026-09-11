@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import OrderInvoice from "@/components/OrderInvoice";
 import { toast } from "@/hooks/use-toast";
 import { useAppSettings } from "@/hooks/useAppSettings";
+import AdminPagination, { usePagination } from "@/components/admin/AdminPagination";
 
 interface CustomerData {
   user_id: string;
@@ -121,6 +122,8 @@ export default function AdminCustomers() {
       (c.address || "").toLowerCase().includes(q)
     );
   });
+
+  const customerPages = usePagination(filtered, 24, [search]);
 
   const getInitials = (name: string | null) => {
     if (!name) return "?";
@@ -265,7 +268,7 @@ export default function AdminCustomers() {
                  </tr>
               </thead>
               <tbody>
-                {filtered.map((customer) => (
+                {customerPages.paged.map((customer) => (
                   <tr
                     key={customer.user_id}
                     className="border-b last:border-0 hover:bg-muted/30 cursor-pointer transition-colors"
@@ -302,6 +305,19 @@ export default function AdminCustomers() {
                 ))}
               </tbody>
             </table>
+          </div>
+          <div className="px-3 pb-3">
+            <AdminPagination
+              page={customerPages.page}
+              pageSize={customerPages.pageSize}
+              totalPages={customerPages.totalPages}
+              pageStart={customerPages.pageStart}
+              totalItems={filtered.length}
+              onPageChange={customerPages.setPage}
+              onPageSizeChange={customerPages.setPageSize}
+              label="customers"
+              className="mt-3"
+            />
           </div>
         </Card>
       )}

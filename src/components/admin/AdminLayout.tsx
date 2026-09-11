@@ -9,6 +9,7 @@ import {
   ChevronDown, ChevronRight, BarChart3, MessageSquare, Settings, Megaphone, Lock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useUnrepliedMessages } from "@/hooks/useUnrepliedMessages";
 
 interface NavItem {
   label: string;
@@ -43,6 +44,7 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const unreplied = useUnrepliedMessages();
 
   const isActive = (path?: string) => path === location.pathname;
 
@@ -76,6 +78,14 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
           >
             <item.icon className="h-4 w-4 shrink-0" />
             <span className="flex-1 text-left">{item.label}</span>
+            {item.pageKey === "messaging" && unreplied > 0 && (
+              <span
+                className="shrink-0 min-w-5 h-5 px-1.5 rounded-full bg-blue-600 text-white text-[11px] font-semibold leading-5 text-center"
+                aria-label={`${unreplied} conversation${unreplied === 1 ? "" : "s"} awaiting a reply`}
+              >
+                {unreplied > 99 ? "99+" : unreplied}
+              </span>
+            )}
           </button>
         ))}
       </nav>

@@ -18,6 +18,7 @@ import { toast } from "@/hooks/use-toast";
 import ShipmentTimeline from "@/components/admin/ShipmentTimeline";
 import OrderInvoice from "@/components/OrderInvoice";
 import { useAppSettings } from "@/hooks/useAppSettings";
+import AdminPagination, { usePagination } from "@/components/admin/AdminPagination";
 
 interface OrderWithProfile {
   id: string;
@@ -183,6 +184,9 @@ export default function AdminOrders() {
 
   const trashCount = data.filter((o) => !!(o as any).deleted_at).length;
   const activeCount = data.length - trashCount;
+
+  const pagination = usePagination(filtered, 24, [search, statusFilter, paymentFilter, viewMode]);
+  const { paged } = pagination;
 
   const handleEdit = (order: OrderWithProfile) => {
     setEditOrder(order);
@@ -575,7 +579,7 @@ export default function AdminOrders() {
             </Button>
           </div>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {filtered.map((order) => {
+          {paged.map((order) => {
             const shipment = shipmentMap[order.id];
             const displayStatus = shipment ? shipment.status : (order.status || "Ordered");
             const sc = statusConfig[displayStatus] || { color: "bg-muted text-foreground border-border", label: displayStatus };
@@ -803,6 +807,17 @@ export default function AdminOrders() {
             );
           })}
           </div>
+
+          <AdminPagination
+            page={pagination.page}
+            pageSize={pagination.pageSize}
+            totalPages={pagination.totalPages}
+            pageStart={pagination.pageStart}
+            totalItems={filtered.length}
+            onPageChange={pagination.setPage}
+            onPageSizeChange={pagination.setPageSize}
+            label="orders"
+          />
         </>
       )}
 
