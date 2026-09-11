@@ -69,7 +69,7 @@ export default function AdminDashboard() {
         .select("id, order_number, product_name, total_price, payment_status, created_at")
         .is("deleted_at", null)
         .order("created_at", { ascending: false })
-        .limit(5),
+        .limit(4),
       supabase.rpc("get_shipment_stage_counts"),
     ]);
 
