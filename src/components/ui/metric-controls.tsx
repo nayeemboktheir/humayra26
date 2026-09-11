@@ -1,39 +1,35 @@
+import { BarChart3, ChartNoAxesCombined } from "lucide-react";
 import type { ChartView } from "./metric-chart";
 
 export type PeriodOption = { label: string; points?: number };
 
 export function PeriodSelect({ value, options, onChange, accentText }: { value: string; options: PeriodOption[]; onChange: (option: PeriodOption) => void; accentText?: string }) {
   return (
-    <select
-      aria-label="Chart period"
-      value={value}
-      onChange={(event) => {
-        const option = options.find((item) => item.label === event.target.value);
-        if (option) onChange(option);
-      }}
-      className="pointer-events-auto cursor-pointer appearance-none border-0 bg-transparent py-1 pl-1 pr-4 text-xs font-medium outline-none"
-      style={{ color: accentText }}
-    >
-      {options.map((option) => <option key={option.label} value={option.label}>{option.label}</option>)}
-    </select>
+    <div className="pointer-events-auto inline-flex rounded-lg border border-border/70 bg-background/90 p-1 shadow-sm" aria-label="Chart period">
+      {options.map((option) => {
+        const selected = option.label === value;
+        return (
+          <button
+            key={option.label}
+            type="button"
+            aria-pressed={selected}
+            onClick={() => onChange(option)}
+            className={`rounded-md px-2 py-1 text-[11px] font-medium transition-colors ${selected ? "bg-muted text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            style={selected ? { color: accentText } : undefined}
+          >
+            {option.label.replace("Past ", "")}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
 export function ViewToggle({ value, onChange }: { value: ChartView; onChange: (view: ChartView) => void }) {
   return (
-    <div className="pointer-events-auto inline-flex rounded-md border border-border/70 bg-background/70 p-0.5" aria-label="Chart style">
-      {(["curve", "bars"] as ChartView[]).map((view) => (
-        <button
-          key={view}
-          type="button"
-          aria-label={`${view === "curve" ? "Line" : "Bar"} chart`}
-          aria-pressed={value === view}
-          onClick={() => onChange(view)}
-          className={`h-5 w-5 rounded text-[10px] font-bold transition-colors ${value === view ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-        >
-          {view === "curve" ? "∿" : "▥"}
-        </button>
-      ))}
+    <div className="pointer-events-auto inline-flex rounded-lg border border-border/70 bg-background/90 p-1 shadow-sm" aria-label="Chart style">
+      <button type="button" aria-label="Line chart" aria-pressed={value === "curve"} onClick={() => onChange("curve")} className={`grid h-6 w-6 place-items-center rounded-md transition-colors ${value === "curve" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}><ChartNoAxesCombined className="h-3.5 w-3.5" /></button>
+      <button type="button" aria-label="Bar chart" aria-pressed={value === "bars"} onClick={() => onChange("bars")} className={`grid h-6 w-6 place-items-center rounded-md transition-colors ${value === "bars" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}><BarChart3 className="h-3.5 w-3.5" /></button>
     </div>
   );
 }
