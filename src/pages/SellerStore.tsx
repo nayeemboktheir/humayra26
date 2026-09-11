@@ -96,7 +96,7 @@ export default function SellerStore() {
       {/* Header */}
       <div className="border-b bg-card sticky top-0 z-30">
         <div className="mx-auto max-w-[1600px] px-3 py-3 flex items-center gap-3">
-          <Button variant="ghost" size="icon" className="shrink-0" onClick={() => navigate(-1)}>
+          <Button aria-label="Go back" variant="ghost" size="icon" className="shrink-0" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex items-center gap-3 min-w-0">

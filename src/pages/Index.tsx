@@ -1048,7 +1048,7 @@ const Index = () => {
                 Ready
               </span>
             )}
-            <button onClick={() => { setImageSearchFile(null); setImageSearchPreview(null); }} className="text-muted-foreground hover:text-foreground">
+            <button aria-label="Clear selected image" onClick={() => { setImageSearchFile(null); setImageSearchPreview(null); }} className="text-muted-foreground hover:text-foreground">
               <X className="h-5 w-5" />
             </button>
           </div>
@@ -1232,7 +1232,7 @@ const Index = () => {
 
                   {/* Pagination */}
                   <div className="flex items-center justify-center gap-1 mt-8 pb-4">
-                    <Button variant="outline" size="sm" onClick={() => goToCategoryPage(categoryPage - 1)} disabled={categoryPage <= 1 || isCategoryLoading}>
+                    <Button aria-label="Previous page" variant="outline" size="sm" onClick={() => goToCategoryPage(categoryPage - 1)} disabled={categoryPage <= 1 || isCategoryLoading}>
                       <ChevronLeft className="h-4 w-4" />
                     </Button>
                     {(() => {
@@ -1253,7 +1253,7 @@ const Index = () => {
                         )
                       );
                     })()}
-                    <Button variant="outline" size="sm" onClick={() => goToCategoryPage(categoryPage + 1)} disabled={isCategoryLoading || (categoryTotalPages > 0 && categoryPage >= categoryTotalPages)}>
+                    <Button aria-label="Next page" variant="outline" size="sm" onClick={() => goToCategoryPage(categoryPage + 1)} disabled={isCategoryLoading || (categoryTotalPages > 0 && categoryPage >= categoryTotalPages)}>
                       <ChevronRight className="h-4 w-4" />
                     </Button>
                   </div>

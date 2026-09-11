@@ -588,7 +588,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                   </button>
                 ))}
                 {product.video && (
-                  <button onClick={() => downloadFile(product.video!, `product-video.mp4`)} className="aspect-square rounded-lg overflow-hidden border bg-muted hover:ring-2 hover:ring-primary transition-all cursor-pointer group relative">
+                  <button aria-label="Download product video" onClick={() => downloadFile(product.video!, `product-video.mp4`)} className="aspect-square rounded-lg overflow-hidden border bg-muted hover:ring-2 hover:ring-primary transition-all cursor-pointer group relative">
                     <video src={product.video} className="w-full h-full object-cover" muted />
                     <div className="absolute inset-0 flex items-center justify-center bg-foreground/30 group-hover:bg-foreground/40 transition-colors">
                       <Play className="h-8 w-8 text-background drop-shadow-lg" />
@@ -619,7 +619,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
           <div className="flex gap-3 lg:col-span-1">
             <div className="hidden md:flex flex-col gap-2 overflow-y-auto max-h-[560px] scrollbar-hide">
               {images.map((img, idx) => (
-                <button key={idx} onClick={() => { setSelectedImage(idx); setShowVideo(false); setVariantOverrideImage(null); }}
+                <button aria-label={`Show image ${idx + 1}`} key={idx} onClick={() => { setSelectedImage(idx); setShowVideo(false); setVariantOverrideImage(null); }}
                   className={`flex-shrink-0 w-[72px] h-[72px] rounded-lg overflow-hidden border-2 transition-all ${
                     selectedImage === idx && !showVideo && !variantOverrideImage ? "border-primary ring-2 ring-primary/20" : "border-border hover:border-primary/40"
                   }`}>
@@ -627,7 +627,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                 </button>
               ))}
               {product.video && (
-                <button onClick={() => setShowVideo(true)}
+                <button aria-label="Show product video" onClick={() => setShowVideo(true)}
                   className={`flex-shrink-0 w-[72px] h-[72px] rounded-lg overflow-hidden border-2 bg-muted flex items-center justify-center transition-all ${
                     showVideo ? "border-primary ring-2 ring-primary/20" : "border-border hover:border-primary/40"
                   }`}>
@@ -657,7 +657,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
           {/* Mobile thumbnails */}
           <div className="flex md:hidden gap-2 overflow-x-auto pb-1 scrollbar-hide col-span-full">
             {images.map((img, idx) => (
-              <button key={idx} onClick={() => { setSelectedImage(idx); setShowVideo(false); setVariantOverrideImage(null); }}
+              <button aria-label={`Show image ${idx + 1}`} key={idx} onClick={() => { setSelectedImage(idx); setShowVideo(false); setVariantOverrideImage(null); }}
                 className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
                   selectedImage === idx && !showVideo && !variantOverrideImage ? "border-primary ring-2 ring-primary/20" : "border-border hover:border-primary/40"
                 }`}>
@@ -779,7 +779,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                                   <div className="flex flex-col items-center gap-1">
                                     {qty > 0 ? (
                                       <div className="flex items-center gap-0">
-                                        <Button variant="outline" size="icon" className="h-7 w-7 rounded-l-md rounded-r-none border-r-0" onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: Math.max(0, (prev[sku.id] || 0) - 1) }))}>
+                                        <Button aria-label={`Decrease quantity for ${sizePart}`} variant="outline" size="icon" className="h-7 w-7 rounded-l-md rounded-r-none border-r-0" onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: Math.max(0, (prev[sku.id] || 0) - 1) }))}>
                                           <Minus className="h-3 w-3" />
                                         </Button>
                                         <Input
@@ -789,7 +789,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                                           onChange={(e) => setSkuQuantities(prev => ({ ...prev, [sku.id]: parseQtyInput(e.target.value) }))}
                                           className="h-7 w-8 rounded-none border-x-0 px-0 text-center text-xs font-semibold tabular-nums bg-background [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                                         />
-                                        <Button variant="outline" size="icon" className="h-7 w-7 rounded-r-md rounded-l-none border-l-0" onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: (prev[sku.id] || 0) + 1 }))}>
+                                        <Button aria-label={`Increase quantity for ${sizePart}`} variant="outline" size="icon" className="h-7 w-7 rounded-r-md rounded-l-none border-l-0" onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: (prev[sku.id] || 0) + 1 }))}>
                                           <Plus className="h-3 w-3" />
                                         </Button>
                                       </div>
@@ -878,7 +878,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                         <div className="flex items-center justify-between">
                           {qty > 0 ? (
                             <div className="flex items-center gap-0">
-                              <Button variant="outline" size="icon" className="h-8 w-8 rounded-l-md rounded-r-none border-r-0"
+                              <Button aria-label={`Decrease quantity for ${selectedSkuItem.title}`} variant="outline" size="icon" className="h-8 w-8 rounded-l-md rounded-r-none border-r-0"
                                 onClick={() => setSkuQuantities(prev => ({ ...prev, [selectedSkuId!]: Math.max(0, (prev[selectedSkuId!] || 0) - 1) }))}>
                                 <Minus className="h-3.5 w-3.5" />
                               </Button>
@@ -889,7 +889,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                                 onChange={(e) => setSkuQuantities(prev => ({ ...prev, [selectedSkuId!]: parseQtyInput(e.target.value) }))}
                                 className="h-8 w-10 rounded-none border-x-0 px-0 text-center text-sm font-semibold tabular-nums bg-background [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                               />
-                              <Button variant="outline" size="icon" className="h-8 w-8 rounded-r-md rounded-l-none border-l-0"
+                              <Button aria-label={`Increase quantity for ${selectedSkuItem.title}`} variant="outline" size="icon" className="h-8 w-8 rounded-r-md rounded-l-none border-l-0"
                                 onClick={() => setSkuQuantities(prev => ({ ...prev, [selectedSkuId!]: (prev[selectedSkuId!] || 0) + 1 }))}>
                                 <Plus className="h-3.5 w-3.5" />
                               </Button>
@@ -926,7 +926,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                           </div>
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-0">
-                              <Button variant="outline" size="icon" className="h-8 w-8 rounded-l-md rounded-r-none border-r-0"
+                              <Button aria-label={`Decrease quantity for ${sku.title}`} variant="outline" size="icon" className="h-8 w-8 rounded-l-md rounded-r-none border-r-0"
                                 onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: Math.max(0, (prev[sku.id] || 0) - 1) }))}>
                                 <Minus className="h-3.5 w-3.5" />
                               </Button>
@@ -937,7 +937,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                                 onChange={(e) => setSkuQuantities(prev => ({ ...prev, [sku.id]: parseQtyInput(e.target.value) }))}
                                 className="h-8 w-10 rounded-none border-x-0 px-0 text-center text-sm font-semibold tabular-nums bg-background [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                               />
-                              <Button variant="outline" size="icon" className="h-8 w-8 rounded-r-md rounded-l-none border-l-0"
+                              <Button aria-label={`Increase quantity for ${sku.title}`} variant="outline" size="icon" className="h-8 w-8 rounded-r-md rounded-l-none border-l-0"
                                 onClick={() => setSkuQuantities(prev => ({ ...prev, [sku.id]: (prev[sku.id] || 0) + 1 }))}>
                                 <Plus className="h-3.5 w-3.5" />
                               </Button>
@@ -954,7 +954,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                     <div className="flex items-center justify-between">
                       <span className="text-base font-semibold">Quantity</span>
                       <div className="flex items-center gap-1.5">
-                        <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => setQuantity(Math.max(0, quantity - 1))}><Minus className="h-3 w-3" /></Button>
+                        <Button aria-label="Decrease quantity" variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => setQuantity(Math.max(0, quantity - 1))}><Minus className="h-3 w-3" /></Button>
                         <Input
                           type="number"
                           min={0}
@@ -962,7 +962,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                           onChange={(e) => setQuantity(parseQtyInput(e.target.value))}
                           className="h-8 w-10 rounded-lg px-0 text-center text-base font-semibold tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                         />
-                        <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => setQuantity(quantity + 1)}><Plus className="h-3 w-3" /></Button>
+                        <Button aria-label="Increase quantity" variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => setQuantity(quantity + 1)}><Plus className="h-3 w-3" /></Button>
                       </div>
                     </div>
                   )}
@@ -1054,7 +1054,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
 
                   {/* Action Buttons */}
                   <div className="flex flex-wrap items-center gap-2 pt-1">
-                    <Button variant="outline" size="icon" className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl shrink-0" onClick={handleToggleWishlist} disabled={addingToWishlist}>
+                    <Button aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"} variant="outline" size="icon" className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl shrink-0" onClick={handleToggleWishlist} disabled={addingToWishlist}>
                       <Heart className={`h-4 w-4 sm:h-5 sm:w-5 ${isWishlisted ? 'fill-destructive text-destructive' : ''}`} />
                     </Button>
                     <Button variant="outline" className="min-w-0 flex-1 basis-[calc(50%-2rem)] h-10 sm:h-11 rounded-xl font-semibold text-xs sm:text-sm px-2 sm:px-4" onClick={handleAddToCart} disabled={addingToCart}>
