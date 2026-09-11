@@ -6,6 +6,8 @@ const PaymentLogos = () => {
       <img
         src={payStationBanner}
         alt="Payment methods - Visa, Mastercard, American Express, UnionPay, bKash, Nagad, Rocket, Upay and more"
+        width={800}
+        height={196}
         className="w-full max-w-2xl rounded-lg"
         loading="lazy"
       />

@@ -9,7 +9,7 @@ import { ArrowLeft, Package, Store, Loader2 } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 
 import { convertToBDT } from "@/lib/currency";
-import { cdnImage, cdnImageFallback } from "@/lib/cdnImage";
+import { cdnImage, cdnSrcSet, cdnImageFallback, PRODUCT_THUMB_WIDTHS, PRODUCT_GRID_SIZES } from "@/lib/cdnImage";
 
 interface SellerProduct {
   num_iid: number;
@@ -144,6 +144,8 @@ export default function SellerStore() {
                   <div className="aspect-square overflow-hidden bg-muted">
                     <img
                       src={cdnImage(product.pic_url, 400)}
+                      srcSet={cdnSrcSet(product.pic_url, PRODUCT_THUMB_WIDTHS)}
+                      sizes={PRODUCT_GRID_SIZES}
                       alt={product.title}
                       referrerPolicy="no-referrer"
                       loading="lazy"

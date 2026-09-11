@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Product1688 } from "@/lib/api/alibaba1688";
-import { cdnImage, cdnImageFallback } from "@/lib/cdnImage";
+import { cdnImage, cdnSrcSet, cdnImageFallback, PRODUCT_THUMB_WIDTHS, PRODUCT_CAROUSEL_SIZES } from "@/lib/cdnImage";
 import { convertToBDT } from "@/lib/currency";
 
 interface CategorySectionProps {
@@ -68,6 +68,7 @@ export default function CategorySection({ name, icon, query, cachedProducts, onP
           size="icon"
           className="absolute -left-3 top-1/2 -translate-y-1/2 z-10 bg-card shadow-md border h-8 w-8 hidden md:flex"
           onClick={() => scroll("left")}
+          aria-label={`Scroll ${name} products left`}
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
@@ -81,6 +82,8 @@ export default function CategorySection({ name, icon, query, cachedProducts, onP
               <div className="aspect-square overflow-hidden bg-muted relative">
                 <img
                   src={cdnImage(product.pic_url, 400)}
+                  srcSet={cdnSrcSet(product.pic_url, PRODUCT_THUMB_WIDTHS)}
+                  sizes={PRODUCT_CAROUSEL_SIZES}
                   alt={product.title}
                   referrerPolicy="no-referrer"
                   loading="lazy"
@@ -114,6 +117,7 @@ export default function CategorySection({ name, icon, query, cachedProducts, onP
           size="icon"
           className="absolute -right-3 top-1/2 -translate-y-1/2 z-10 bg-card shadow-md border h-8 w-8 hidden md:flex"
           onClick={() => scroll("right")}
+          aria-label={`Scroll ${name} products right`}
         >
           <ChevronRight className="h-4 w-4" />
         </Button>

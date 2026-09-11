@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { alibaba1688Api, Product1688, ProductDetail1688 } from "@/lib/api/alibaba1688";
-import { cdnImage, cdnImageFallback } from "@/lib/cdnImage";
+import { cdnImage, cdnSrcSet, cdnImageFallback, PRODUCT_THUMB_WIDTHS, PRODUCT_GRID_SIZES } from "@/lib/cdnImage";
 import { supabase } from "@/integrations/supabase/client";
 import ProductDetail from "@/components/ProductDetail";
 import Footer from "@/components/Footer";
@@ -1147,7 +1147,7 @@ const Index = () => {
             </aside>
 
             {/* Main area */}
-            <div className="flex-1 min-w-0">
+            <main className="flex-1 min-w-0">
               {/* Category header */}
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
@@ -1195,6 +1195,8 @@ const Index = () => {
                         <div className="aspect-square overflow-hidden bg-muted relative">
                           <img
                             src={cdnImage(product.pic_url, 400)}
+                            srcSet={cdnSrcSet(product.pic_url, PRODUCT_THUMB_WIDTHS)}
+                            sizes={PRODUCT_GRID_SIZES}
                             alt={product.title}
                             referrerPolicy="no-referrer"
                             loading="lazy"
@@ -1259,7 +1261,7 @@ const Index = () => {
               ) : (
                 <div className="text-center py-20"><p className="text-muted-foreground">No products in this category</p></div>
               )}
-            </div>
+            </main>
           </div>
         </div>
         <Footer />
@@ -1314,7 +1316,7 @@ const Index = () => {
             </Sheet>
 
             {/* Results */}
-            <div className="flex-1 min-w-0">
+            <main className="flex-1 min-w-0">
               {isLoading ? (
                 <ProductGridSkeleton count={16} />
               ) : filteredProducts.length > 0 ? (
@@ -1335,7 +1337,7 @@ const Index = () => {
                   </div>
                   {totalPages > 1 && (
                     <div className="flex items-center justify-center gap-1 mt-8 pb-4">
-                      <Button variant="outline" size="sm" onClick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1 || isLoading}><ChevronLeft className="h-4 w-4" /></Button>
+                      <Button variant="outline" size="sm" aria-label="Previous page" onClick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1 || isLoading}><ChevronLeft className="h-4 w-4" /></Button>
                       {(() => {
                         const pages: (number | '...')[] = [];
                         if (totalPages <= 7) { for (let i = 1; i <= totalPages; i++) pages.push(i); }
@@ -1352,7 +1354,7 @@ const Index = () => {
                           )
                         );
                       })()}
-                      <Button variant="outline" size="sm" onClick={() => goToPage(currentPage + 1)} disabled={currentPage >= totalPages || isLoading}><ChevronRight className="h-4 w-4" /></Button>
+                      <Button variant="outline" size="sm" aria-label="Next page" onClick={() => goToPage(currentPage + 1)} disabled={currentPage >= totalPages || isLoading}><ChevronRight className="h-4 w-4" /></Button>
                     </div>
                   )}
                 </>
@@ -1364,7 +1366,7 @@ const Index = () => {
               ) : (
                 <div className="text-center py-20"><p className="text-muted-foreground">No products found</p></div>
               )}
-            </div>
+            </main>
           </div>
         </div>
         <BottomNav />
@@ -1407,7 +1409,7 @@ const Index = () => {
         </aside>
 
         {/* Main area */}
-        <div className="flex-1 min-w-0 px-3 sm:px-6">
+        <main className="flex-1 min-w-0 px-3 sm:px-6">
           {/* Hero Banner - desktop only */}
           <div className="hidden md:block mt-4 mb-5 rounded-2xl overflow-hidden header-gradient p-6 sm:p-8 md:p-10 relative">
             <div className="relative z-10">
@@ -1471,13 +1473,18 @@ const Index = () => {
                     onClick={() => handleTrendingClick(product.id)}
                   >
                     <div className="aspect-square overflow-hidden bg-muted relative">
-                      {/* The first row is above the fold and holds the LCP element:
-                          load it eagerly at high priority instead of lazily. */}
+                      {/* On the 6-up desktop grid the first two rows sit above the fold
+                          and one of them is the LCP element, so the whole window loads
+                          eagerly. `high` stays on the first row only — that is all the
+                          fold covers on the 2-up phone layout, and priority is worth
+                          nothing if it is claimed by everything. */}
                       <img
                         src={cdnImage(product.image, 400)}
+                        srcSet={cdnSrcSet(product.image, PRODUCT_THUMB_WIDTHS)}
+                        sizes={PRODUCT_GRID_SIZES}
                         alt={product.title}
                         referrerPolicy="no-referrer"
-                        loading={i < 6 ? "eager" : "lazy"}
+                        loading={i < 12 ? "eager" : "lazy"}
                         fetchPriority={i < 6 ? "high" : "auto"}
                         decoding="async"
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
@@ -1487,9 +1494,9 @@ const Index = () => {
                         3% OFF
                       </Badge>
                       {/* Floating cart button */}
-                      <button className="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span aria-hidden="true" className="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
                         <ShoppingCart className="h-3.5 w-3.5" />
-                      </button>
+                      </span>
                     </div>
                     <CardContent className="p-3 space-y-1.5">
                       <h3 className="text-xs font-medium line-clamp-2 min-h-[2rem] leading-tight text-foreground">{product.title}</h3>
@@ -1543,7 +1550,7 @@ const Index = () => {
               </div>
             </section>
           )}
-        </div>
+        </main>
       </div>
 
       <Footer />
@@ -1560,8 +1567,8 @@ const SiteHeader = ({ query, setQuery, handleSearch, isLoading, handleImageButto
     <div className="md:hidden bg-card border-b">
       {/* Top row: Logo + action icons */}
       <div className="flex items-center justify-between px-3 pt-2 pb-1">
-        <button onClick={() => { setQuery(""); window.location.href = "/"; }} className="shrink-0">
-          <img src={logoFull} alt="TradeOn Global" className="h-14 object-contain" />
+        <button onClick={() => { setQuery(""); window.location.href = "/"; }} className="shrink-0" aria-label="TradeOn Global — go to homepage">
+          <img src={logoFull} alt="TradeOn Global" width={662} height={208} className="h-14 object-contain" />
         </button>
         <div className="flex items-center gap-1">
           <Button variant="ghost" size="icon" className="h-9 w-9 relative" onClick={() => navigate(user ? "/dashboard/cart" : "/auth")} title="Cart">
@@ -1584,12 +1591,12 @@ const SiteHeader = ({ query, setQuery, handleSearch, isLoading, handleImageButto
         <form onSubmit={handleSearch} className="flex gap-1.5">
           <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
           <div className="relative flex-1">
-            <button type="button" onClick={handleImageButtonClick} className="absolute left-2.5 top-1/2 -translate-y-1/2 z-10">
+            <button type="button" onClick={handleImageButtonClick} aria-label="Search by image" className="absolute left-2.5 top-1/2 -translate-y-1/2 z-10">
               <Camera className="h-4 w-4 text-muted-foreground" />
             </button>
             <Input type="text" placeholder={settings?.search_placeholder || "Search by keyword"} value={query} onChange={(e: any) => setQuery(e.target.value)} className="pl-9 h-10 bg-muted/50 border rounded-lg text-sm" />
           </div>
-          <Button type="submit" disabled={isLoading} className="shrink-0 h-10 w-10 rounded-lg">
+          <Button type="submit" disabled={isLoading} aria-label="Search" className="shrink-0 h-10 w-10 rounded-lg">
             {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
           </Button>
         </form>
@@ -1600,8 +1607,8 @@ const SiteHeader = ({ query, setQuery, handleSearch, isLoading, handleImageButto
     <div className="hidden md:block bg-card border-b shadow-sm">
       <div className="px-3 sm:px-6">
         <div className="flex items-center gap-4 h-16">
-          <button onClick={() => { setQuery(""); window.location.href = "/"; }} className="shrink-0">
-            <img src={logoFull} alt="TradeOn Global" className="h-16 object-contain" />
+          <button onClick={() => { setQuery(""); window.location.href = "/"; }} className="shrink-0" aria-label="TradeOn Global — go to homepage">
+            <img src={logoFull} alt="TradeOn Global" width={662} height={208} className="h-16 object-contain" />
           </button>
           <form onSubmit={handleSearch} className="flex-1 flex gap-2">
             <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
@@ -1612,7 +1619,7 @@ const SiteHeader = ({ query, setQuery, handleSearch, isLoading, handleImageButto
             <Button type="button" variant="outline" size="icon" title="Search by image" onClick={handleImageButtonClick} disabled={isLoading} className="shrink-0">
               <Camera className="h-4 w-4" />
             </Button>
-            <Button type="submit" disabled={isLoading} className="shrink-0 px-6">
+            <Button type="submit" disabled={isLoading} aria-label="Search" className="shrink-0 px-6">
               {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
             </Button>
           </form>
@@ -1662,7 +1669,8 @@ const ProductCard = ({ product, getDisplayTitle, onClick }: { product: Product16
     <a href={`/?product=${product.num_iid}`} onClick={handleClick} className="block">
     <Card className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow group">
       <div className="aspect-square overflow-hidden bg-muted relative">
-        <img src={cdnImage(product.pic_url, 400)} alt={getDisplayTitle(product)} referrerPolicy="no-referrer" loading="lazy" decoding="async"
+        <img src={cdnImage(product.pic_url, 400)} srcSet={cdnSrcSet(product.pic_url, PRODUCT_THUMB_WIDTHS)} sizes={PRODUCT_GRID_SIZES}
+          alt={getDisplayTitle(product)} referrerPolicy="no-referrer" loading="lazy" decoding="async"
           className="w-full h-full object-cover group-hover:scale-105 transition-transform"
           onError={cdnImageFallback(product.pic_url)}
         />

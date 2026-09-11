@@ -455,7 +455,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
 
   if (!product && isLoading) {
     return (
-      <div className="min-h-screen bg-background animate-fade-in">
+      <main className="min-h-screen bg-background animate-fade-in">
         <div className="border-b bg-card">
           <div className="mx-auto px-2 sm:px-3 max-w-[1600px]">
             <div className="flex items-center gap-2 py-3">
@@ -482,7 +482,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
             </div>
           </div>
         </div>
-      </div>
+      </main>
     );
   }
 
@@ -534,7 +534,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
   // displayCnyPrice removed — no longer showing Yuan
 
   return (
-    <div className="min-h-screen bg-background">
+    <main className="min-h-screen bg-background">
       {isLoading && (
         <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-primary text-primary-foreground px-4 py-1.5 rounded-full text-xs flex items-center gap-2 shadow-lg">
           <Loader2 className="h-3 w-3 animate-spin" />
@@ -1213,6 +1213,6 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
       </div>
 
       <CheckoutDialog open={checkoutOpen} onOpenChange={setCheckoutOpen} data={checkoutData} />
-    </div>
+    </main>
   );
 }

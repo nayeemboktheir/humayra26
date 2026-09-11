@@ -1,0 +1,25 @@
+# TradeOn Global
+
+> TradeOn Global (tradeon.global) is a Bangladesh-based storefront that resells
+> wholesale products sourced from 1688.com and Alibaba. Shoppers browse or search the
+> upstream catalogue in English, see prices converted to Bangladeshi Taka (BDT), and
+> order for delivery from China to Bangladesh.
+
+Prices are shown in BDT, converted from the supplier's CNY price at the site's current
+rate and markup. Product listings, images, and stock are sourced live from the upstream
+1688 catalogue, so individual product URLs are not stable and are not listed here.
+Typical delivery is 10-12 days from China to Bangladesh.
+
+## Pages
+
+- [Home](https://tradeon.global/): Product search, trending products, and category browsing.
+- [About Us](https://tradeon.global/about-us): Who TradeOn Global is and how the service works.
+- [Contact Us](https://tradeon.global/contact-us): Head office address, email, and phone.
+- [Prohibited Items](https://tradeon.global/prohibited-items): Categories that cannot be ordered, including tobacco, alcohol, drones, weapons, and hazardous chemicals.
+- [Return & Refund Policy](https://tradeon.global/return-refund-policy): Conditions and process for returns and refunds.
+- [Privacy Policy](https://tradeon.global/privacy-policy): What customer data is collected and how it is used.
+- [Install the App](https://tradeon.global/install): Installing TradeOn Global as a progressive web app.
+
+## Optional
+
+- [Sign In](https://tradeon.global/auth): Account sign-in and registration. Ordering, the cart, and the wishlist require an account.
