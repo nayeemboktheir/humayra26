@@ -48,9 +48,9 @@ const DEFAULT_PERIODS: PeriodOption[] = [
 ];
 
 const SIZES: Record<CardSize, { minH: string; padding: string; title: string; headline: string }> = {
-  sm: { minH: "min-h-[250px]", padding: "p-5", title: "text-sm", headline: "text-4xl" },
-  md: { minH: "min-h-[344px]", padding: "p-6", title: "text-base", headline: "text-5xl" },
-  lg: { minH: "min-h-[420px]", padding: "p-8", title: "text-lg", headline: "text-6xl" },
+  sm: { minH: "min-h-[470px] lg:min-h-[290px]", padding: "p-5", title: "text-sm", headline: "text-4xl" },
+  md: { minH: "min-h-[500px] lg:min-h-[360px]", padding: "p-6", title: "text-base", headline: "text-5xl" },
+  lg: { minH: "min-h-[560px] lg:min-h-[430px]", padding: "p-8", title: "text-lg", headline: "text-6xl" },
 };
 
 const sliceWindow = (points: SeriesPoint[], count?: number) => count && count < points.length ? points.slice(-count) : points;
@@ -123,8 +123,8 @@ export default function ProgressMetricCard({
 
   return (
     <div className={shell}>
-      <div className="absolute inset-x-0 bottom-0 h-[57%] border-t border-border/50 bg-gradient-to-b from-muted/35 to-primary/[0.035]" />
-      <div className="absolute inset-x-0 bottom-0 z-0 h-[57%]"><MetricChart series={chartSeries} view={view} defaultIndex={index} valueFormatter={full} dateFormatter={dateFormatter ?? ((date) => date)} /></div>
+      <div className="absolute inset-x-0 bottom-0 h-[44%] border-t border-border/50 bg-gradient-to-b from-muted/35 to-primary/[0.035] lg:inset-y-[72px] lg:left-auto lg:h-auto lg:w-[62%] lg:border-l lg:border-t-0" />
+      <div className="absolute inset-x-0 bottom-0 z-0 h-[44%] lg:inset-y-[72px] lg:left-auto lg:h-auto lg:w-[62%]"><MetricChart series={chartSeries} view={view} defaultIndex={index} valueFormatter={full} dateFormatter={dateFormatter ?? ((date) => date)} /></div>
 
       <div className={`relative z-10 flex w-full flex-col ${sz.padding}`}>
         <div className="flex items-start justify-between gap-3">
@@ -138,7 +138,7 @@ export default function ProgressMetricCard({
           </div>
         </div>
 
-        <div className="mt-5 flex items-end justify-between gap-4">
+        <div className="mt-5 flex items-end justify-between gap-4 lg:w-[34%] lg:flex-col lg:items-start">
           <div>
             <p className="text-xs font-medium text-muted-foreground">All-time total</p>
             <p className={`mt-1 ${sz.headline} font-semibold leading-none tracking-tight text-foreground`}>{total ?? compact(sum)}</p>
@@ -149,7 +149,7 @@ export default function ProgressMetricCard({
         </div>
 
         {showStats && (
-          <div className="mt-5 grid max-w-md grid-cols-3 divide-x divide-border rounded-xl border border-border/80 bg-background/90 shadow-sm backdrop-blur-sm">
+          <div className="mt-5 grid max-w-[320px] grid-cols-3 divide-x divide-border rounded-xl border border-border/80 bg-background/90 shadow-sm backdrop-blur-sm">
             <div className="px-3 py-2.5"><p className="text-[11px] text-muted-foreground">Today</p><p className="mt-0.5 text-sm font-semibold" style={{ color: color.text }}>{changeLabel}</p></div>
             <div className="px-3 py-2.5"><p className="text-[11px] text-muted-foreground">Peak day</p><p className="mt-0.5 text-sm font-semibold">{compact(peak)}</p></div>
             <div className="px-3 py-2.5"><p className="text-[11px] text-muted-foreground">Daily avg</p><p className="mt-0.5 text-sm font-semibold">{compact(average)}</p></div>
