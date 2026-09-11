@@ -116,7 +116,7 @@ export default function AdminDashboard() {
   ];
 
   return (
-    <div className="space-y-5 pb-8">
+    <div className="space-y-4 pb-2">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
@@ -137,7 +137,7 @@ export default function AdminDashboard() {
         {cards.map((card) => (
           <button key={card.key} type="button" aria-label={`View ${card.label}`} onClick={() => navigate(card.path)} className="group text-left">
             <Card className="h-full border-border/80 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-sm">
-              <CardContent className="flex items-center justify-between gap-2 p-3.5">
+              <CardContent className="flex items-center justify-between gap-2 p-3">
                 <div>
                   <p className="truncate text-xs font-medium text-muted-foreground">{card.label}</p>
                   <p className="mt-1 text-2xl font-bold leading-none tracking-tight">{loading ? "—" : stats[card.key] ?? 0}</p>
@@ -149,7 +149,7 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-5">
+      <div className="grid gap-4 xl:grid-cols-5">
         <ProgressMetricCard
           title="Total orders"
           total={loading ? "—" : activeOrders.length}
@@ -158,14 +158,14 @@ export default function AdminDashboard() {
           unit="orders"
           data={orderActivity}
           period="Past 30 days"
-          size="md"
+          size="sm"
           loading={loading}
           valueFormatter={(value) => `${value} orders`}
           className="xl:col-span-3"
         />
 
         <Card className="xl:col-span-2">
-          <CardContent className="p-5 sm:p-6">
+          <CardContent className="p-4 sm:p-5">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-sm font-semibold">Fulfilment pulse</p>
@@ -173,7 +173,7 @@ export default function AdminDashboard() {
               </div>
               <span className="rounded-xl bg-orange-50 p-2.5 text-orange-600"><PackageCheck className="h-5 w-5" /></span>
             </div>
-            <div className="mt-6 space-y-4">
+            <div className="mt-4 space-y-3">
               {[
                 { label: "Awaiting dispatch", value: shipmentStages.Ordered || 0, color: "bg-slate-400" },
                 { label: "In transit", value: inTransit, color: "bg-blue-500" },
@@ -186,20 +186,20 @@ export default function AdminDashboard() {
                 </div>
               ))}
             </div>
-            <Button variant="ghost" size="sm" className="mt-5 w-full justify-between border border-border/70" onClick={() => navigate("/admin/shipments")}>Manage shipments <ArrowRight className="h-4 w-4" /></Button>
+            <Button variant="ghost" size="sm" className="mt-4 w-full justify-between border border-border/70" onClick={() => navigate("/admin/shipments")}>Manage shipments <ArrowRight className="h-4 w-4" /></Button>
           </CardContent>
         </Card>
       </div>
 
       <Card>
-        <CardContent className="p-5 sm:p-6">
+        <CardContent className="p-4 sm:p-5">
           <div className="flex items-start justify-between gap-4">
             <div><p className="text-sm font-semibold">Recent orders</p><p className="mt-1 text-sm text-muted-foreground">The newest requests placed in your store</p></div>
             <Button variant="outline" size="sm" className="hidden gap-2 sm:inline-flex" onClick={() => navigate("/admin/orders")}>All orders <ArrowRight className="h-4 w-4" /></Button>
           </div>
-          <div className="mt-5 divide-y divide-border/70">
+          <div className="mt-3 divide-y divide-border/70">
             {loading ? <div className="py-8 text-center text-sm text-muted-foreground">Loading recent orders…</div> : recentOrders.length === 0 ? <div className="py-8 text-center text-sm text-muted-foreground">No orders have been placed yet.</div> : recentOrders.map((order) => (
-              <button key={order.id} type="button" onClick={() => navigate("/admin/orders")} className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-4 py-3.5 text-left transition-colors hover:bg-muted/40 sm:grid-cols-[120px_minmax(0,1fr)_auto_auto] sm:px-2">
+              <button key={order.id} type="button" onClick={() => navigate("/admin/orders")} className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-4 py-2.5 text-left transition-colors hover:bg-muted/40 sm:grid-cols-[120px_minmax(0,1fr)_auto_auto] sm:px-2">
                 <span className="font-mono text-xs font-semibold text-primary">#{order.order_number}</span>
                 <span className="min-w-0"><span className="block truncate text-sm font-medium">{order.product_name}</span><span className="mt-0.5 block text-xs text-muted-foreground sm:hidden">{new Date(order.created_at).toLocaleDateString()}</span></span>
                 <Badge variant="outline" className={`${paymentBadge(order.payment_status)} hidden sm:inline-flex`}>{order.payment_status || "unpaid"}</Badge>
