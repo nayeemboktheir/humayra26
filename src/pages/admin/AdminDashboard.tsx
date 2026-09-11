@@ -116,35 +116,33 @@ export default function AdminDashboard() {
   ];
 
   return (
-    <div className="space-y-6 pb-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className="space-y-5 pb-8">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="mb-2 flex items-center gap-2">
+          <div className="flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-emerald-500" />
-            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Operations overview</span>
+            <h1 className="text-2xl font-bold tracking-tight">Admin Dashboard</h1>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
-          <p className="mt-1 text-sm text-muted-foreground">A clear view of your store's orders, payments, and fulfilment.</p>
+          <p className="mt-0.5 pl-4 text-xs text-muted-foreground">Orders, payments, and fulfilment at a glance.</p>
         </div>
         <div className="flex items-center gap-3">
           {lastUpdated && <span className="hidden text-xs text-muted-foreground sm:inline">Updated {lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>}
-          <Button variant="outline" size="sm" className="gap-2" onClick={() => void loadDashboard(true)} disabled={refreshing}>
-            <RefreshCcw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} /> Refresh
+          <Button variant="outline" size="sm" className="h-8 gap-1.5 px-3" onClick={() => void loadDashboard(true)} disabled={refreshing}>
+            <RefreshCcw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} /> Refresh
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8">
         {cards.map((card) => (
-          <button key={card.key} type="button" onClick={() => navigate(card.path)} className="group text-left">
-            <Card className="h-full border-border/80 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md">
-              <CardContent className="flex items-start justify-between p-5">
+          <button key={card.key} type="button" aria-label={`View ${card.label}`} onClick={() => navigate(card.path)} className="group text-left">
+            <Card className="h-full border-border/80 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-sm">
+              <CardContent className="flex items-center justify-between gap-2 p-3.5">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">{card.label}</p>
-                  <p className="mt-2 text-3xl font-bold tracking-tight">{loading ? "—" : stats[card.key] ?? 0}</p>
-                  <p className="mt-2 flex items-center gap-1 text-xs font-medium text-muted-foreground group-hover:text-primary">View details <ArrowRight className="h-3 w-3" /></p>
+                  <p className="truncate text-xs font-medium text-muted-foreground">{card.label}</p>
+                  <p className="mt-1 text-2xl font-bold leading-none tracking-tight">{loading ? "—" : stats[card.key] ?? 0}</p>
                 </div>
-                <span className={`rounded-xl p-2.5 ${card.iconClass}`}><card.icon className="h-5 w-5" /></span>
+                <span className={`shrink-0 rounded-lg p-2 ${card.iconClass}`}><card.icon className="h-4 w-4" /></span>
               </CardContent>
             </Card>
           </button>
