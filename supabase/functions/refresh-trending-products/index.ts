@@ -1,13 +1,11 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { normalizeImg } from '../_shared/normalize-img.ts';
 const corsHeaders = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type" };
 const TRENDING_QUERIES = ["best selling products", "popular stationery", "trending fashion accessories", "popular bags", "trending jewelry"];
 const MAX_PRODUCTS = 15;
 const MAX_CANDIDATES = 80;
-const TMAPI_BASE = "http://api.tmapi.top/1688";
+const TMAPI_BASE = "https://api.tmapi.top/1688";
 
-function normalizeImg(u: string): string {
-  if (!u) return ""; if (u.startsWith("//")) return `https:${u}`; return u;
-}
 function parseSold(v: any): number {
   if (v == null) return 0;
   const s = String(v).trim().toLowerCase().replace(/\+|,/g, "");
@@ -20,9 +18,7 @@ function parseSold(v: any): number {
   return Math.round(n);
 }
 
-
 // Multilingual cross-border search returns English titles directly — no AI translation needed.
-
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });

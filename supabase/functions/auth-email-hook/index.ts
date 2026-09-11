@@ -10,7 +10,7 @@ import { ReauthenticationEmail } from '../_shared/email-templates/reauthenticati
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers':
-    'authorization, x-client-info, apikey, content-type, x-lovable-signature, x-lovable-timestamp, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
+    'authorization, x-client-info, apikey, content-type, webhook-id, webhook-timestamp, webhook-signature, x-lovable-signature, x-lovable-timestamp, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 }
 
 const EMAIL_SUBJECTS: Record<string, string> = {
@@ -121,11 +121,108 @@ async function handlePreview(req: Request): Promise<Response> {
   })
 }
 
+
+// ---------------------------------------------------------------------------
+// Webhook authentication
+//
+// This endpoint renders a fully-branded TradeOn email and hands it to Resend.
+// It ran with `verify_jwt = false` and *no* verification of any kind, which made
+// it an open relay: anyone could POST an arbitrary recipient and an arbitrary
+// `url`, and Resend would deliver a genuine-looking "reset your password" mail
+// from noreply@tradeon.global pointing at the attacker's link — on our own
+// sending reputation. `handlePreview` below already did a bearer check; the
+// webhook path simply never got one.
+//
+// Two accepted proofs, in order:
+//   1. The Supabase auth-hook signature (standard-webhooks): HMAC-SHA256 over
+//      `${webhook-id}.${webhook-timestamp}.${body}` keyed by SEND_EMAIL_HOOK_SECRET.
+//   2. `Authorization: Bearer ${LOVABLE_API_KEY}` — the same secret /preview uses,
+//      for the Lovable-managed direct-call path.
+//
+// If neither secret is configured we reject. Failing open here is what the bug
+// was; an outage in auth email is recoverable, an open phishing relay is not.
+// ---------------------------------------------------------------------------
+
+const SIGNATURE_TOLERANCE_SECONDS = 5 * 60
+
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false
+  let diff = 0
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i)
+  return diff === 0
+}
+
+function decodeHookSecret(secret: string): Uint8Array {
+  // Supabase hands this out as `v1,whsec_<base64>`; tolerate the bare forms too.
+  const raw = secret.replace(/^v1,/, '').replace(/^whsec_/, '')
+  try {
+    return Uint8Array.from(atob(raw), (c) => c.charCodeAt(0))
+  } catch {
+    return new TextEncoder().encode(secret)
+  }
+}
+
+async function verifyHookSignature(req: Request, rawBody: string, secret: string): Promise<boolean> {
+  const id = req.headers.get('webhook-id')
+  const timestamp = req.headers.get('webhook-timestamp')
+  const signatureHeader = req.headers.get('webhook-signature')
+  if (!id || !timestamp || !signatureHeader) return false
+
+  // Reject stale payloads so a captured request can't be replayed indefinitely.
+  const sent = Number(timestamp)
+  if (!Number.isFinite(sent)) return false
+  if (Math.abs(Math.floor(Date.now() / 1000) - sent) > SIGNATURE_TOLERANCE_SECONDS) return false
+
+  const key = await crypto.subtle.importKey(
+    'raw',
+    decodeHookSecret(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  )
+  const mac = await crypto.subtle.sign(
+    'HMAC',
+    key,
+    new TextEncoder().encode(`${id}.${timestamp}.${rawBody}`),
+  )
+  const expected = btoa(String.fromCharCode(...new Uint8Array(mac)))
+
+  // The header carries one or more space-separated `v1,<sig>` values.
+  return signatureHeader
+    .split(' ')
+    .map((part) => part.split(',')[1] ?? '')
+    .some((candidate) => timingSafeEqual(candidate, expected))
+}
+
+async function isAuthorizedWebhook(req: Request, rawBody: string): Promise<boolean> {
+  const hookSecret = Deno.env.get('SEND_EMAIL_HOOK_SECRET')
+  if (hookSecret && (await verifyHookSignature(req, rawBody, hookSecret))) return true
+
+  const apiKey = Deno.env.get('LOVABLE_API_KEY')
+  if (apiKey && req.headers.get('Authorization') === `Bearer ${apiKey}`) return true
+
+  if (!hookSecret && !apiKey) {
+    console.error('auth-email-hook: neither SEND_EMAIL_HOOK_SECRET nor LOVABLE_API_KEY is set; rejecting')
+  }
+  return false
+}
+
 // Webhook handler - sends email via Resend
 async function handleWebhook(req: Request): Promise<Response> {
+  // Read the body as text first: signature verification is over the exact bytes.
+  const rawBody = await req.text()
+
+  if (!(await isAuthorizedWebhook(req, rawBody))) {
+    console.warn('auth-email-hook: rejected unauthenticated webhook call')
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
+
   let payload: any
   try {
-    payload = await req.json()
+    payload = JSON.parse(rawBody)
   } catch {
     return new Response(JSON.stringify({ error: 'Invalid JSON' }), {
       status: 400,

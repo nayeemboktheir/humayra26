@@ -96,7 +96,7 @@ serve(async (req) => {
     if (orderNumber) message = message.replace(/\{order\}/gi, orderNumber);
     if (profile?.full_name) message = message.replace(/\{name\}/gi, profile.full_name);
 
-    const smsUrl = `http://bulksmsbd.net/api/smsapi?api_key=${apiKey}&type=text&number=${phone}&senderid=${senderId}&message=${encodeURIComponent(message)}`;
+    const smsUrl = `https://bulksmsbd.net/api/smsapi?api_key=${apiKey}&type=text&number=${phone}&senderid=${senderId}&message=${encodeURIComponent(message)}`;
     const smsResponse = await fetch(smsUrl);
     const smsResult = await smsResponse.text();
     console.log(`[send-shipment-sms] phone=${phone} stage="${stage}" response=${smsResult}`);

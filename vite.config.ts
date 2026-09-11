@@ -1,4 +1,4 @@
-import { defineConfig, type Plugin } from "vite";
+import { defineConfig, loadEnv, type Plugin } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import { imagetools } from "vite-imagetools";
 import path from "path";
@@ -17,8 +17,31 @@ const nonBlockingCss = (): Plugin => ({
   },
 });
 
+// The root `.env` used to be committed, which meant a production build silently fell
+// back to those values whenever the CI secrets were absent or misnamed. It is gitignored
+// now, so that safety net is gone — and a build with no Supabase URL/key still "succeeds"
+// and deploys a bundle that cannot talk to the backend at all. Fail loudly instead.
+const requireSupabaseEnv = (env: Record<string, string>): Plugin => ({
+  name: "require-supabase-env",
+  apply: "build",
+  config() {
+    const missing = ["VITE_SUPABASE_URL", "VITE_SUPABASE_PUBLISHABLE_KEY"].filter(
+      (key) => !env[key],
+    );
+    if (missing.length) {
+      throw new Error(
+        `Refusing to build: missing ${missing.join(", ")}. ` +
+          `Set them in .env locally, or as repository secrets in the deploy workflow.`,
+      );
+    }
+  },
+});
+
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ mode }) => {
+  // loadEnv resolves .env files *and* matching process.env vars (how CI supplies them).
+  const env = loadEnv(mode, process.cwd(), "");
+  return {
   server: {
     host: "::",
     port: 8080,
@@ -33,6 +56,7 @@ export default defineConfig(({ mode }) => ({
     }),
     mode === "development" && componentTagger(),
     nonBlockingCss(),
+    requireSupabaseEnv(env),
   ].filter(Boolean),
   build: {
     rollupOptions: {
@@ -79,4 +103,5 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-}));
+};
+});

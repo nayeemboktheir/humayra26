@@ -3,7 +3,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-const TMAPI_BASE = 'http://api.tmapi.top/1688';
+const TMAPI_BASE = 'https://api.tmapi.top/1688';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {

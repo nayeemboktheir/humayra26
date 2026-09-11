@@ -1,15 +1,11 @@
+import { normalizeImg } from '../_shared/normalize-img.ts';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-const TMAPI_BASE = 'http://api.tmapi.top/1688';
-
-function normalizeImg(u: string): string {
-  if (!u) return '';
-  if (u.startsWith('//')) return `https:${u}`;
-  return u;
-}
+const TMAPI_BASE = 'https://api.tmapi.top/1688';
 
 function mapItems(rawItems: any[]) {
   return rawItems.map((it: any) => {

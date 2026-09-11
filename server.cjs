@@ -66,7 +66,7 @@ async function getProductOg(productId) {
   if (cached && Date.now() - cached.ts < OG_TTL_MS) return cached.data;
   if (!TMAPI_TOKEN) return null;
   try {
-    const apiUrl = `http://api.tmapi.top/1688/item_detail?apiToken=${encodeURIComponent(TMAPI_TOKEN)}&item_id=${encodeURIComponent(productId)}&language=en`;
+    const apiUrl = `https://api.tmapi.top/1688/item_detail?apiToken=${encodeURIComponent(TMAPI_TOKEN)}&item_id=${encodeURIComponent(productId)}&language=en`;
     const j = await fetchJson(apiUrl);
     const d = j && j.data;
     if (!d) return null;

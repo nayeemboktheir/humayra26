@@ -135,7 +135,7 @@ serve(async (req) => {
       const personalized = message
         .replace(/\{name\}/gi, r.name || "")
         .replace(/\{phone\}/gi, r.phone);
-      const url = `http://bulksmsbd.net/api/smsapi?api_key=${apiKey}&type=text&number=${r.phone}&senderid=${smsSender}&message=${encodeURIComponent(personalized)}`;
+      const url = `https://bulksmsbd.net/api/smsapi?api_key=${apiKey}&type=text&number=${r.phone}&senderid=${smsSender}&message=${encodeURIComponent(personalized)}`;
       let status = "sent";
       let respText = "";
       try {

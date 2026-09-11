@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { normalizeImg } from '../_shared/normalize-img.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -6,7 +7,7 @@ const corsHeaders = {
 };
 
 const CACHE_TTL_HOURS = 12;
-const TMAPI_BASE = 'http://api.tmapi.top/1688';
+const TMAPI_BASE = 'https://api.tmapi.top/1688';
 const TMAPI_TIMEOUT_MS = 15000;
 
 // Without a timeout a stalled upstream connection hangs the caller until the browser
@@ -19,12 +20,6 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: numbe
   } finally {
     clearTimeout(timer);
   }
-}
-
-function normalizeImg(u: string): string {
-  if (!u) return '';
-  if (u.startsWith('//')) return `https:${u}`;
-  return u;
 }
 
 function parseSold(v: any): number | null {

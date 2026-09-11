@@ -5,7 +5,7 @@
 // ever changes — there is no shared module between the Deno edge functions and this
 // Node service.
 
-const TMAPI_BASE = "http://api.tmapi.top/1688";
+const TMAPI_BASE = "https://api.tmapi.top/1688";
 
 // Every upstream fetch is bounded — an unbounded one leaves the caller hanging until
 // the browser gives up, which is indistinguishable from the site being down.

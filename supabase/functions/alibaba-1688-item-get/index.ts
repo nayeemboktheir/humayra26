@@ -1,11 +1,12 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { normalizeImg } from '../_shared/normalize-img.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const TMAPI_BASE = 'http://api.tmapi.top/1688';
+const TMAPI_BASE = 'https://api.tmapi.top/1688';
 const CACHE_TTL_HOURS = 12;
 const TMAPI_TIMEOUT_MS = 12000;
 const DETAIL_PAGE_TIMEOUT_MS = 4000;
@@ -33,16 +34,6 @@ function safeErrorMessage(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error ?? '');
   if (isNetworkFailure(error)) return 'TMAPI is temporarily unreachable. Please try again shortly.';
   return message.replace(/apiToken=[^&\s)]+/g, 'apiToken=REDACTED') || 'Failed to get product';
-}
-
-function normalizeImg(u: string): string {
-  if (!u) return '';
-  let cleaned = u.trim().replace(/\\/g, '').replace(/^['"]+|['"]+$/g, '');
-  cleaned = cleaned.replace(/^https?:\/\/itemcdn\.tmall\.com\/%22(https?:\/\/[^%]+)%22\/?$/i, '$1');
-  cleaned = cleaned.replace(/^https?:\/\/itemcdn\.tmall\.com\/["']?(https?:\/\/[^"']+?)["']?\/?$/i, '$1');
-  cleaned = cleaned.replace(/&amp;/g, '&');
-  if (cleaned.startsWith('//')) return `https:${cleaned}`;
-  return cleaned;
 }
 
 function uniqueImgs(urls: string[]): string[] {

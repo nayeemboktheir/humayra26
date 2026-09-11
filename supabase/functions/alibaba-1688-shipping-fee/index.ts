@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
     if (hasValidWeight) {
       params.set('total_weight', requestedWeight.toFixed(3));
     }
-    const url = `http://api.tmapi.top/1688/item/shipping?${params.toString()}`;
+    const url = `https://api.tmapi.top/1688/item/shipping?${params.toString()}`;
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
