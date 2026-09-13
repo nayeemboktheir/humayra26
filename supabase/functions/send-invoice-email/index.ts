@@ -42,7 +42,9 @@ function parseOrderLines(order: OrderData) {
         return { name: name.trim(), qty: Number(qty), unitPrice, total: Number(qty) * unitPrice };
       })
       .filter(Boolean);
-    if (lines.length > 0) return lines as { name: string; qty: number; unitPrice: number; total: number }[];
+    const parsed = lines as { name: string; qty: number; unitPrice: number; total: number }[];
+    const parsedQty = parsed.reduce((s, l) => s + l.qty, 0);
+    if (parsed.length > 0 && parsedQty === Number(order.quantity)) return parsed;
   }
   return [
     {
