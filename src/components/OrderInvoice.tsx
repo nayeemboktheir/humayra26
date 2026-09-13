@@ -51,7 +51,11 @@ function parseOrderLines(order: OrderData) {
         : (productTitle || variant);
       return { name: fullName, qty: Number(qty), unitPrice, total: Number(qty) * unitPrice };
     }).filter(Boolean);
-    if (lines.length > 0) return lines as { name: string; qty: number; unitPrice: number; total: number }[];
+    const parsed = lines as { name: string; qty: number; unitPrice: number; total: number }[];
+    const parsedQty = parsed.reduce((s, l) => s + l.qty, 0);
+    // Only trust the note breakdown when it still matches the order's real quantity.
+    // (Quantity can be changed in the cart after the breakdown was saved.)
+    if (parsed.length > 0 && parsedQty === Number(order.quantity)) return parsed;
   }
   return [{
     name: productTitle + (order.variant_name ? `\n— ${order.variant_name}` : ""),

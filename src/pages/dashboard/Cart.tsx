@@ -94,7 +94,11 @@ export default function Cart() {
 
           let notes = "";
           if (item.sku_details && Array.isArray(item.sku_details) && item.sku_details.length > 0) {
-            notes = item.sku_details.map((s: any) => `${s.name}: ${s.qty} pcs × ৳${s.unitPrice}`).join("\n");
+            const skuQty = item.sku_details.reduce((s: number, d: any) => s + Number(d.qty || 0), 0);
+            // Skip the stale breakdown if the quantity was changed in the cart afterwards.
+            if (skuQty === item.quantity) {
+              notes = item.sku_details.map((s: any) => `${s.name}: ${s.qty} pcs × ৳${s.unitPrice}`).join("\n");
+            }
           }
           notes += `\n[Address: ${opts.address}]\n[Delivery: ${opts.deliveryMethod}]`;
 
