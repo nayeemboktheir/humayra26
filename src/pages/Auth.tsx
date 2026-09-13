@@ -9,6 +9,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { toast } from "sonner";
 import { Loader2, Mail, Lock, User, Phone } from "lucide-react";
 import { isStaffRole, resolveUserRole } from "@/lib/roles";
+import { markSignupNoticePending } from "@/components/SignupImportantNotice";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -129,6 +130,8 @@ const Auth = () => {
             phone: normalizedPhone,
           });
         }
+
+        markSignupNoticePending();
 
         if (data.session) {
           toast.success("একাউন্ট তৈরি হয়েছে! আপনি এখন লগইন আছেন।");
@@ -275,6 +278,8 @@ const Auth = () => {
           phone: verifiedPhone,
         });
       }
+
+      markSignupNoticePending();
 
       toast.success("একাউন্ট তৈরি হয়েছে! এখনই লগইন হয়েছে।");
       // Reset states

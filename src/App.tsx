@@ -10,6 +10,7 @@ import { useAdmin } from "@/hooks/useAdmin";
 import { Loader2 } from "lucide-react";
 import PageLoader from "@/components/PageLoader";
 import TrackingScripts from "@/components/TrackingScripts";
+import SignupImportantNotice from "@/components/SignupImportantNotice";
 import { subscribeCurrency, getCurrencyVersion } from "@/lib/currency";
 
 import Index from "./pages/Index";
@@ -139,6 +140,7 @@ const App = () => {
           <AuthProvider>
             <CartProvider>
             <TrackingScripts />
+            <SignupImportantNotice />
             <Suspense fallback={<PageLoader />}>
               <Routes>
                 <Route path="/" element={<Index />} />
