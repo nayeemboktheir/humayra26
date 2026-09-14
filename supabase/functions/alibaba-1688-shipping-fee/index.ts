@@ -81,7 +81,22 @@ Deno.serve(async (req) => {
       const firstFee = Number(result?.first_unit_fee ?? 0) || 0;
       const rawNextFee = Number(result?.next_unit_fee ?? 0) || 0;
       const chargeableAmount = unit === 'kg' && hasValidWeight ? requestedWeight : requestedQuantity;
-      const calculatedTotalFee = firstFee + Math.max(0, Math.ceil((chargeableAmount - firstUnit) / nextUnit)) * rawNextFee;
+      let calculatedTotalFee = firstFee + Math.max(0, Math.ceil((chargeableAmount - firstUnit) / nextUnit)) * rawNextFee;
+
+      // Bulk freight templates quote a flat fee for a big first block (e.g. ¥35 for the
+      // first 30 kg). 1688 does NOT charge that block fee for a tiny parcel — it bills the
+      // per-kg rate with a small minimum. Without this, a 0.04 kg item was billed ¥35.
+      const BULK_TEMPLATE_MIN_FIRST_UNIT_KG = 5;
+      const SMALL_PARCEL_MIN_CNY = 2.4;
+      if (
+        unit === 'kg' && hasValidWeight &&
+        firstUnit >= BULK_TEMPLATE_MIN_FIRST_UNIT_KG &&
+        requestedWeight < firstUnit && firstFee > 0
+      ) {
+        const perKg = firstFee / firstUnit;
+        calculatedTotalFee = Math.max(SMALL_PARCEL_MIN_CNY, Math.round(requestedWeight * perKg * 100) / 100);
+      }
+
       const totalFee = unit === 'kg' && hasValidWeight && firstFee > 0
         ? calculatedTotalFee
         : (result?.total_fee ?? null);
