@@ -80,26 +80,12 @@ Deno.serve(async (req) => {
       const nextUnit = Number(result?.next_unit ?? firstUnit) || firstUnit;
       const firstFee = Number(result?.first_unit_fee ?? 0) || 0;
       const rawNextFee = Number(result?.next_unit_fee ?? 0) || 0;
+      // Use the charge exactly as TMAPI reports it — no fixed floors or re-derivation.
+      // total_fee is TMAPI's calculated fee for the given quantity/weight; only fall
+      // back to the first/next-unit formula when TMAPI omits total_fee entirely.
       const chargeableAmount = unit === 'kg' && hasValidWeight ? requestedWeight : requestedQuantity;
-      let calculatedTotalFee = firstFee + Math.max(0, Math.ceil((chargeableAmount - firstUnit) / nextUnit)) * rawNextFee;
-
-      // Bulk freight templates quote a flat fee for a big first block (e.g. ¥35 for the
-      // first 30 kg). 1688 does NOT charge that block fee for a tiny parcel — it bills the
-      // per-kg rate with a small minimum. Without this, a 0.04 kg item was billed ¥35.
-      const BULK_TEMPLATE_MIN_FIRST_UNIT_KG = 5;
-      const SMALL_PARCEL_MIN_CNY = 2.4;
-      if (
-        unit === 'kg' && hasValidWeight &&
-        firstUnit >= BULK_TEMPLATE_MIN_FIRST_UNIT_KG &&
-        requestedWeight < firstUnit && firstFee > 0
-      ) {
-        const perKg = firstFee / firstUnit;
-        calculatedTotalFee = Math.max(SMALL_PARCEL_MIN_CNY, Math.round(requestedWeight * perKg * 100) / 100);
-      }
-
-      const totalFee = unit === 'kg' && hasValidWeight && firstFee > 0
-        ? calculatedTotalFee
-        : (result?.total_fee ?? null);
+      const formulaFee = firstFee + Math.max(0, Math.ceil((chargeableAmount - firstUnit) / nextUnit)) * rawNextFee;
+      const totalFee = result?.total_fee ?? (firstFee > 0 ? formulaFee : null);
       // Some already-deployed clients treat `0` as missing and multiply the
       // first fee by quantity. Send a tiny positive value instead so flat-rate
       // products still calculate as a single local delivery charge.
