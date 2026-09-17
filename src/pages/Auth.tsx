@@ -193,6 +193,41 @@ const Auth = () => {
     }
   };
 
+  const handlePhonePasswordLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!phone || phone.length < 11) {
+      toast.error("সঠিক মোবাইল নাম্বার দিন");
+      return;
+    }
+    if (!phoneLoginPassword) {
+      toast.error("পাসওয়ার্ড দিন");
+      return;
+    }
+    setPhoneLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("phone-password-login", {
+        body: { phone, password: phoneLoginPassword },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      const { error: sessionError } = await supabase.auth.setSession({
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+      });
+      if (sessionError) throw sessionError;
+
+      toast.success("সফলভাবে লগইন হয়েছে!");
+      const { data: { user: loggedInUser } } = await supabase.auth.getUser();
+      const role = loggedInUser ? await resolveUserRole(loggedInUser.id) : null;
+      navigate(isStaffRole(role) ? "/admin" : "/dashboard");
+    } catch (error: any) {
+      toast.error(error.message || "লগইন করতে সমস্যা হয়েছে");
+    } finally {
+      setPhoneLoading(false);
+    }
+  };
+
   const handleSendOtp = async () => {
     if (!phone || phone.length < 11) {
       toast.error("সঠিক মোবাইল নাম্বার দিন");
