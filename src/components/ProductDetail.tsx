@@ -453,7 +453,10 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
     setCheckoutOpen(true);
   };
 
-  if (!product && isLoading) {
+  // Keep loading feedback in the product layout itself rather than showing a
+  // detached banner. This also prevents cached list-item data from briefly
+  // looking like complete product data while the full detail request is active.
+  if (isLoading) {
     return (
       <main className="min-h-screen bg-background animate-fade-in">
         <div className="border-b bg-card">
@@ -535,13 +538,6 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
 
   return (
     <main className="min-h-screen bg-background">
-      {isLoading && (
-        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-primary text-primary-foreground px-4 py-1.5 rounded-full text-xs flex items-center gap-2 shadow-lg">
-          <Loader2 className="h-3 w-3 animate-spin" />
-          Loading product...
-        </div>
-      )}
-
       {/* ===== Product Layout ===== */}
       <div className="mx-auto px-2 sm:px-3 max-w-[1600px] py-4">
         {/* Breadcrumb */}
@@ -613,7 +609,8 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
         </div>
 
         {/* 3 Column Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_320px] lg:grid-cols-[auto_1fr_320px] gap-3 lg:gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_320px] lg:grid-cols-[minmax(0,1fr)_320px] gap-3 lg:gap-4">
+          <div className="min-w-0 lg:grid lg:grid-cols-[auto_minmax(0,1fr)] lg:gap-3 lg:col-span-1">
 
           {/* COL 1: Vertical Thumbnails + Main Image */}
           <div className="flex gap-3 lg:col-span-1">
@@ -636,13 +633,13 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
               )}
             </div>
 
-            <div className="relative rounded-xl overflow-hidden bg-muted border shadow-sm w-full max-w-[520px]">
+            <div className="relative self-start aspect-square rounded-xl overflow-hidden bg-muted border shadow-sm w-full max-w-[520px]">
               {showVideo && product.video ? (
-                <video src={product.video} controls autoPlay className="w-full aspect-square object-contain" />
+                <video src={product.video} controls autoPlay className="w-full h-full object-contain" />
               ) : (
                 <img src={cdnImage(variantOverrideImage || images[selectedImage], 800)} alt={product.title} referrerPolicy="no-referrer"
                   fetchPriority="high" decoding="async"
-                  className="w-full aspect-square object-contain"
+                  className="w-full h-full object-contain"
                   onError={cdnImageFallback(variantOverrideImage || images[selectedImage])} />
               )}
               {product.video && (
@@ -842,6 +839,71 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                 নিষিদ্ধ পণ্যের মধ্যে অন্তর্ভুক্ত : সিগারেট, অ্যালকোহল, তামাক, ক্যানাবিস, জুয়া সামগ্রী, মাদকদ্রব্য, ড্রোন, ওষুধপত্র, মোবাইল, অস্ত্র, বিস্ফোরক, ঝুঁকিপূর্ণ রাসায়নিক পদার্থ, মানবদেহের অঙ্গ বা শরীরের তরল, প্রাপ্তবয়স্ক পণ্য, অশ্লীল পণ্য, প্রাণী নির্যাতনের সাথে সম্পর্কিত পণ্য, বিপন্ন প্রজাতি, ডিজিটাল মুদ্রা, বিনিয়োগ-সংক্রান্ত পণ্য, ঘৃণা ছড়ানো সামগ্রী, সহিংস পণ্য, আপত্তিকর পণ্য, খাদ্য আইটেম
               </p>
             </div>
+          </div>
+
+          {/* ===== Tabs Section ===== */}
+          <div className="mt-8 lg:col-span-2 min-w-0">
+            <Tabs defaultValue="specs">
+              <TabsList className="w-full justify-start border-b rounded-none bg-transparent h-auto p-0 gap-0 overflow-x-auto scrollbar-hide">
+                <TabsTrigger
+                  value="specs"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-5 py-3 text-sm font-medium"
+                >
+                  Specifications
+                </TabsTrigger>
+                <TabsTrigger
+                  value="description"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-5 py-3 text-sm font-medium"
+                >
+                  Description
+                </TabsTrigger>
+                <TabsTrigger
+                  value="reviews"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-5 py-3 text-sm font-medium"
+                >
+                  Reviews
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="specs" className="mt-0">
+                {displayProps.length > 0 ? (
+                  <div className="border rounded-b-lg overflow-hidden">
+                    <table className="w-full text-sm">
+                      <tbody>
+                        {displayProps.map((prop, index) => (
+                          <tr key={index} className="border-b last:border-b-0">
+                            <td className="py-3.5 px-5 bg-muted/30 font-medium text-muted-foreground w-1/3 align-top">{prop.name}</td>
+                            <td className="py-3.5 px-5">{prop.value}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-sm py-12 text-center">No specifications available</p>
+                )}
+              </TabsContent>
+
+              <TabsContent value="description" className="mt-0">
+                {product.desc_img && product.desc_img.length > 0 ? (
+                  <div className="space-y-0 max-w-3xl">
+                    {product.desc_img.map((img, idx) => (
+                      <img key={idx} src={img} alt={`Description ${idx + 1}`} referrerPolicy="no-referrer" className="w-full" loading="lazy" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-sm py-12 text-center">No product description images available</p>
+                )}
+              </TabsContent>
+
+              <TabsContent value="reviews" className="mt-0">
+                <div className="py-12 text-center">
+                  <p className="text-muted-foreground text-sm">No reviews yet for this product.</p>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
+
           </div>
 
           {/* COL 3: Right Sidebar */}
@@ -1135,81 +1197,6 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
           </div>
         </div>
 
-
-        {/* ===== Tabs Section ===== */}
-        <div className="mt-8">
-          <Tabs defaultValue="specs">
-            <TabsList className="w-full justify-start border-b rounded-none bg-transparent h-auto p-0 gap-0 overflow-x-auto scrollbar-hide">
-              <TabsTrigger
-                value="specs"
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-5 py-3 text-sm font-medium"
-              >
-                Specifications
-              </TabsTrigger>
-              <TabsTrigger
-                value="description"
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-5 py-3 text-sm font-medium"
-              >
-                Description
-              </TabsTrigger>
-              <TabsTrigger
-                value="reviews"
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-5 py-3 text-sm font-medium"
-              >
-                Reviews
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="specs" className="mt-0">
-              {displayProps.length > 0 ? (
-                <div className="border rounded-b-lg overflow-hidden">
-                  <table className="w-full text-sm">
-                    <tbody>
-                      {displayProps.map((prop, index) => (
-                        <tr key={index} className="border-b last:border-b-0">
-                          <td className="py-3.5 px-5 bg-muted/30 font-medium text-muted-foreground w-1/3 align-top">
-                            {prop.name}
-                          </td>
-                          <td className="py-3.5 px-5">
-                            {prop.value}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <p className="text-muted-foreground text-sm py-12 text-center">No specifications available</p>
-              )}
-            </TabsContent>
-
-            <TabsContent value="description" className="mt-0">
-              {product.desc_img && product.desc_img.length > 0 ? (
-                <div className="space-y-0 max-w-3xl">
-                  {product.desc_img.map((img, idx) => (
-                    <img
-                      key={idx}
-                      src={img}
-                      alt={`Description ${idx + 1}`}
-                      referrerPolicy="no-referrer"
-                      className="w-full"
-                      loading="lazy"
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <p className="text-muted-foreground text-sm py-12 text-center">No product description images available</p>
-              )}
-            </TabsContent>
-
-            <TabsContent value="reviews" className="mt-0">
-              <div className="py-12 text-center">
-                <p className="text-muted-foreground text-sm">No reviews yet for this product.</p>
-              </div>
-            </TabsContent>
-          </Tabs>
-        </div>
       </div>
 
       <CheckoutDialog open={checkoutOpen} onOpenChange={setCheckoutOpen} data={checkoutData} />

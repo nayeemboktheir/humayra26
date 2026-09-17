@@ -1,4 +1,4 @@
-/* deploy test v2 */ import { useState, useEffect, useRef, useCallback } from "react";
+/* deploy test v2 */ import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import logoFull from "@/assets/logo-full.png?w=640&format=webp";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Search, Camera, ImageIcon, Loader2, ChevronLeft, ChevronRight, Star, BadgeCheck, Flame, Truck, Heart, ShoppingCart, User, Zap, SlidersHorizontal, Download, X, ArrowRight } from "lucide-react";
@@ -191,6 +191,14 @@ const Index = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [trendingProducts, setTrendingProducts] = useState(fallbackTrendingProducts);
   const lastProductFetchRef = useRef<string | null>(null);
+
+  // SPA navigation preserves the document scroll position by default. Reset it
+  // before the detail view paints so a product opened from the bottom of the home
+  // page does not appear to start at its tabs/footer.
+  const productParam = searchParams.get('product');
+  useLayoutEffect(() => {
+    if (productParam) window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [productParam]);
 
   useEffect(() => {
     const handler = (e: Event) => {
