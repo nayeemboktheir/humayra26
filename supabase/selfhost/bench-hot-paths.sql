@@ -9,6 +9,28 @@
 -- quick, so wall-clock gains look modest — the point is that "Seq Scan + Sort"
 -- becomes "Index Scan", which is what stops the page degrading as rows accumulate.
 -- A Sort node with an explicit sort method is the tell: the index removes it.
+--
+-- RESULTS — self-hosted rehearsal stack, 2026-09-18, 909 orders / 3,336
+-- notifications / 1,919 cart_items / 1,579 shipments / 816 wishlist:
+--
+--   query               before     after     plan change                   blocks
+--   my cart             7.04 ms -> 0.07 ms   Seq Scan -> Bitmap Index Scan  200 -> 3
+--   my notifications    2.38 ms -> 0.06 ms   Seq+Sort -> Index Scan          64 -> 6
+--   my wishlist         1.82 ms -> 0.07 ms   Seq+Sort -> Index Scan          64 -> 3
+--   my shipments        1.54 ms -> 0.11 ms   Seq+Sort -> Index Scan          22 -> 11
+--   my transactions     1.00 ms -> 0.05 ms   Seq+Sort -> Index Scan           7 -> 3
+--   my orders           0.83 ms -> 0.08 ms   Seq+Sort -> Index Scan         139 -> 21
+--   admin orders list   0.64 ms -> 0.09 ms   Seq+Sort -> Index Scan         136 -> 46
+--   admin users list    0.90 ms -> 0.15 ms   Seq+Sort -> Index Scan          12 -> 10
+--
+-- The cart query was reading 1,919 rows to return 1. Every Sort node disappeared:
+-- the composite (user_id, created_at DESC) satisfies filter and ordering in one pass.
+--
+-- Two results in the raw output are NOT index wins, and should not be quoted as such:
+-- trending_products (15 rows) and role_permissions (52 rows) still show Seq Scan after
+-- the migration — correctly, the planner ignores an index at that size. Their timings
+-- moved only because the pages were already in the buffer cache on the second run
+-- (read=1 -> hit=1).
 
 \pset pager off
 \timing on

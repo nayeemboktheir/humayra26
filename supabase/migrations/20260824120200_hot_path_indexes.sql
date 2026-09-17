@@ -33,9 +33,12 @@ CREATE INDEX IF NOT EXISTS idx_cart_items_user_created
 CREATE INDEX IF NOT EXISTS idx_admin_messages_user_created
   ON public.admin_messages (user_id, created_at);
 
--- Single-row lookups by user.
-CREATE INDEX IF NOT EXISTS idx_profiles_user_id ON public.profiles (user_id);
-CREATE INDEX IF NOT EXISTS idx_wallets_user_id  ON public.wallets (user_id);
+-- Single-row lookups by user need no index here: profiles.user_id and wallets.user_id
+-- already carry UNIQUE constraints (profiles_user_id_key, wallets_user_id_key), and a
+-- UNIQUE constraint is backed by an index. Earlier revisions of this migration added
+-- idx_profiles_user_id and idx_wallets_user_id, which duplicated those exactly — the
+-- EXPLAIN plan just swapped one index name for the other at identical cost, while the
+-- extra indexes still had to be maintained on every write. Dropped; do not re-add.
 
 -- Admin list views sort the whole table by recency.
 CREATE INDEX IF NOT EXISTS idx_profiles_created   ON public.profiles (created_at DESC);
