@@ -146,50 +146,12 @@ function mapDetail(d: any, fallbackId: number, detailImgs: string[] = [], shopPr
   const shop = d?.shop_info || {};
   const itemId = parseInt(String(d?.item_id || fallbackId), 10) || fallbackId;
 
-  // Backward compatibility for the currently deployed Hostinger bundle: older frontend code
-  // still expects an OTAPI-style Result.Item payload and parses that client-side.
-  const configuratorValues: Record<string, any> = {};
-  const legacyConfiguratorAttributes = skuProps.flatMap((sp: any) => {
-    const pid = String(sp?.pid ?? '');
-    const propName = String(sp?.prop_name || sp?.name || 'Option');
-    return (Array.isArray(sp?.values) ? sp.values : []).map((v: any) => {
-      const vid = String(v?.vid ?? '');
-      const value = String(v?.name || v?.value || vid);
-      configuratorValues[`${pid}:${vid}`] = { Vid: vid, OriginalValue: vid, Value: value };
-      return {
-        IsConfigurator: true,
-        PropertyName: propName,
-        OriginalPropertyName: propName,
-        Vid: vid,
-        Value: value,
-        OriginalValue: vid,
-        ImageUrl: v?.imageUrl ? normalizeImg(v.imageUrl) : undefined,
-        MiniImageUrl: v?.imageUrl ? normalizeImg(v.imageUrl) : undefined,
-      };
-    });
-  });
-  const legacyProps = flatProps.map((p) => ({
-    PropertyName: p.name,
-    OriginalPropertyName: p.name,
-    Value: p.value,
-    OriginalValue: p.value,
-    IsConfigurator: false,
-  }));
-  const legacyQuantityRanges = ((priceRange || [[minNum, price]]) as [number, number][]).map(([minQuantity, tierPrice]: [number, number]) => ({
-    MinQuantity: minQuantity,
-    Price: { OriginalPrice: tierPrice },
-  }));
-  const legacyConfiguredItems = rawSkus.map((s: any) => {
-    const propsIds = String(s?.props_ids || '').split(';').filter(Boolean);
-    return {
-      Id: String(s?.skuid || ''),
-      Title: String(s?.props_names || '').replace(/;/g, ' / '),
-      Price: { OriginalPrice: parseNumber(s?.sale_price || price) || price },
-      Quantity: parseIntSafe(s?.stock),
-      Configurators: propsIds.map((key) => configuratorValues[key] || { Vid: key, OriginalValue: key, Value: key }),
-    };
-  });
-
+  // The OTAPI-style `Result.Item` mirror that used to be built here is gone. It was
+  // 19,423 of a 30,680-byte product response — 63% of every product-detail payload —
+  // and nothing read it: the client's `getProduct()` consumes the flat fields below,
+  // and `parseRawProduct`, the only `Result.Item` reader, was never called. Verified
+  // against the live Hostinger bundle, where the sole `.Result` access sits inside
+  // that dead method. cache-api/src/tmapiMap.js already omitted it.
   const sellerInfo = {
     nick: shop?.seller_login_id || shop?.shop_name || '',
     shop_name: shop?.shop_name || '',
@@ -225,34 +187,6 @@ function mapDetail(d: any, fallbackId: number, detailImgs: string[] = [], shopPr
     i_info: sellerInfo,
     total_sold: totalSold,
     item_weight: typeof firstSkuWeight === 'number' && firstSkuWeight > 0 ? firstSkuWeight : (d?.delivery_info?.unit_weight || undefined),
-    Result: {
-      Item: {
-        Id: `abb-${itemId}`,
-        Title: d?.title || '',
-        OriginalTitle: d?.title || '',
-        Description: buildDescHtml(descriptionImgs, props),
-        Price: { OriginalPrice: price },
-        MainPictureUrl: mainImgs[0] || '',
-        Pictures: mainImgs.map((u) => ({ Url: u, Large: { Url: u } })),
-        Attributes: [...legacyProps, ...legacyConfiguratorAttributes],
-        ConfiguredItems: legacyConfiguredItems,
-        QuantityRanges: legacyQuantityRanges,
-        Location: d?.delivery_info?.location || '',
-        MasterQuantity: totalStock,
-        FirstLotQuantity: minNum,
-        VideoUrl: d?.video_url || undefined,
-        VendorName: shop?.shop_name || shop?.seller_login_id || '',
-        VendorDisplayName: shop?.shop_name || shop?.seller_login_id || '',
-        VendorId: shop?.seller_member_id || shop?.member_id || shop?.seller_user_id || shop?.user_id || '',
-        FeaturedValues: [
-          { Name: 'SalesInLast30Days', Value: String(totalSold || 0) },
-          { Name: 'TotalSales', Value: String(totalSold || 0) },
-        ],
-        PhysicalParameters: {
-          Weight: typeof firstSkuWeight === 'number' && firstSkuWeight > 0 ? firstSkuWeight : d?.delivery_info?.unit_weight,
-        },
-      },
-    },
   };
 }
 

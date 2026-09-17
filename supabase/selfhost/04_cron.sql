@@ -21,6 +21,13 @@
 
 \set ON_ERROR_STOP on
 
+-- The dump-based restore loads only the public schema, so the extensions these
+-- jobs depend on are not carried across. pg_cron is preloaded in the
+-- supabase/postgres image, so CREATE EXTENSION is all that is needed; it only
+-- installs into the database named by cron.database_name (postgres).
+CREATE EXTENSION IF NOT EXISTS pg_cron WITH SCHEMA pg_catalog;
+CREATE EXTENSION IF NOT EXISTS pg_net  WITH SCHEMA extensions;
+
 BEGIN;
 
 -- Idempotent: unschedule first so re-running this file does not stack duplicates.

@@ -36,14 +36,18 @@ ORDER BY e.item;
 \echo ''
 \echo '=== row parity (search_cache excluded on purpose: it self-rebuilds) ==='
 
+-- Counts below are taken from the 2026-09-17 11:12 UTC pg_dump, measured after
+-- restoring it, not from a separate query against production. Production is
+-- live and moving: querying it separately drifts by a few rows per minute and
+-- makes the check lie. If you take a new dump, re-derive these from it.
 WITH expected(t, want) AS (VALUES
   ('auth.users',        724), ('auth.identities',   724),
   ('admin_messages',     21), ('app_settings',       31),
-  ('cart_items',       1921), ('category_products', 420),
-  ('notifications',    3312), ('orders',            906),
+  ('cart_items',       1919), ('category_products', 420),
+  ('notifications',    3336), ('orders',            909),
   ('phone_otps',       1077), ('profiles',          724),
   ('refunds',             0), ('role_permissions',   52),
-  ('shipments',        1576), ('sms_logs',         3964),
+  ('shipments',        1579), ('sms_logs',         3970),
   ('transactions',      330), ('trending_products',  15),
   ('user_roles',          3), ('wallets',           724),
   ('wishlist',          816)

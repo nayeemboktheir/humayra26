@@ -75,7 +75,7 @@ no service-role key, no direct connection string. Consequences you will hit:
   paths return byte-identical JSON. There is no shared module between the Deno edge
   functions and the Node service — **edit both when the TMAPI mapping changes.**
 
-Most `alibaba-1688-*`, `firecrawl-*`, `paystation-*` and SMS functions run with
+Most `alibaba-1688-*`, `paystation-*` and SMS functions run with
 `verify_jwt = false` ([supabase/config.toml](supabase/config.toml)); `admin-send-sms` is
 the JWT-verified exception.
 

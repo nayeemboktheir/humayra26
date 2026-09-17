@@ -11,14 +11,42 @@ and its inventory is six months stale. Where the two disagree, this file wins.
 
 ---
 
+## Status — 2026-09-17
+
+**The rehearsal database is loaded and verified.** What is done:
+
+- Stack rebuilt on `supabase/postgres:17.6.1.173`, answering on
+  **`https://api.tradeon.global`**.
+- Production dump restored via [restore.sh](restore.sh). All 16 parity checks
+  matched: 18 tables · 12 functions · 13 triggers · 64 policies · RLS 18 ·
+  12 FKs · 724 users · 724 identities · 909 orders · 1,579 shipments ·
+  0 orphans · 0 duplicates · 724/724 bcrypt.
+- Confirmed through Kong/PostgREST, not just psql: `service_role` sees correct
+  counts, `anon` reads `category_products` but gets `[]` for `orders`, and
+  `get_my_role` / `get_category_products` / `get_shipment_stage_counts` all respond.
+- The 8 cron jobs are scheduled and active via [04_cron.sql](04_cron.sql).
+
+Outstanding: edge functions + their secrets, backups, and rotating the stack
+credentials (the dashboard Basic-auth pair guarding the publicly reachable
+Studio at `/` is the urgent one).
+
+**Where the truth lives:** [restore.md](restore.md) is the procedure that was
+actually used. The sections below are the earlier REST-transfer design, kept
+because the schema analysis in them still holds — but the order-of-operations
+table is superseded.
+
+---
+
 ## The target stack
 
-Already provisioned, healthy since 2026-09-07. Coolify project `Tradeon`,
-service `supabase` (`wokkyc531r9nh5mg1bs2ooyg`), running on the Coolify host.
+Coolify project `Tradeon`, service `supabase` (`emhbzh3hwap5rmq6ysysloil`),
+running on the Coolify host. The original service (`wokkyc531r9nh5mg1bs2ooyg`)
+was deleted and recreated to get onto Postgres 17 — swapping the image tag alone
+failed, because the template's `postgresql.conf` was written for 15.
 
 | Component | Version |
 |---|---|
-| Postgres | `supabase/postgres:15.8.1.085` |
+| Postgres | `supabase/postgres:17.6.1.173` (template default was `15.8.1.085` — see below) |
 | Auth | `gotrue:v2.186.0` |
 | REST | `postgrest:v14.6` |
 | Storage | `storage-api:v1.44.2` on **MinIO** (S3 backend) |
@@ -26,15 +54,45 @@ service `supabase` (`wokkyc531r9nh5mg1bs2ooyg`), running on the Coolify host.
 | Realtime | `realtime:v2.76.5` |
 | Gateway | `kong:3.9.1` |
 
-Currently answering on `https://supabasekong-wokkyc531r9nh5mg1bs2ooyg.botbhai.net`.
-The decision is to move it to **`api.tradeon.global`** before anything is baked
-into a build — that hostname ends up in the frontend bundle, in PayStation
-callbacks and in auth email links, and changing it later costs another cutover.
+Answering on **`https://api.tradeon.global`**, which is Cloudflare-proxied. That
+matters for two things later: Cloudflare caps request bodies at 100 MB (storage
+uploads) and terminates WebSockets, so test Realtime before relying on it.
+
+Note that `/` on that hostname serves **Studio behind HTTP Basic auth**, and
+`/pg/` serves postgres-meta. Both are publicly reachable, so the
+`DASHBOARD_USERNAME` / `DASHBOARD_PASSWORD` pair is effectively an internet-facing
+credential guarding full SQL access. Treat it accordingly.
 
 > The stack sits on the same host that runs Coolify itself. That is fine for a
 > rehearsal. Before this carries real orders, it should move to the second server
 > (`72.60.200.46`) or the control plane and the production database share a
 > blast radius.
+
+### Postgres version parity
+
+Lovable Cloud runs **PostgreSQL 17.6.1.063**. Coolify's Supabase template ships
+`supabase/postgres:15.8.1.085`, so the stack as provisioned would be a major
+version *downgrade*, 17 → 15.
+
+Strictly, the transfer does not require matching versions — it is logical (DDL
+text plus JSON rows), and the schema uses nothing newer than PG12: plain tables,
+btree indexes, `sql`/`plpgsql` functions, RLS, one enum. It would load into 15.
+
+Match anyway, and do it before the first load:
+
+- A downgrade is a one-way ratchet. It works today only because the schema is
+  simple; the first PG16/17 feature used on production can never come across.
+- Planner behaviour differs between 15 and 17. This branch exists for
+  performance work — benchmarking `hot_path_indexes` on 15 tells you nothing
+  about a PG17 production.
+- If Lovable's "Export project data" turns out to be a real `pg_dump`, a PG17
+  dump **cannot** be restored into PG15 at all.
+
+Change the `supabase-db` image tag in Coolify to **`supabase/postgres:17.6.1.173`**
+and redeploy. That is the same PostgreSQL (17.6.1) as production with a newer
+Supabase build number. Do not use the `-orioledb` or `-multigres` variants.
+The stack is empty, so this costs one redeploy and risks nothing — after it
+holds 17,340 rows it becomes a migration in its own right.
 
 ## Production snapshot — 2026-09-17
 
@@ -109,12 +167,35 @@ side.
 | 6 | `99_cleanup.sql` | drops the temporary RPCs, re-enables triggers |
 | 7 | `04_cron.sql` | the 8 scheduled jobs, rewritten for the new URL |
 
+### Validation status
+
+Steps 1–3 were applied to a throwaway `postgres:17-alpine` (PostgreSQL 17.11) on
+2026-09-17 with `ON_ERROR_STOP=1`. All applied cleanly and produced exactly
+production's object counts: **18 tables · 12 functions · 13 triggers · 64
+policies · RLS on 18 · 13 indexes · 12 foreign keys · 2 buckets**.
+
+The auth bridge was smoke-tested against synthetic rows and behaves correctly:
+with import mode on, no phantom profiles/wallets/shipments are created and the
+`$2a$` hash and empty-string token columns survive verbatim; with import mode
+off, a signup creates its profile and wallet and a new order auto-creates its
+shipment. The `CREATE EXTENSION` lines are the only part not covered — a vanilla
+Postgres image has no `pg_net` or `pg_cron`.
+
 **Load order is not negotiable.** Nine of the twelve foreign keys point at
 `auth.users`, so auth loads first. And three triggers have to be off during the
 load — `on_auth_user_created`, `on_auth_user_created_wallet` and
 `trigger_auto_create_shipment` — or you end up with 724 duplicate profiles, 724
 duplicate wallets and 906 phantom shipments. That is what `set_import_mode`
 exists for; `verify.sql` fails if it was missed.
+
+> **Superseded as of 2026-09-17.** Lovable's *Export project data* turns out to
+> produce a real `pg_dump` custom-format archive, so the data now comes from
+> that instead of the REST transfer described below. See
+> [restore.md](restore.md) for the procedure that was actually rehearsed.
+> Steps 3 and 4 in the table above are no longer needed — the dump carries
+> `auth.users` natively, so the bridge RPCs and `set_import_mode` are unused.
+> `01`/`02` remain as documentation of production's schema and as a fallback;
+> `verify.sql`, `04_cron.sql` and `99_cleanup.sql` still apply.
 
 ### How the data actually moves
 
@@ -151,18 +232,31 @@ choice, not the first.
   frontend bundle.
 - **`api.tradeon.global`** needs a DNS A record to the Coolify host and the FQDN
   set on the `supabase-kong` container.
-- **Edge functions.** 15 of them, and self-hosting changes the deal: there is no
+- **Edge functions.** 17 of them (was 21; Firecrawl x3, the OTAPI `alibaba-1688-search` and `translate-text` removed as dead code). Self-hosting changes the deal: there is no
   `supabase functions deploy`, functions are files bind-mounted into the
   edge-runtime container, and **`config.toml`'s per-function `verify_jwt` is
-  ignored** — the self-hosted runtime has one global `FUNCTIONS_VERIFY_JWT`.
-  14 functions want `verify_jwt = false` and `admin-send-sms` wants `true`, so
-  the global goes to `false` and `admin-send-sms` has to check the JWT in its own
-  code. That is a real code change and it is not written yet.
-- **Secrets.** `TMAPI_TOKEN`, `OTCOMMERCE_API_KEY`, `FIRECRAWL_API_KEY`,
-  `PAYSTATION_MERCHANT_ID`, `PAYSTATION_PASSWORD`, `RESEND_API_KEY`,
-  `SEND_EMAIL_HOOK_SECRET`. `LOVABLE_API_KEY` is only a shared bearer secret in
-  `auth-email-hook` — rename it `AUTH_HOOK_SECRET` and generate a fresh value.
-  Reuse the existing `TMAPI_TOKEN`; it is billed per token.
+  ignored** — the self-hosted runtime has one global `FUNCTIONS_VERIFY_JWT`,
+  already set to `false`. That turns out to be fine: `admin-send-sms` was the
+  only function wanting `verify_jwt = true`, and it already verifies the bearer
+  token itself and checks `has_role(..., 'admin')`, returning 401/403 on its own.
+  No code change needed.
+- **Secrets.** `TMAPI_TOKEN`, `PAYSTATION_MERCHANT_ID`, `PAYSTATION_PASSWORD`,
+  `RESEND_API_KEY`, `SEND_EMAIL_HOOK_SECRET`. Reuse the existing `TMAPI_TOKEN`;
+  it is billed per token. `OTCOMMERCE_API_KEY`, `FIRECRAWL_API_KEY` and
+  `LOVABLE_API_KEY` are all gone with the dead functions below.
+- **Auth email is currently dead on the new stack.** `mailer_autoconfirm` is
+  `false`, so signup needs a confirmation mail, but there is no SMTP configured
+  and no `GOTRUE_HOOK_SEND_EMAIL_*` set. Migrated users are unaffected (716 of
+  724 were already confirmed); new signups and password resets are not. Needs
+  `auth-email-hook` deployed, `RESEND_API_KEY` set, a `v1,whsec_<base64>` secret,
+  and GoTrue pointed at `http://supabase-edge-functions:9000/functions/v1/auth-email-hook`.
+  Drop the `LOVABLE_API_KEY` fallback in `isAuthorizedWebhook` rather than
+  renaming it — a second accepted credential on an endpoint that sends mail from
+  our domain is the weaker option once the signed path works.
+- **`GOTRUE_SITE_URL` is wrong.** It is set to `https://api.tradeon.global`, the
+  API hostname. GoTrue builds confirmation and reset links from it, so those
+  emails would send users to the API instead of the storefront. Set it to the
+  site URL, and fill `ADDITIONAL_REDIRECT_URLS`, which is empty.
 - **Backups.** Lovable took care of this invisibly. Self-hosted, nothing does
   until we set up `pg_dump` on a schedule with an offsite copy. This should not
   be left until cutover day.
