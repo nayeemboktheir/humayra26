@@ -24,6 +24,7 @@ const Auth = () => {
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState("");
   const [phoneLoading, setPhoneLoading] = useState(false);
+  const [phoneLoginPassword, setPhoneLoginPassword] = useState("");
 
   // Phone registration after OTP verify
   const [isNewPhoneUser, setIsNewPhoneUser] = useState(false);
