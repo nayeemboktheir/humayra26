@@ -31,3 +31,5 @@ project_id = "kcihftfgmsrpcljsbjdj"
     verify_jwt = true
   [functions.verify-sms-otp]
     verify_jwt = false
+  [functions.phone-password-login]
+    verify_jwt = false
