@@ -244,6 +244,22 @@ choice, not the first.
   `RESEND_API_KEY`, `SEND_EMAIL_HOOK_SECRET`. Reuse the existing `TMAPI_TOKEN`;
   it is billed per token. `OTCOMMERCE_API_KEY`, `FIRECRAWL_API_KEY` and
   `LOVABLE_API_KEY` are all gone with the dead functions below.
+- **GoTrue rejects a plain-HTTP hook URI.** `GOTRUE_HOOK_SEND_EMAIL_URI` must be
+  `https://…` unless the host is localhost/127.0.0.1/::1 — an internal Docker
+  service name over http fails config load with
+  `only localhost, 127.0.0.1, and ::1 are supported with http`, and GoTrue
+  crash-loops rather than starting degraded. Use the public URL:
+  `https://api.tradeon.global/functions/v1/auth-email-hook`. The webhook then
+  leaves the host and returns through Cloudflare and Kong, which costs tens of
+  milliseconds on an operation that sends an email anyway.
+- **The hook secret must be `v1,whsec_<base64>`**, the same value in both
+  `GOTRUE_HOOK_SEND_EMAIL_SECRETS` (GoTrue signs) and `SEND_EMAIL_HOOK_SECRET`
+  (the function verifies). Generate with `openssl rand -base64 32`; a bare or
+  short value fails signature verification at runtime rather than at boot.
+- **`Noop mail client being used` in the GoTrue log is expected** with the hook
+  enabled and no SMTP — but it is also what silently swallows every email if the
+  hook is *not* firing. Confirm with a real signup and the edge-function log, not
+  by reading that line.
 - **Auth email is currently dead on the new stack.** `mailer_autoconfirm` is
   `false`, so signup needs a confirmation mail, but there is no SMTP configured
   and no `GOTRUE_HOOK_SEND_EMAIL_*` set. Migrated users are unaffected (716 of
