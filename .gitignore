@@ -46,3 +46,10 @@ lovable db/
 *.backup
 *.dump
 *.sql.gz
+fun
+
+# Frontend env for the self-hosted rehearsal stack (contains the anon key).
+.env.selfhost
+
+# Tarball produced when shipping functions to the VPS (see supabase/selfhost/deploy-functions.sh).
+functions.tgz
