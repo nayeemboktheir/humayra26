@@ -80,11 +80,12 @@ Deno.serve(async (req) => {
       const nextUnit = Number(result?.next_unit ?? firstUnit) || firstUnit;
       const firstFee = Number(result?.first_unit_fee ?? 0) || 0;
       const rawNextFee = Number(result?.next_unit_fee ?? 0) || 0;
+      // Use the charge exactly as TMAPI reports it — no fixed floors or re-derivation.
+      // total_fee is TMAPI's calculated fee for the given quantity/weight; only fall
+      // back to the first/next-unit formula when TMAPI omits total_fee entirely.
       const chargeableAmount = unit === 'kg' && hasValidWeight ? requestedWeight : requestedQuantity;
-      const calculatedTotalFee = firstFee + Math.max(0, Math.ceil((chargeableAmount - firstUnit) / nextUnit)) * rawNextFee;
-      const totalFee = unit === 'kg' && hasValidWeight && firstFee > 0
-        ? calculatedTotalFee
-        : (result?.total_fee ?? null);
+      const formulaFee = firstFee + Math.max(0, Math.ceil((chargeableAmount - firstUnit) / nextUnit)) * rawNextFee;
+      const totalFee = result?.total_fee ?? (firstFee > 0 ? formulaFee : null);
       // Some already-deployed clients treat `0` as missing and multiply the
       // first fee by quantity. Send a tiny positive value instead so flat-rate
       // products still calculate as a single local delivery charge.
