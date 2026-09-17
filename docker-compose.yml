@@ -17,7 +17,14 @@ services:
         VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
         VITE_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY}
         VITE_SUPABASE_PROJECT_ID: ${VITE_SUPABASE_PROJECT_ID}
-        VITE_API_BASE: /api
+        # `${VAR-default}` — one dash — substitutes only when VAR is *unset*, so an
+        # explicitly empty value survives. That is the switch: leave it unset and
+        # search/product-detail keep using this instance's cache-api + Redis; set it
+        # to the empty string and alibaba1688Api falls back to the Supabase edge
+        # functions, which is what production does. The second form is what makes
+        # this a real cutover rehearsal — otherwise the 17 deployed functions never
+        # get exercised. See src/lib/api/alibaba1688.ts:6.
+        VITE_API_BASE: ${VITE_API_BASE-/api}
     restart: unless-stopped
     expose:
       - "80"
