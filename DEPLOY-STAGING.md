@@ -14,10 +14,13 @@ different on a bare VPS.
 ```
 Traefik (Coolify's proxy — TLS, :80/:443, owns the domain)
  └─ frontend (Caddy, internal :80 only)
-     ├─ /              → the built SPA (Vite dist/), correct cache headers, no Clear-Site-Data
-     └─ /api/*         → reverse-proxied to cache-api
-                            cache-api → Redis (cache-aside + stale-while-revalidate)
-                                      → TMAPI (only on a cache miss)
+     └─ /              → the built SPA (Vite dist/), correct cache headers, no Clear-Site-Data
+
+There used to be a second and third container here — a Node `cache-api` and a Redis,
+with /api/* proxied to them. Both are gone. Search and product detail call the Supabase
+edge functions, which cache in Postgres themselves (search_cache / product_cache, 12h
+TTL). That makes staging structurally identical to production, which is the point of a
+rehearsal.
 ```
 
 Everything else — auth, orders, wallets, admin, the 20 edge functions not covered here —
@@ -67,12 +70,9 @@ it to `docker compose` at deploy time):
 
 - `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_PROJECT_ID` —
   copied verbatim from your local `.env` (same production Supabase project).
-- `TMAPI_TOKEN` — the same token already used by the Supabase edge functions (Lovable
-  secrets → `TMAPI_TOKEN`). Do not request a second one; TMAPI billing is per-token.
-- Optionally the cache tuning vars (`SEARCH_FRESH_MS`, `SEARCH_TTL_SEC`,
-  `PRODUCT_FRESH_MS`, `PRODUCT_TTL_SEC`, `TMAPI_TIMEOUT_MS`, `DETAIL_PAGE_TIMEOUT_MS`) —
-  compose falls back to sensible defaults (see `cache-api/.env.example`) if you leave
-  them unset.
+`TMAPI_TOKEN` is no longer set on this application — it belongs on the Supabase project,
+as an edge-function environment variable, since the functions are what call TMAPI now.
+Do not request a second token; TMAPI billing is per-token.
 
 `staging.env.example` in the repo documents the same keys for reference, and still
 applies if you ever run this stack on a bare VPS instead of through Coolify — see
@@ -93,16 +93,12 @@ DNS: an A record for `trade.botbhai.net` must point at the Coolify server's publ
 
 Trigger a deploy from the Coolify UI (or push to the `optimization` branch, if this
 application has auto-deploy enabled). Coolify runs `docker compose up -d --build` for
-you — first run pulls `oven/bun:1-alpine`, `caddy:2-alpine`, `redis:7-alpine`, and builds
-the frontend and cache-api images.
+you — first run pulls `oven/bun:1-alpine` and `caddy:2-alpine`, and builds the frontend
+image.
 
 ## 5. Verify
 
 ```bash
-# cache-api + Redis reachable through the proxy chain
-curl -s https://trade.botbhai.net/api/healthz
-# -> {"ok":true,"redis":"up"}
-
 # Cache headers are correct (this is the actual fix for the production bug —
 # confirm there is NO Clear-Site-Data header anywhere in this response)
 curl -sI https://trade.botbhai.net/ | grep -i cache-control
@@ -115,14 +111,16 @@ curl -sI "https://trade.botbhai.net${ASSET}" | grep -i cache-control
 ```
 
 Then in a browser: load the homepage, run a search, open a product. On a **second**
-search for the same term, the response should come back near-instantly — check
-`cacheStatus` in the network tab's response body (`"hit"` or `"stale"` rather than
-`"miss"`).
+search for the same term the response should come back near-instantly — the edge
+function returns `"cached": true` in the response body once `search_cache` has the row
+(measured 3.03s cold vs 0.23s warm). Product detail caches the same way, but only once
+the `product_detail_cache` migration has been applied; without it every product view
+pays two upstream round-trips.
 
 ## 6. Logs / troubleshooting
 
-Use Coolify's own log viewer for the application (per-service: `frontend`, `cache-api`,
-`redis`), or its MCP/API deployment tooling if you're driving this from an agent.
+Use Coolify's own log viewer for the application (`frontend` is the only service now), or
+its MCP/API deployment tooling if you're driving this from an agent.
 
 - **`port is already allocated`** — a service in `docker-compose.yml` is publishing a
   host port that collides with Traefik (or anything else already bound on the Coolify
@@ -130,8 +128,9 @@ Use Coolify's own log viewer for the application (per-service: `frontend`, `cach
 - **Certificate not issuing / domain not resolving** — check the Domains tab, confirm
   the FQDN is saved against the `frontend` service on port 80, and confirm DNS actually
   resolves to the Coolify server's IP.
-- **`/api/*` calls fail but `/` loads fine** — check `cache-api` logs for a startup
-  failure; the service exits immediately if `TMAPI_TOKEN` is unset (see `src/server.js`).
+- **Search or product detail fails but `/` loads fine** — these are edge functions now,
+  so check the Supabase stack, not this application. `TMAPI_TOKEN` missing on the Supabase
+  service gives a clean `{"success":false,"error":"TMAPI_TOKEN not configured"}`.
 
 ## 7. Redeploy after a code change
 

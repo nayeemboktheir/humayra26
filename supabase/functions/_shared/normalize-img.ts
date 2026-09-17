@@ -12,8 +12,9 @@
 // seller-products and both homepage refresh jobs shipped the protocol-relative
 // fix alone. Import from here instead of re-declaring it.
 //
-// `cache-api/src/tmapiMap.js` is the Node-side twin of this logic and must be
-// kept byte-identical in behaviour — see CLAUDE.md.
+// There was also a Node twin in `cache-api/src/tmapiMap.js` that had to be kept
+// behaviourally identical by hand. cache-api is gone, so this is now the single
+// implementation — keep it that way.
 export function normalizeImg(u: string): string {
   if (!u) return '';
   let cleaned = String(u).trim().replace(/\\/g, '').replace(/^['"]+|['"]+$/g, '');

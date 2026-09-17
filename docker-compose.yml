@@ -1,5 +1,15 @@
-# Staging instance for tradeon.global — a separate VPS deployment, entirely independent
-# of the Hostinger/Lovable production setup. Nothing here touches production.
+# Staging instance for tradeon.global — a separate VPS deployment.
+#
+# This used to also run a Node `cache-api` + Redis, with the frontend's search and
+# product-detail calls routed to it through Caddy. That existed only because the
+# Lovable-managed Supabase could not be deployed to, so caching had to live
+# somewhere else. The backend is self-hosted now, and the edge functions already
+# implement the same cache-aside against Postgres (`search_cache`, `product_cache`,
+# 12h TTL) — measured 3.03s cold vs 0.23s warm, with no Redis involved.
+#
+# Keeping it meant maintaining `cache-api/src/tmapiMap.js` as a hand-copied port of
+# the edge-function mapping. The two had already drifted and shipped broken product
+# thumbnails to production search (AUDIT.md §8.1). Deleted rather than re-synced.
 #
 # Deployed via Coolify (build_pack: dockercompose), which runs its own Traefik reverse
 # proxy already bound to host ports 80/443 and terminates TLS itself once a domain is
@@ -17,47 +27,6 @@ services:
         VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
         VITE_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY}
         VITE_SUPABASE_PROJECT_ID: ${VITE_SUPABASE_PROJECT_ID}
-        # `${VAR-default}` — one dash — substitutes only when VAR is *unset*, so an
-        # explicitly empty value survives. That is the switch: leave it unset and
-        # search/product-detail keep using this instance's cache-api + Redis; set it
-        # to the empty string and alibaba1688Api falls back to the Supabase edge
-        # functions, which is what production does. The second form is what makes
-        # this a real cutover rehearsal — otherwise the 17 deployed functions never
-        # get exercised. See src/lib/api/alibaba1688.ts:6.
-        VITE_API_BASE: ${VITE_API_BASE-/api}
     restart: unless-stopped
     expose:
       - "80"
-    depends_on:
-      - cache-api
-
-  cache-api:
-    build: ./cache-api
-    restart: unless-stopped
-    environment:
-      TMAPI_TOKEN: ${TMAPI_TOKEN}
-      REDIS_URL: redis://redis:6379
-      TMAPI_TIMEOUT_MS: ${TMAPI_TIMEOUT_MS:-15000}
-      DETAIL_PAGE_TIMEOUT_MS: ${DETAIL_PAGE_TIMEOUT_MS:-4000}
-      SEARCH_FRESH_MS: ${SEARCH_FRESH_MS:-604800000}
-      SEARCH_TTL_SEC: ${SEARCH_TTL_SEC:-1209600}
-      PRODUCT_FRESH_MS: ${PRODUCT_FRESH_MS:-43200000}
-      PRODUCT_TTL_SEC: ${PRODUCT_TTL_SEC:-259200}
-    depends_on:
-      - redis
-    # No `ports:` — only reachable from other containers on this compose network
-    # (Caddy proxies /api/* to it). Not exposed to the public internet directly.
-
-  redis:
-    image: redis:7-alpine
-    restart: unless-stopped
-    # Persistence deliberately disabled (--save ""): this Redis holds only a
-    # cache-aside layer with TTLs. Losing it on restart just means a brief burst of
-    # cache misses, not data loss, and skipping RDB/AOF keeps the container simpler.
-    command: ["redis-server", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru", "--save", ""]
-    volumes:
-      - redis_data:/data
-    # No `ports:` — internal only, same reasoning as cache-api.
-
-volumes:
-  redis_data:

@@ -9,11 +9,9 @@
 	# Staging is not the canonical site — keep it out of search results.
 	header X-Robots-Tag "noindex, nofollow"
 
-	# /api/* is proxied to the cache-api container. Same-origin (from the browser's
-	# perspective, through Traefik), so the frontend needs no CORS handling.
-	handle /api/* {
-		reverse_proxy cache-api:8787
-	}
+	# The /api/* reverse proxy to the cache-api container is gone with that service —
+	# search and product detail now call the Supabase edge functions directly, the
+	# same as production does.
 
 	handle {
 		root * /srv

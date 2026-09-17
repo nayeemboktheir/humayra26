@@ -1,14 +1,14 @@
 import { describe, it, expect } from "vitest";
-// The Deno edge-function copy (shared by all six alibaba-1688-* / refresh-* functions)…
-import { normalizeImg as edgeNormalizeImg } from "../../supabase/functions/_shared/normalize-img";
-// …and the Node copy used by the staging cache-api.
-import { normalizeImg as nodeNormalizeImg } from "../../cache-api/src/tmapiMap.js";
+// The Deno edge-function copy, shared by all the alibaba-1688-* / refresh-* functions.
+import { normalizeImg } from "../../supabase/functions/_shared/normalize-img";
 
-// CLAUDE.md requires these two implementations stay behaviourally identical — there is
-// no shared module across the Deno/Node boundary, so the only thing keeping them in sync
-// is discipline. They had already drifted once: only alibaba-1688-item-get carried the
-// full normaliser, so search, image-search, seller-products and both homepage refresh
-// jobs served un-normalised image URLs (audit §8.1). These cases pin the behaviour.
+// There used to be a second, hand-maintained Node copy in cache-api/src/tmapiMap.js,
+// and this file asserted the two agreed. They had already drifted once: only
+// alibaba-1688-item-get carried the full normaliser, so search, image-search,
+// seller-products and both homepage refresh jobs served un-normalised image URLs
+// (audit §8.1). cache-api is gone and _shared/normalize-img.ts is now the single
+// implementation, which removes that class of bug — these cases still pin its
+// behaviour, because the URL shapes below are the ones that actually broke.
 const CASES: Array<[string, string, string]> = [
   ["empty input", "", ""],
   [
@@ -44,17 +44,7 @@ const CASES: Array<[string, string, string]> = [
 ];
 
 describe("normalizeImg", () => {
-  it.each(CASES)("edge function: %s", (_name, input, expected) => {
-    expect(edgeNormalizeImg(input)).toBe(expected);
-  });
-
-  it.each(CASES)("cache-api: %s", (_name, input, expected) => {
-    expect(nodeNormalizeImg(input)).toBe(expected);
-  });
-
-  it("the two implementations agree on every case", () => {
-    for (const [, input] of CASES) {
-      expect(edgeNormalizeImg(input)).toBe(nodeNormalizeImg(input));
-    }
+  it.each(CASES)("%s", (_name, input, expected) => {
+    expect(normalizeImg(input)).toBe(expected);
   });
 });

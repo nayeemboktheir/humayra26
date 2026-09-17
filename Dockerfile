@@ -15,18 +15,15 @@ RUN bun install --frozen-lockfile
 
 COPY . .
 
-# Same three Supabase vars the existing Hostinger build uses, plus VITE_API_BASE, which
-# points the search/product-detail hot paths at this instance's cache-api instead of the
-# Supabase edge functions. Left unset, alibaba1688Api falls back to the edge functions —
-# see src/lib/api/alibaba1688.ts.
+# The same three Supabase vars the Hostinger build uses. VITE_API_BASE is gone with
+# cache-api: search and product detail call the Supabase edge functions directly now,
+# exactly as production does.
 ARG VITE_SUPABASE_URL
 ARG VITE_SUPABASE_PUBLISHABLE_KEY
 ARG VITE_SUPABASE_PROJECT_ID
-ARG VITE_API_BASE=/api
 ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL \
     VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY \
-    VITE_SUPABASE_PROJECT_ID=$VITE_SUPABASE_PROJECT_ID \
-    VITE_API_BASE=$VITE_API_BASE
+    VITE_SUPABASE_PROJECT_ID=$VITE_SUPABASE_PROJECT_ID
 
 RUN bun run build
 

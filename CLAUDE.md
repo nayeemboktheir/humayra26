@@ -47,13 +47,14 @@ typecheck script; `bun run build` is the type-adjacent gate.
 | Branch | `main` | `optimization` (current branch) |
 | Path | GitHub Actions → Hostinger FTP ([.github/workflows/deploy.yml](.github/workflows/deploy.yml)) | Coolify `dockercompose` ([docker-compose.yml](docker-compose.yml), [Dockerfile](Dockerfile), [Caddyfile](Caddyfile)) |
 | Host | `tradeon.global`, static Apache + [public/.htaccess](public/.htaccess) | `trade.botbhai.net`, Caddy behind Coolify's Traefik |
-| Search/detail API | Supabase edge functions | local `cache-api` + Redis |
+| Search/detail API | Supabase edge functions | Supabase edge functions (self-hosted) |
 
-`VITE_API_BASE` is the switch. When set (staging only), `alibaba1688Api.search` and
-product detail call `/api/*` on the cache-api container; when unset (production) the same
-methods call Supabase edge functions. See
-[src/lib/api/alibaba1688.ts:6](src/lib/api/alibaba1688.ts#L6). Everything else — auth,
-orders, wallets, admin — always goes straight to Supabase in both deployments.
+Both deployments now take the same path: every API call goes to Supabase edge functions.
+Staging once ran a Node `cache-api` + Redis in front of search and product detail, selected
+by `VITE_API_BASE`; that is gone. The edge functions already cache in Postgres
+(`search_cache`, `product_cache`, 12h TTL — measured 3.03s cold vs 0.23s warm), and
+maintaining a second copy of the TMAPI mapping had already shipped a production bug.
+Staging differs from production only in host, branch and Supabase project.
 
 `server.cjs` is a standalone Node static server + OG-tag injector for product links; it is
 not part of either build pipeline above.
@@ -70,10 +71,10 @@ no service-role key, no direct connection string. Consequences you will hit:
   with the Supabase CLI. Some migrations in the tree are not applied in production.
 - `LOVABLE-MIGRATION-PLAN.md` is the plan to move off Lovable onto a self-owned project;
   read it before changing anything about migrations, cron jobs, or edge-function deploys.
-- `cache-api/src/tmapiMap.js` is a hand-maintained port of the mapping logic in
-  `supabase/functions/alibaba-1688-cached-search` and `.../alibaba-1688-item-get`, so both
-  paths return byte-identical JSON. There is no shared module between the Deno edge
-  functions and the Node service — **edit both when the TMAPI mapping changes.**
+- TMAPI mapping lives in the edge functions only. It used to be duplicated in
+  `cache-api/src/tmapiMap.js`, the copies drifted, and production search shipped broken
+  thumbnails (AUDIT.md §8.1). `supabase/functions/_shared/normalize-img.ts` is now the
+  single implementation — do not re-create a second one.
 
 Most `alibaba-1688-*`, `paystation-*` and SMS functions run with
 `verify_jwt = false` ([supabase/config.toml](supabase/config.toml)); `admin-send-sms` is
@@ -146,9 +147,13 @@ dark mode is class-based.
 ## Environment
 
 `.env` (gitignored) needs `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`,
-`VITE_SUPABASE_PROJECT_ID`. Staging adds `VITE_API_BASE`, `TMAPI_TOKEN`, `REDIS_URL` and
-the cache-tuning vars documented in `staging.env.example` and `cache-api/.env.example`.
-`TMAPI_TOKEN` is billed per token — reuse the existing one, never provision a second.
+`VITE_SUPABASE_PROJECT_ID` — the same three for both deployments. `TMAPI_TOKEN` and the
+other upstream secrets belong on the Supabase project (edge-function environment), not in
+the frontend build. `TMAPI_TOKEN` is billed per token — reuse the existing one, never
+provision a second.
+
+`.env.selfhost` (gitignored) points a local build at the self-hosted stack:
+`bun run dev:selfhost` / `bun run build:selfhost`.
 
 ## Lovable
 
