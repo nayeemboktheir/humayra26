@@ -46,7 +46,6 @@ lovable db/
 *.backup
 *.dump
 *.sql.gz
-fun
 
 # Frontend env for the self-hosted rehearsal stack (contains the anon key).
 .env.selfhost
