@@ -445,7 +445,7 @@ const Auth = () => {
                     </Button>
                   </form>
                 ) : !otpSent ? (
-                  <div className="space-y-4">
+                  <form onSubmit={handlePhonePasswordLogin} className="space-y-4">
                     <div className="relative">
                       <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
@@ -457,11 +457,32 @@ const Auth = () => {
                         maxLength={14}
                       />
                     </div>
-                    <Button onClick={handleSendOtp} className="w-full" disabled={phoneLoading}>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type="password"
+                        placeholder="পাসওয়ার্ড"
+                        value={phoneLoginPassword}
+                        onChange={(e) => setPhoneLoginPassword(e.target.value)}
+                        className="pl-10"
+                        minLength={6}
+                      />
+                    </div>
+                    <Button type="submit" className="w-full" disabled={phoneLoading}>
                       {phoneLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                      OTP পাঠান
+                      সাইন ইন
                     </Button>
-                  </div>
+                    <div className="text-center text-xs text-muted-foreground">অথবা</div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleSendOtp}
+                      className="w-full"
+                      disabled={phoneLoading}
+                    >
+                      OTP দিয়ে লগইন করুন
+                    </Button>
+                  </form>
                 ) : (
                   <div className="space-y-4">
                     <p className="text-sm text-muted-foreground text-center">
