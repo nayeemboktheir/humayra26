@@ -22,7 +22,7 @@ serve(async (req) => {
     const { phone, password } = await req.json();
 
     if (!phone || !password) {
-      return json({ error: "মোবাইল নাম্বার ও পাসওয়ার্ড দিন" }, 400);
+      return json({ error: "মোবাইল নাম্বার ও পাসওয়ার্ড দিন" });
     }
 
     let normalizedPhone = String(phone).replace(/[^0-9]/g, "");
@@ -46,12 +46,12 @@ serve(async (req) => {
       .maybeSingle();
 
     if (!profile) {
-      return json({ error: "এই নাম্বারে কোনো একাউন্ট নেই" }, 400);
+      return json({ error: "এই নাম্বারে কোনো একাউন্ট নেই" });
     }
 
     const { data: userData, error: userError } = await admin.auth.admin.getUserById(profile.user_id);
     if (userError || !userData.user?.email) {
-      return json({ error: "একাউন্ট পাওয়া যায়নি" }, 400);
+      return json({ error: "একাউন্ট পাওয়া যায়নি" });
     }
 
     // Verify the password using a normal (anon) client so no privileged bypass happens.
@@ -65,7 +65,7 @@ serve(async (req) => {
     });
 
     if (signInError || !signInData.session) {
-      return json({ error: "পাসওয়ার্ড সঠিক নয়" }, 400);
+      return json({ error: "পাসওয়ার্ড সঠিক নয়" });
     }
 
     return json({
