@@ -393,6 +393,8 @@ returned synchronously once every recipient has been attempted.
 Both blocked their response on a best-effort `sms_logs` insert after the SMS had already
 left the gateway. Now deferred via `EdgeRuntime.waitUntil`.
 
+### Post-deploy results — Part 6 below supersedes the "not yet deployed" notes above
+
 ### Deliberately left alone
 
 - **`refresh-category-products` / `refresh-trending-products`** — the sequential loop and
@@ -406,6 +408,69 @@ left the gateway. Now deferred via `EdgeRuntime.waitUntil`.
   `category/items/v2`) are features, not performance. The one arguable case is
   `category/items/v2` replacing the keyword-search approach in `refresh-category-products`
   — an accuracy improvement for a background cron, not a speed one.
+
+## Part 6 — Deployed, and measured again
+
+All 17 functions deployed to the self-hosted stack via
+`supabase/selfhost/deploy-functions.sh` (smoke test: *All 17 functions responding*).
+
+### A bug the deploy log caught
+
+The first deploy exposed a flaw in the `alibaba-1688-item-get` fix itself. The runtime log
+showed:
+
+```text
+wall clock duration warning: isolate: ...
+early termination has been triggered: isolate: ...
+```
+
+This runtime **terminates isolates shortly after the response is sent**. The original fix
+put the `product_cache` write *behind* up to 8s of background enrichment fetches, so the
+write was being killed before it ran — a repeat `item-get` came back `cached=false` at
+526ms instead of ~60ms, meaning every product view stayed a cache miss. `seller-products`
+was unaffected because its background task is a single fast DB write.
+
+Fixed by writing the usable fast-path row **first**, then upgrading it if enrichment
+survives. A killed isolate now still leaves a valid cache entry. Verified on three
+never-before-viewed products:
+
+| Product | Cold | Warm | Warm again |
+|---|---|---|---|
+| ceramic plant pot | 1,486ms | **73ms** `cached=true` | 90ms |
+| stainless steel straw | 4,352ms | **73ms** `cached=true` | 86ms |
+| wool beanie hat | 1,429ms | **69ms** `cached=true` | 61ms |
+
+### End-to-end, against the competitors
+
+Fresh keywords, so every product click is a genuine cold miss — the realistic worst case
+for a customer. Measuring **total click → price visible** (`navMs + firstPrice`), which is
+the fair comparison: the competitors' client-side route change is not free, and reporting
+only their post-navigation paint understated them in Parts 1–3.
+
+| Keyword | tradeon | chinaonlinebd | skybuybd |
+|---|---|---|---|
+| cotton hoodie | **1,864ms** | 1,679ms | 426ms |
+| ceramic vase | **1,243ms** | 1,233ms | 860ms |
+
+Against the pre-fix figures for the same journey (4,981–11,202ms), cold product clicks now
+land at **1.2–1.9s** — roughly level with chinaonlinebd, still behind skybuybd. Any product
+viewed by anyone in the previous 12h serves from cache at ~70ms.
+
+Search was unchanged by this work and remains competitive (tradeon 1.9s, chinaonlinebd
+1.9s, skybuybd 2.2–3.4s to a stable grid).
+
+### Honest caveat: the enrichment pass still usually doesn't finish
+
+`seller_info.product_count` stays `0` on cached rows, which means the background enrichment
+is still being killed by the same early-termination behaviour — only the base write
+reliably lands. The consequences are cosmetic and were designed for: description images
+fall back to the main product gallery (7–28 images, verified present), and the "N products
+from this shop" figure reads 0. The page is complete and correct otherwise.
+
+Closing that gap properly needs the enrichment moved out of the request isolate entirely —
+a queue or a cron pass over `product_cache` rows lacking enrichment — rather than relying
+on `waitUntil` in a runtime that doesn't honour it for long tasks. Worth doing alongside
+the pre-synced catalog work, not before it.
 
 ## Raw data
 
