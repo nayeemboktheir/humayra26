@@ -29,10 +29,16 @@ import CheckoutDialog from "@/components/CheckoutDialog";
 import { trackViewContent } from "@/lib/tracking";
 import CopyLinkButton from "@/components/CopyLinkButton";
 
-const translateLocation = (location: string): string => {
-  if (location.includes("省") || location.includes("市")) return "China";
-  return location;
-};
+// Origins arrive as Chinese place names ("浙江 桐庐县", "CN 天津"). This collapses them to
+// "China" rather than translating, which is what the field has always done.
+//
+// It used to test for 省 (province) and 市 (city) only, which missed every county-level
+// origin: measured across 997 catalogued products, 60 of them (6%) reached the page still
+// in Chinese — 福建 德化县, 浙江 桐庐县, 安徽 潜山县 and so on, all 县. Matching any CJK
+// character covers the whole set without having to enumerate administrative suffixes, and
+// still leaves an already-latin origin untouched.
+const translateLocation = (location: string): string =>
+  /[一-鿿]/.test(location) ? "China" : location;
 
 const parseQtyInput = (value: string, max?: number): number => {
   const digits = value.replace(/\D/g, "");

@@ -151,12 +151,10 @@ const Index = () => {
 
   const [query, setQuery] = useState(_sessionCache.searchState?.query || "");
   const [products, setProducts] = useState<Product1688[]>(_sessionCache.searchState?.products || []);
-  const [_translatedTitles] = useState<Record<number, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(_sessionCache.searchState?.hasSearched || false);
   const [selectedProduct, setSelectedProduct] = useState<ProductDetail1688 | null>(null);
   const [isLoadingProduct, setIsLoadingProduct] = useState(false);
-  const [isTranslatingProduct] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [imageSearchFile, setImageSearchFile] = useState<File | null>(null);
   const [imageSearchKeyword, setImageSearchKeyword] = useState("");
@@ -185,7 +183,6 @@ const Index = () => {
     altQueries: string[];
   } | null>(_sessionCache.searchState?.activeSearch || null);
   const [altQueryIndex, setAltQueryIndex] = useState(0);
-  const [_isTranslatingTitles] = useState(false);
   const [filters, setFilters] = useState<SearchFilterValues>(getDefaultFilters());
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -1013,8 +1010,6 @@ const Index = () => {
     }
   }, [searchParams, activeCategoryView, categoryProductsMap]);
 
-  const getDisplayTitle = (product: Product1688) => product.title;
-
   const scrollTopCat = (dir: 'left' | 'right') => {
     if (!topCatScrollRef.current) return;
     topCatScrollRef.current.scrollBy({ left: dir === 'left' ? -300 : 300, behavior: 'smooth' });
@@ -1117,7 +1112,7 @@ const Index = () => {
       <div className="min-h-screen bg-background pb-20 md:pb-0">
         {imageSearchDialog}
         <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} settings={settings} cartCount={cartCount} />
-        <ProductDetail product={selectedProduct || undefined} isLoading={isLoadingProduct || isTranslatingProduct} onBack={handleBackToSearch} />
+        <ProductDetail product={selectedProduct || undefined} isLoading={isLoadingProduct} onBack={handleBackToSearch} />
         <Footer />
         <BottomNav />
       </div>
@@ -1341,7 +1336,7 @@ const Index = () => {
                     {totalPages > 1 && <span className="text-sm text-muted-foreground">Page {currentPage} of {totalPages}</span>}
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                    {filteredProducts.map((product) => <ProductCard key={product.num_iid} product={product} getDisplayTitle={getDisplayTitle} onClick={() => handleProductClick(product)} />)}
+                    {filteredProducts.map((product) => <ProductCard key={product.num_iid} product={product} onClick={() => handleProductClick(product)} />)}
                   </div>
                   {totalPages > 1 && (
                     <div className="flex items-center justify-center gap-1 mt-8 pb-4">
@@ -1659,7 +1654,7 @@ const DragOverlay = () => (
   </div>
 );
 
-const ProductCard = ({ product, getDisplayTitle, onClick }: { product: Product1688; getDisplayTitle: (p: Product1688) => string; onClick: () => void }) => {
+const ProductCard = ({ product, onClick }: { product: Product1688; onClick: () => void }) => {
   const isTopRated = (product.sales || 0) >= 2000;
   const isVerified = !isTopRated && (product.sales || 0) >= 500;
   const formattedSales = product.sales
@@ -1678,7 +1673,7 @@ const ProductCard = ({ product, getDisplayTitle, onClick }: { product: Product16
     <Card className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow group">
       <div className="aspect-square overflow-hidden bg-muted relative">
         <img src={cdnImage(product.pic_url, 400)} srcSet={cdnSrcSet(product.pic_url, PRODUCT_THUMB_WIDTHS)} sizes={PRODUCT_GRID_SIZES}
-          alt={getDisplayTitle(product)} referrerPolicy="no-referrer" loading="lazy" decoding="async"
+          alt={product.title} referrerPolicy="no-referrer" loading="lazy" decoding="async"
           className="w-full h-full object-cover group-hover:scale-105 transition-transform"
           onError={cdnImageFallback(product.pic_url)}
         />
@@ -1689,7 +1684,7 @@ const ProductCard = ({ product, getDisplayTitle, onClick }: { product: Product16
         )}
       </div>
       <CardContent className="p-3 space-y-1.5">
-        <h3 className="text-sm font-medium line-clamp-2 min-h-[2.5rem] leading-tight">{getDisplayTitle(product)}</h3>
+        <h3 className="text-sm font-medium line-clamp-2 min-h-[2.5rem] leading-tight">{product.title}</h3>
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <div className="flex items-center gap-0.5"><Star className="h-3 w-3 fill-amber-400 text-amber-400" /><span>5</span></div>
           {formattedSales && <span>{formattedSales}</span>}
