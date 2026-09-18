@@ -273,7 +273,28 @@ Deno.serve(async (req) => {
 
     // Persist after responding — neither the enrichment fetches nor the cache write may
     // sit on the response path.
+    //
+    // The cache is written TWICE, and the order matters. This runtime terminates isolates
+    // shortly after the response is sent ("early termination has been triggered" in the
+    // edge-runtime log), which killed the original single write: it sat behind up to 8s of
+    // enrichment fetches and never ran, so every view of a product stayed a cache miss.
+    // Writing the usable fast-path result first means a killed isolate still leaves a valid
+    // cache entry; the enrichment pass then upgrades it if it gets the chance.
     const enrichAndCache = (async () => {
+      const writeCache = async (detail: unknown, label: string) => {
+        const { error } = await supabase
+          .from('product_cache')
+          .upsert({ item_id: cleanId, detail, updated_at: new Date().toISOString() }, { onConflict: 'item_id' });
+        if (error) console.error(`product_cache ${label} write failed:`, error.message);
+      };
+
+      try {
+        await writeCache(mapped, 'base');
+      } catch (err) {
+        console.error('product_cache base write threw:', err instanceof Error ? err.message : err);
+        return;
+      }
+
       try {
         let [detailImages, shopProductCount] = await Promise.all([
           fetchDetailImages(detailUrl),
@@ -282,13 +303,12 @@ Deno.serve(async (req) => {
         if (detailImages.length === 0) {
           detailImages = await fetchDescImagesViaApi(apiToken, cleanId);
         }
+        // Nothing new to add — the base row already reflects this.
+        if (detailImages.length === 0 && shopProductCount === 0) return;
         const enriched = mapDetail(itemData, numericId, detailImages, shopProductCount);
-        const { error } = await supabase
-          .from('product_cache')
-          .upsert({ item_id: cleanId, detail: enriched, updated_at: new Date().toISOString() }, { onConflict: 'item_id' });
-        if (error) console.error('product_cache write failed:', error.message);
+        await writeCache(enriched, 'enriched');
       } catch (err) {
-        console.error('product_cache enrich/write threw:', err instanceof Error ? err.message : err);
+        console.error('product_cache enrich threw:', err instanceof Error ? err.message : err);
       }
     })();
     const waitUntil = (globalThis as any).EdgeRuntime?.waitUntil;
