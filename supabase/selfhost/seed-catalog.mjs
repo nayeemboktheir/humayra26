@@ -129,6 +129,56 @@ async function seedListings() {
   console.log(`  products: ${before} -> ${after}  (+${after - before})${failed ? `, ${failed} search(es) failed` : ''}`);
 }
 
+/**
+ * Seeds detail for the products a customer actually reaches: the first page of results for
+ * each query, in the order they are ranked.
+ *
+ * Seeding by `view_count` instead sounds right but is useless on a cold catalog — every row
+ * is 0, so the database returns an arbitrary slice. Measured after one such pass: 0 of the
+ * top 20 results for "shoes", "bag", "jewelry" and "watches" had detail, because the 150
+ * products fetched were not the ones any search surfaces. Result order is the correct
+ * proxy for what gets clicked until real view counts exist.
+ */
+async function seedDetailsFromSearches() {
+  const queries = val('--queries', '') ? val('--queries', '').split(',').map((s) => s.trim()).filter(Boolean) : DEFAULT_QUERIES;
+  console.log(`\n== Detail pass (search-ranked): first ${PAGES} page(s) of ${queries.length} queries`);
+
+  const ordered = [];
+  const seen = new Set();
+  for (const q of queries) {
+    for (let page = 1; page <= PAGES; page++) {
+      const r = await callFn('alibaba-1688-cached-search', { query: q, page, pageSize: 20 });
+      for (const item of r?.data?.items || []) {
+        const id = String(item?.num_iid || '');
+        if (id && id !== '0' && !seen.has(id)) { seen.add(id); ordered.push(id); }
+      }
+    }
+  }
+
+  const resp = await fetch(
+    `${BASE}/rest/v1/products?select=item_id&detail=not.is.null&item_id=in.(${ordered.join(',')})`,
+    { headers: restHeaders },
+  );
+  const already = new Set((await resp.json()).map((r) => String(r.item_id)));
+  const todo = ordered.filter((id) => !already.has(id)).slice(0, LIMIT);
+
+  console.log(`  ${ordered.length} ranked products, ${already.size} already have detail, fetching ${todo.length}`);
+  if (todo.length === 0) return;
+
+  const before = await catalogCount('&detail=not.is.null');
+  let failed = 0;
+  const t0 = Date.now();
+  await pool(todo.map((id) => async () => {
+    const r = await callFn('alibaba-1688-item-get', { numIid: id });
+    if (!r?.success) failed++;
+  }), CONCURRENCY);
+
+  await new Promise((r) => setTimeout(r, 3000));
+  const after = await catalogCount('&detail=not.is.null');
+  const secs = ((Date.now() - t0) / 1000).toFixed(0);
+  console.log(`  with detail: ${before} -> ${after}  (+${after - before}) in ${secs}s${failed ? `, ${failed} failed` : ''}`);
+}
+
 async function seedDetails() {
   console.log(`\n== Detail pass: up to ${LIMIT} products missing detail, most-viewed first`);
   const resp = await fetch(
@@ -160,6 +210,7 @@ async function seedDetails() {
   console.log(`Target: ${BASE}`);
   console.log(`Catalog before: ${await catalogCount()} products (${await catalogCount('&detail=not.is.null')} with detail)`);
   if (DO_LISTINGS) await seedListings();
-  if (DO_DETAILS) await seedDetails();
+  // --ranked targets what searches actually surface; the plain pass drains the backlog.
+  if (DO_DETAILS) await (has('--ranked') ? seedDetailsFromSearches() : seedDetails());
   console.log(`\nCatalog now: ${await catalogCount()} products (${await catalogCount('&detail=not.is.null')} with detail)`);
 })();
