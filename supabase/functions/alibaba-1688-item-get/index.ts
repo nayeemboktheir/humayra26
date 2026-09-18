@@ -9,6 +9,9 @@ const corsHeaders = {
 
 const TMAPI_BASE = 'https://api.tmapi.top/1688';
 const CACHE_TTL_HOURS = 12;
+// How long a catalogued price may be served before a live fetch is required. The rest of a
+// product record is kept far longer — it is only the price that drifts.
+const PRICE_MAX_AGE_DAYS = 7;
 const TMAPI_TIMEOUT_MS = 12000;
 const DETAIL_PAGE_TIMEOUT_MS = 4000;
 
@@ -231,6 +234,36 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
+
+    // The catalog is consulted before product_cache. Both hold the same payload, but
+    // product_cache expires after 12h, so a product opened yesterday paid the full upstream
+    // cost again. The catalog keeps the record and ages the *price* separately: the parts
+    // that are expensive to rebuild (description, specs, variant structure) are effectively
+    // static, so only a price older than PRICE_MAX_AGE_DAYS forces a live fetch.
+    const priceCutoff = new Date(Date.now() - PRICE_MAX_AGE_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    const { data: catalogRow, error: catalogReadError } = await supabase
+      .from('products')
+      .select('detail, price_checked_at')
+      .eq('item_id', cleanId)
+      .not('detail', 'is', null)
+      .gte('price_checked_at', priceCutoff)
+      .maybeSingle();
+    if (catalogReadError) {
+      console.error('products read failed (is the migration applied?):', catalogReadError.message);
+    }
+    if (catalogRow?.detail) {
+      // Counting opens is what lets a refresh pass prioritise the products people actually
+      // look at. Deferred — it must not delay the response.
+      const bumpViews = supabase.rpc('increment_product_views', { _item_id: cleanId }).then(
+        ({ error }: any) => { if (error) console.error('view bump failed:', error.message); },
+        (err: any) => { console.error('view bump threw:', err?.message ?? err); },
+      );
+      const wu = (globalThis as any).EdgeRuntime?.waitUntil;
+      if (typeof wu === 'function') wu.call((globalThis as any).EdgeRuntime, bumpViews);
+
+      return new Response(JSON.stringify({ success: true, data: catalogRow.detail, cached: true, source: 'catalog' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
 
     // Cache hit short-circuits both upstream fetches (TMAPI + the 1688 detail page).
     const cutoff = new Date(Date.now() - CACHE_TTL_HOURS * 60 * 60 * 1000).toISOString();
