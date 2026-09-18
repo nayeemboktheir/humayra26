@@ -62,6 +62,38 @@ not part of either build pipeline above.
 `DEPLOY-STAGING.md` is the staging runbook and explains why the compose/Caddy files look
 unusual (Traefik owns :80/:443, so no `ports:` and no hostname site block).
 
+Staging no longer shares production's backend. It runs its **own self-hosted Supabase**
+at `api.tradeon.global` (`SELFHOST_*` keys in `.env`), so the two stacks have separate
+data, storage and edge functions. Production is still the Lovable project below and has
+received none of the edge-function work described here; the cutover is planned but not
+done.
+
+## Deploying to the self-hosted stack
+
+There is no CLI path and no CI for this — everything is applied by hand on the VPS:
+
+- **Edge functions**: `tar czf functions.tgz -C supabase functions`, `scp` it up, then
+  `sudo ANON_KEY=<selfhost anon key> ./deploy-functions.sh ~/functions`
+  ([supabase/selfhost/deploy-functions.sh](supabase/selfhost/deploy-functions.sh)). It
+  copies into a bind mount and restarts the runtime — no build step. Check the
+  `functions: N` count in its preflight; it deploys whatever is in the directory you point
+  it at, so a stale tarball produces a clean-looking run that is missing your new function.
+- **SQL**: `docker exec -i supabase-db-<uuid> psql -U postgres -d postgres < file.sql`.
+  Cron jobs live in [supabase/selfhost/04_cron.sql](supabase/selfhost/04_cron.sql) and
+  `05_cron_price_refresh.sql`, which take `base_url`/`anon_key` as psql variables so no key
+  is committed.
+- **Storage buckets are not in any migration applied to this stack.** `temp-images` (public)
+  must exist or uploaded-image search fails with `Bucket not found`;
+  [supabase/selfhost/02_functions_rls.sql](supabase/selfhost/02_functions_rls.sql) creates
+  it, but it has gone missing at least once.
+
+**The runtime terminates isolates shortly after the response is sent** — the log says
+`early termination has been triggered`. `EdgeRuntime.waitUntil` work only survives if it is
+short: a single DB write is fine, a chain of upstream fetches is not. Anything that must
+persist has to be written *first*, with enrichment layered on afterwards, and long-running
+refresh work belongs in a cron rather than deferred on a request. This silently broke the
+`product_cache` write once, making every product view look like a cache miss.
+
 ## Backend: Lovable-managed Supabase
 
 The Supabase project (`kcihftfgmsrpcljsbjdj`) is **Lovable Cloud managed** — no dashboard,
@@ -73,8 +105,10 @@ no service-role key, no direct connection string. Consequences you will hit:
   read it before changing anything about migrations, cron jobs, or edge-function deploys.
 - TMAPI mapping lives in the edge functions only. It used to be duplicated in
   `cache-api/src/tmapiMap.js`, the copies drifted, and production search shipped broken
-  thumbnails (AUDIT.md §8.1). `supabase/functions/_shared/normalize-img.ts` is now the
-  single implementation — do not re-create a second one.
+  thumbnails (AUDIT.md §8.1). `supabase/functions/_shared/normalize-img.ts` and
+  `_shared/map-detail.ts` (the item_detail → ProductDetail1688 mapper, shared by
+  `alibaba-1688-item-get` and `refresh-product-prices`) are the single implementations —
+  do not re-create a second one of either.
 
 Most `alibaba-1688-*`, `paystation-*` and SMS functions run with
 `verify_jwt = false` ([supabase/config.toml](supabase/config.toml)); `admin-send-sms` is
@@ -85,6 +119,38 @@ which is generated — do not hand-edit): `orders`, `shipments`, `profiles`, `wa
 `transactions`, `refunds`, `cart_items`, `wishlist`, `user_roles`, `role_permissions`,
 `app_settings`, `search_cache`, `category_products`, `trending_products`. RPCs include
 `get_my_role`, `get_category_products`, `has_role`, `get_shipment_stage_counts`.
+
+## The product catalog (self-hosted stack only)
+
+`products` ([supabase/migrations/20260918150000_products_catalog.sql](supabase/migrations/20260918150000_products_catalog.sql))
+is a durable catalogue, as opposed to the two caches that preceded it: `search_cache` keys
+whole result *pages* by query and `product_cache` expires after 12h, so neither accumulates.
+Rows arrive in two tiers — listing fields for every search result (free, the response
+already has them, ~482 B/row) and full `detail` when someone opens the product (~9.8 KB/row).
+`_shared/catalog.ts` holds both writers.
+
+Freshness is tracked per concern, not as one TTL, because a product's description, specs and
+variant structure are static while its price is not. `alibaba-1688-item-get` serves from the
+catalogue only when `price_checked_at` is within 7 days, and `refresh-product-prices`
+(hourly cron) re-verifies stale prices off the request path. That refresh **must** carry
+`desc`/`desc_img` and `seller_info.product_count` over from the stored row — they each cost a
+separate upstream call, and re-deriving them from a bare `item_detail` silently downgrades an
+enriched record.
+
+Two conventions worth knowing before adding to either:
+
+- **`search_cache` is used as a generic keyed store**, namespaced by key prefix: `img:`,
+  `img2:` (image search), `ship:` (shipping quotes), `seller:` (seller products). Adding a
+  cache does not require a new table.
+- Catalogue upserts deliberately **omit** `detail`, `view_count` and `first_seen_at` so
+  re-seeing a product in search cannot wipe its enrichment or reset its counters. A result
+  page can also repeat an `item_id`, and Postgres rejects `ON CONFLICT DO UPDATE` touching a
+  row twice in one statement, so batches are deduped first.
+
+[supabase/selfhost/seed-catalog.mjs](supabase/selfhost/seed-catalog.mjs) fills the catalogue
+without waiting for traffic. Use `--details --ranked`: seeding by `view_count` is useless on a
+cold catalogue (every row is 0, so Postgres returns an arbitrary slice — measured 0% coverage
+of the top 20 results for every category), whereas search-rank order reached 99%.
 
 ## Frontend architecture
 
@@ -136,6 +202,37 @@ regress the site if "cleaned up":
   (`@/assets/logo-full.png?w=640&format=webp`); remote 1688 images go through
   [src/lib/cdnImage.ts](src/lib/cdnImage.ts), which appends alicdn size suffixes and pairs
   with `cdnImageFallback` for the one-shot retry to the original URL.
+- **The product-detail hero paints from the clicked list item** before `item-get` returns.
+  `ProductDetail` must keep testing `isLoading && !product` rather than `isLoading` alone,
+  or that placeholder is discarded and the page blanks to a skeleton for the whole fetch.
+  The placeholder hero also reuses the grid card's `srcSet`/`sizes` so the browser resolves
+  to an image already in cache; requesting a single width instead re-downloads, because
+  `sizes` is what decided which candidate the grid fetched.
+  **Price is deliberately withheld** in that state: a list item carries no variant data and
+  the page prices from `configuredItems[0]`, not the top-level price, so a product with
+  variants would show e.g. ৳154 jumping to ৳188. Purchase controls stay disabled for the
+  same reason — the real MOQ is not known yet.
+
+## Things already investigated — do not re-litigate
+
+- **Translation is TMAPI's, via `language=en`.** Verified directly: the same `item_detail`
+  returns English with the parameter and Chinese without it, and it translates
+  `product_props` too. There is no second translation layer; an older client-side one was
+  removed. `translateLocation` in `ProductDetail` is not translation — it collapses any CJK
+  origin to "China".
+- **Image search cannot skip `tools/image/convert_url`.** That endpoint *ingests* the image
+  into Alibaba's visual-search index and returns an internal token (`/search/imgextra5/…`):
+  non-deterministic (same image → a different token each call), 404 on every alicdn host,
+  and `global/search/image/v2` rejects a raw URL with `422 "please first use the convert
+  endpoint"`. It costs 1.7–13.3s and that variance is upstream queueing, not payload size.
+  Tokens stay valid for at least ~70 minutes, so caching `image hash → token` is the
+  worthwhile optimisation, not shrinking the upload.
+- **Do not shrink `compressImageForSearch` (640×640 q0.72) to chase speed.** Measured
+  against 400×400 q0.5, three runs each: convert times overlapped completely, and only
+  15–16 of the top 20 results still matched.
+- Uploaded-image search needs `SUPABASE_PUBLIC_URL` set on the edge-functions service.
+  `getPublicUrl()` builds from the internal gateway (`http://supabase-kong:8000`), which
+  TMAPI cannot fetch, and the search then silently returns zero results.
 
 ## Styling
 

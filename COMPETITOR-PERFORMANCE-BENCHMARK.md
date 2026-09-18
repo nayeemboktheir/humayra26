@@ -1,7 +1,12 @@
-# Competitor performance benchmark: tradeon vs. chinaonlinebd vs. skybuybd
+# Storefront performance: benchmark, fixes and follow-on work
 
-**Date:** 2026-09-18
-**Method:** Playwright, headed Chromium, real network conditions (no throttling applied).
+Started as a competitor benchmark (tradeon vs. chinaonlinebd vs. skybuybd) and grew into the
+work that came out of it. Parts 1–3 are the original investigation; Parts 4–9 are what was
+changed, deployed and measured afterwards.
+
+**Date:** 2026-09-18 / 2026-09-19
+**Method:** Playwright, headed Chromium, real network conditions (no throttling applied),
+plus direct HTTP benchmarking of the edge functions.
 **Sites tested:**
 - tradeon (ours) — `https://trade.botbhai.net`
 - chinaonlinebd — `https://www.chinaonlinebd.com`
@@ -10,7 +15,10 @@
 **Keywords tested (search → click into a product, one full pass each):** red shirt, blue
 shirt, black pant, white sneakers, kitchen knife, leather bag, denim jacket.
 
-## TL;DR
+**Outcome:** cold product-detail clicks went from **5–11s to ~300ms** for catalogued
+products (~180ms to first paint). See Parts 6 and 7.
+
+## TL;DR (the original finding)
 
 - **Search results load time is roughly competitive.** tradeon is a few hundred ms to ~1s
   behind on some queries, ahead on others. Not the main problem.
@@ -220,7 +228,7 @@ that specific element will lag by ~2s on every view, every time, with no warm pa
 
 683ms, returned 20 of 4,515 items for the tested vendor. No issue found.
 
-## Recommended fixes (not yet applied — pending approval)
+## Recommended fixes (proposed at the time — all since applied; see Parts 5–9)
 
 1. **Stop blocking the `alibaba-1688-item-get` response on the HTML-scrape and shop-count
    calls.** Respond as soon as `item_detail` resolves (and shop count, since it's
@@ -471,6 +479,166 @@ Closing that gap properly needs the enrichment moved out of the request isolate 
 a queue or a cron pass over `product_cache` rows lacking enrichment — rather than relying
 on `waitUntil` in a runtime that doesn't honour it for long tasks. Worth doing alongside
 the pre-synced catalog work, not before it.
+
+## Part 7 — The product catalog
+
+The 12h `product_cache` meant a product went cold a day after anyone looked at it, so the
+gains in Part 6 decayed constantly. `products`
+([migration](supabase/migrations/20260918150000_products_catalog.sql)) replaces it with a
+catalogue that accumulates, in two tiers: listing fields for every search result (free —
+the response already carries them, ~482 B/row) and full detail when someone opens a product
+(~9.8 KB/row). Keeping detail only for opened products is what makes it affordable; 100k
+products stored thin is ~48 MB, stored full it would be ~1 GB.
+
+Freshness is tracked **per concern** rather than as a single TTL, on the reasoning that a
+product's description, specs and variant structure are effectively static while its price is
+not. `price_checked_at` is separate from `detail_fetched_at`, so a stale price can be
+re-verified on its own instead of re-fetching the whole record.
+
+Verified after deploying the read path:
+
+| Case | Result |
+|---|---|
+| Catalogued product | 333ms → **63ms**, `source: "catalog"` |
+| Listing-only product | 4,384ms live fetch → **157ms** on next open |
+| Re-searching a catalogued product | `detail`, `detail_fetched_at`, `first_seen_at` all preserved |
+
+That last row was the one worth proving: a naive upsert would have reset every enriched
+product to a bare listing row the next time it appeared in someone's search.
+
+End to end, catalogued vs genuinely fresh (local build against the deployed backend):
+
+| Query | Catalogued | Hero visible | Fully interactive |
+|---|---|---|---|
+| shoes | yes | 192ms | **282ms** |
+| jewelry | yes | 177ms | **330ms** |
+| antique brass compass | no | 174ms | 2,917ms |
+| velvet cushion cover | no | 175ms | 1,968ms |
+
+The hero paints in ~180ms either way (that is the frontend change, independent of the
+catalogue); the catalogue is what moves *fully interactive* from ~2–3s to ~300ms.
+
+### Seeding, and a mistake worth recording
+
+A test environment has no traffic to fill the catalogue with, so
+[seed-catalog.mjs](supabase/selfhost/seed-catalog.mjs) does it on demand. The first detail
+pass ordered by `view_count` — which is useless on a cold catalogue, because every row is 0
+and Postgres returns an arbitrary slice. Measured afterwards: **0 of the top 20 results had
+detail** for shoes, bag, jewelry or watches. Re-seeding in search-rank order instead reached
+**99% page-1 coverage** (237/240 across 12 category queries). Catalogue now stands at 1,097
+products, 555 with detail.
+
+### Price refresh cron
+
+`refresh-product-prices`, hourly at :30. Self-limiting rather than fixed-cost: it selects
+only products whose price is actually stale and makes no TMAPI calls when there are none.
+
+TMAPI has no price-only endpoint, so a refresh is still one `item_detail` call per product —
+the saving is skipping enrichment and not doing it on a request a customer is waiting for.
+The merge carries `desc`, `desc_img` and `seller_info.product_count` over from the stored
+row. Verified by backdating `price_checked_at` 30 days on three products:
+
+```
+checked:3 updated:2 priceChanged:0 failed:1
+  desc 3768/2741/2527 chars   PRESERVED
+  desc_img 15/5/9             PRESERVED
+  shop_count 0/2039/443       PRESERVED
+```
+
+The preserved `shop_count` values are the point: without the merge every refresh would reset
+them to 0 and discard enrichment that cost a separate upstream call. The one failure was
+transient — both products fetched fine from TMAPI directly and two isolated retries
+succeeded — and the design handled it correctly by leaving `price_checked_at` untouched, so
+the product stayed in the stale set for the next run.
+
+## Part 8 — Image search
+
+Uploaded-image search returned zero results for every upload. Two independent faults, both
+predating this work:
+
+1. **The `temp-images` bucket did not exist** on the self-hosted stack — `[]`, no buckets at
+   all — so uploads failed with `Bucket not found`.
+   [02_functions_rls.sql](supabase/selfhost/02_functions_rls.sql) creates it, so it was
+   either never applied or lost in a restore.
+2. **TMAPI was handed an unreachable URL.** `getPublicUrl()` builds from `SUPABASE_URL`,
+   which inside the container is `http://supabase-kong:8000`. TMAPI fetches the image over
+   the public internet to convert it, so the hostname did not resolve, `convert_url` returned
+   its input unchanged, and the search fell through to empty.
+
+Only the upload path touches storage, which is why searching by an existing alicdn URL,
+pagination and the OTAPI fallback all worked and the feature looked partly functional.
+
+### What `convert_url` actually does
+
+It **ingests the image into Alibaba's visual-search index** and returns an internal token —
+not a URL rewrite. Evidence: the same image converted three times produced three different
+tokens; the token 404s on every alicdn host; and v2 rejects a raw URL with
+`422 "Invalid image url. Please first use the convert endpoint"`. That is why it costs
+1.7–13.3s: Alibaba must download, decode and feature-extract the image.
+
+Timing for the full chain (upload → convert → search, a strict dependency, nothing
+parallelisable):
+
+| Stage | Time |
+|---|---|
+| Storage upload | ~600ms |
+| `convert_url` | **1.7–13.3s** |
+| v2 search | ~1.8–2.8s |
+
+**A hypothesis of mine that the measurements refuted:** shrinking the uploaded image. Three
+runs each at 640×640 q0.72 (current, 35 KB) and 400×400 q0.5 (10 KB) gave convert times of
+1988/5642/1778ms versus 2190/1755/6328ms — completely overlapping, because the endpoint's
+variance on *identical* input is far larger than any size effect in this range. The smaller
+image also cost relevance: only 15–16 of the top 20 results still matched. Current settings
+stay.
+
+The real lever is that **converted tokens remain valid** — tokens created 70 minutes earlier
+still returned 20 results — so caching `image hash → token` would skip ingestion entirely on
+a repeat search. Not built.
+
+## Part 9 — Translation
+
+The previous developer described two layers of translation. There is one, and it is TMAPI's.
+
+Verified directly — the same `item_detail` call, with and without the parameter:
+
+```
+WITH language=en : "Household Cutting Board Wholesale Kitchen Cutting Board Bamboo..."
+WITHOUT          : "家用菜板批发厨房切菜板竹制水果菜板熟食分类砧板方形竹木案板"
+props WITH en    : [{"Material":"Bamboo"},{"Brand":"Purple bamboo forest"}]
+props WITHOUT    : [{"材质":"竹制"},{"功能":"家用;防滑"}]
+```
+
+An earlier client-side layer was removed but left scaffolding behind, all of it inert and now
+deleted: `_translatedTitles` and `_isTranslatingTitles` (no setters, permanently empty),
+`isTranslatingProduct` (permanently `false`, ORed into a loading prop), and `getDisplayTitle`,
+reduced to returning `product.title` unchanged.
+
+One real translation remained: `translateLocation`, which collapses Chinese origins to
+"China" but tested only for 省 and 市 — missing every county-level origin. Measured across
+997 catalogued products, 60 (6%) reached the page still in Chinese (福建 德化县, 浙江 桐庐县,
+安徽 潜山县 …, all 县). Matching any CJK character closes it: verified **60 → 0** over the
+same sample, with latin origins still passed through.
+
+`translated: true` is still hardcoded at eight call sites and the `search_cache.translated`
+column is therefore always true. It is inert metadata nothing reads — left alone rather than
+redeploying several functions for no behavioural gain.
+
+## Still open
+
+- **Frontend commits are not deployed.** `f036903` (instant hero), `3e6e138` (location fix,
+  dead code) and `3953d92` run only locally; `trade.botbhai.net` serves the old build.
+  Everything backend is live.
+- **PayStation credentials are not set** on the self-hosted stack —
+  `PAYSTATION_MERCHANT_ID` and `PAYSTATION_PASSWORD` are absent, so checkout returns
+  `"PayStation credentials not configured"`. Harmless on staging (arguably a safety feature),
+  a hard blocker for the production cutover.
+- `maxAgeDays: 0` fix for `refresh-product-prices` (`725d408`) is committed but not deployed.
+  It only affects the manual override, not the hourly cron.
+- Image-search token caching (`image hash → converted token`) and prefetching
+  upload+convert during the crop dialog — both scoped, neither built.
+- Production `tradeon.global` still runs the Lovable-managed backend and has received none
+  of this.
 
 ## Raw data
 
