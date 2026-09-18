@@ -18,7 +18,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { ProductDetail1688 } from "@/lib/api/alibaba1688";
-import { cdnImage, cdnImageFallback } from "@/lib/cdnImage";
+import { cdnImage, cdnImageFallback, cdnSrcSet, PRODUCT_THUMB_WIDTHS, PRODUCT_GRID_SIZES } from "@/lib/cdnImage";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -252,6 +252,9 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
   };
   const handleAddToCart = async () => {
     if (!product) return;
+    // Placeholder data has no real MOQ or variant list yet — the buttons are disabled in
+    // this state, this guards the path being reached any other way.
+    if (isLoading) return;
     if (!user) {
       toast({ title: "Please login first", description: "You need to be logged in.", variant: "destructive" });
       navigate("/auth");
@@ -310,6 +313,8 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
 
   const handleBuyNow = async () => {
     if (!product) return;
+    // See handleAddToCart — never start a purchase from placeholder data.
+    if (isLoading) return;
     if (!user) {
       toast({ title: "Please login first", description: "You need to be logged in to place an order.", variant: "destructive" });
       navigate("/auth");
@@ -453,10 +458,20 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
     setCheckoutOpen(true);
   };
 
-  // Keep loading feedback in the product layout itself rather than showing a
-  // detached banner. This also prevents cached list-item data from briefly
-  // looking like complete product data while the full detail request is active.
-  if (isLoading) {
+  // Placeholder = the list item the user just clicked, passed straight through by
+  // Index.tsx so the hero can paint immediately instead of blanking to a skeleton.
+  // It carries title/image/price/sold but no description, specs, variants or real MOQ.
+  const isPlaceholder = Boolean(isLoading && product);
+
+  // Full skeleton only when there is genuinely nothing to show. It used to fire on
+  // `isLoading` alone, which discarded the placeholder on every single product open —
+  // the reasoning being that partial data could read as complete. That holds for MOQ
+  // and variants (handled below, purchase controls stay disabled until the real detail
+  // lands) but not for price: the list price is already the price charged. The storefront
+  // bills `getTierCnyPrice`, which is `max(highest tier, basePrice)`, and the highest tier
+  // is exactly what search returns — verified equal on every product sampled. The number
+  // in the hero does not move when the detail arrives.
+  if (isLoading && !product) {
     return (
       <main className="min-h-screen bg-background animate-fade-in">
         <div className="border-b bg-card">
@@ -633,11 +648,20 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
               )}
             </div>
 
+            {/* While the hero is a placeholder it reuses the grid card's exact srcSet and
+                sizes, so the browser resolves to the identical candidate it already has in
+                cache and the image paints immediately. Asking for a plain 800px URL here
+                instead leaves the largest element on the page blank for the whole detail
+                fetch — and picking a single width does not help, because `sizes` decides
+                which candidate the grid actually downloaded. It looks slightly soft in the
+                larger box until the real detail arrives and swaps in the 800. */}
             <div className="relative self-start aspect-square rounded-xl overflow-hidden bg-muted border shadow-sm w-full max-w-[520px]">
               {showVideo && product.video ? (
                 <video src={product.video} controls autoPlay className="w-full h-full object-contain" />
               ) : (
-                <img src={cdnImage(variantOverrideImage || images[selectedImage], 800)} alt={product.title} referrerPolicy="no-referrer"
+                <img src={cdnImage(variantOverrideImage || images[selectedImage], isPlaceholder ? 250 : 800)} alt={product.title} referrerPolicy="no-referrer"
+                  srcSet={isPlaceholder ? cdnSrcSet(variantOverrideImage || images[selectedImage], PRODUCT_THUMB_WIDTHS) : undefined}
+                  sizes={isPlaceholder ? PRODUCT_GRID_SIZES : undefined}
                   fetchPriority="high" decoding="async"
                   className="w-full h-full object-contain"
                   onError={cdnImageFallback(variantOverrideImage || images[selectedImage])} />
@@ -680,7 +704,9 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                 <Box className="h-4.5 w-4.5 text-primary flex-shrink-0" />
                 <div>
                   <div className="text-[10px] uppercase tracking-wide text-primary font-semibold">Min Order</div>
-                  <div className="font-bold text-base">{product.min_num || 1} pcs</div>
+                  {/* The placeholder hardcodes min_num to 1; the real MOQ is often higher,
+                      so show the same em dash as stock/weight rather than a wrong number. */}
+                  <div className="font-bold text-base">{isPlaceholder ? '—' : `${product.min_num || 1} pcs`}</div>
                 </div>
               </div>
               <div className="border rounded-lg p-2.5 flex items-center gap-2">
@@ -819,13 +845,23 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
               );
             })()}
 
-            {/* If no variants, show price */}
+            {/* If no variants, show price.
+                The placeholder deliberately withholds the number. A list item carries no
+                variant data, and for a product with variants the page prices from
+                configuredItems[0], not the top-level price — e.g. base 7 CNY against a
+                first variant at 8.5, which renders as ৳154 jumping to ৳188 once the detail
+                lands. An upward-moving price reads as bait-and-switch, so it waits. Title,
+                image and sold count are safe and paint immediately. */}
             {!hasSkus && (
               <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 rounded-xl p-4">
-                <div className="flex items-baseline gap-1">
-                  <span className="text-sm font-medium text-primary">৳</span>
-                  <span className="text-3xl md:text-5xl font-extrabold text-primary tracking-tight">{tierBdtUnit(tierQtyForDisplay).toLocaleString()}</span>
-                </div>
+                {isPlaceholder ? (
+                  <Skeleton className="h-9 md:h-12 w-40" />
+                ) : (
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-sm font-medium text-primary">৳</span>
+                    <span className="text-3xl md:text-5xl font-extrabold text-primary tracking-tight">{tierBdtUnit(tierQtyForDisplay).toLocaleString()}</span>
+                  </div>
+                )}
               </div>
             )}
 
@@ -880,7 +916,7 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                     </table>
                   </div>
                 ) : (
-                  <p className="text-muted-foreground text-sm py-12 text-center">No specifications available</p>
+                  <p className="text-muted-foreground text-sm py-12 text-center">{isPlaceholder ? 'Loading specifications…' : 'No specifications available'}</p>
                 )}
               </TabsContent>
 
@@ -1119,11 +1155,14 @@ export default function ProductDetail({ product, isLoading, onBack }: ProductDet
                     <Button aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"} variant="outline" size="icon" className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl shrink-0" onClick={handleToggleWishlist} disabled={addingToWishlist}>
                       <Heart className={`h-4 w-4 sm:h-5 sm:w-5 ${isWishlisted ? 'fill-destructive text-destructive' : ''}`} />
                     </Button>
-                    <Button variant="outline" className="min-w-0 flex-1 basis-[calc(50%-2rem)] h-10 sm:h-11 rounded-xl font-semibold text-xs sm:text-sm px-2 sm:px-4" onClick={handleAddToCart} disabled={addingToCart}>
-                      {addingToCart ? <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2 shrink-0 animate-spin" /> : <ShoppingCart className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2 shrink-0" />}Add to Cart
+                    {/* Disabled while the hero is showing placeholder data: the real MOQ
+                        (min_num) and the variant list aren't known yet, so buying now could
+                        commit an invalid quantity or skip a required variant choice. */}
+                    <Button variant="outline" className="min-w-0 flex-1 basis-[calc(50%-2rem)] h-10 sm:h-11 rounded-xl font-semibold text-xs sm:text-sm px-2 sm:px-4" onClick={handleAddToCart} disabled={addingToCart || isPlaceholder}>
+                      {addingToCart || isPlaceholder ? <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2 shrink-0 animate-spin" /> : <ShoppingCart className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2 shrink-0" />}Add to Cart
                     </Button>
-                    <Button className="min-w-0 flex-1 basis-[calc(50%-2rem)] h-10 sm:h-11 rounded-xl font-bold shadow-md text-xs sm:text-sm px-2 sm:px-4" onClick={handleBuyNow}>
-                      <ShoppingCart className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2 shrink-0" />
+                    <Button className="min-w-0 flex-1 basis-[calc(50%-2rem)] h-10 sm:h-11 rounded-xl font-bold shadow-md text-xs sm:text-sm px-2 sm:px-4" onClick={handleBuyNow} disabled={isPlaceholder}>
+                      {isPlaceholder ? <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2 shrink-0 animate-spin" /> : <ShoppingCart className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2 shrink-0" />}
                       Buy Now
                     </Button>
                   </div>
