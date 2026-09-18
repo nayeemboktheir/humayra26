@@ -292,9 +292,40 @@ async function uploadToTempBucket(imageBase64: string): Promise<string> {
   if (error) throw new Error(`Image upload failed: ${error.message}`);
   const { data: pub } = supabase.storage.from('temp-images').getPublicUrl(fileName);
 
-  setTimeout(async () => {
-    try { await supabase.storage.from('temp-images').remove([fileName]); } catch {}
-  }, 900000);
+  // The cleanup used to be a `setTimeout(..., 900000)` registered here. An edge isolate is
+  // recycled once its response is done, so a timer 15 minutes out was never reliably
+  // reached and uploads accumulated in the bucket indefinitely. Sweeping on the way in
+  // needs nothing to stay alive after the response.
+  sweepStaleTempImages(supabase);
 
   return pub.publicUrl;
+}
+
+// Best-effort removal of temp uploads older than TEMP_IMAGE_TTL_MS. Fire-and-forget: a
+// failure here must never affect the search that triggered it.
+const TEMP_IMAGE_TTL_MS = 15 * 60 * 1000;
+function sweepStaleTempImages(supabase: any) {
+  const sweep = (async () => {
+    try {
+      const { data: files } = await supabase.storage
+        .from('temp-images')
+        .list('', { limit: 100, sortBy: { column: 'created_at', order: 'asc' } });
+      if (!Array.isArray(files) || files.length === 0) return;
+      const cutoff = Date.now() - TEMP_IMAGE_TTL_MS;
+      const stale = files
+        .filter((f: any) => {
+          const created = Date.parse(f?.created_at || f?.updated_at || '');
+          return Number.isFinite(created) && created < cutoff;
+        })
+        .map((f: any) => f.name);
+      if (stale.length > 0) {
+        await supabase.storage.from('temp-images').remove(stale);
+        console.log(`temp-images: swept ${stale.length} stale upload(s)`);
+      }
+    } catch (e) {
+      console.error('temp-images sweep failed:', e instanceof Error ? e.message : e);
+    }
+  })();
+  const waitUntil = (globalThis as any).EdgeRuntime?.waitUntil;
+  if (typeof waitUntil === 'function') waitUntil.call((globalThis as any).EdgeRuntime, sweep);
 }

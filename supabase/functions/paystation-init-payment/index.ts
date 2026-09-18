@@ -75,10 +75,13 @@ Deno.serve(async (req) => {
     console.log('PayStation response:', JSON.stringify(data));
 
     if (data.status_code === '200' && data.status === 'success') {
+      // The Meta CAPI call is a third-party analytics ping — it doesn't affect whether
+      // the customer can pay, so it must not sit between "PayStation confirmed" and the
+      // customer being handed their payment_url. Fire it in the background instead.
       if (supabaseUrl && serviceRoleKey && meta_event_id) {
         const admin = createClient(supabaseUrl, serviceRoleKey);
         const nameParts = String(cust_name || '').trim().split(/\s+/);
-        await sendMetaCapiEvent(admin, req, {
+        const sendEvent = sendMetaCapiEvent(admin, req, {
           eventName: 'InitiateCheckout',
           eventId: meta_event_id,
           eventSourceUrl: event_source_url,
@@ -94,6 +97,9 @@ Deno.serve(async (req) => {
           fbp: meta_browser_ids?.fbp,
           fbc: meta_browser_ids?.fbc,
         });
+        const waitUntil = (globalThis as any).EdgeRuntime?.waitUntil;
+        if (typeof waitUntil === 'function') waitUntil.call((globalThis as any).EdgeRuntime, sendEvent);
+        else await sendEvent;
       }
 
       return new Response(

@@ -101,15 +101,22 @@ serve(async (req) => {
     const smsResult = await smsResponse.text();
     console.log(`[send-shipment-sms] phone=${phone} stage="${stage}" response=${smsResult}`);
 
-    // Log to sms_logs
-    await supabase.from("sms_logs").insert({
+    // Log to sms_logs. The SMS has already left the gateway by this point, so the audit
+    // row must not hold up the admin's response.
+    const writeLog = supabase.from("sms_logs").insert({
       phone,
       message,
       sms_type: "shipment",
       status: smsResponse.ok ? "sent" : "failed",
       response: smsResult.slice(0, 500),
       user_id: userId,
-    });
+    }).then(
+      ({ error }: any) => { if (error) console.error("sms_logs write failed:", error.message); },
+      (err: any) => { console.error("sms_logs write threw:", err?.message ?? err); },
+    );
+    const waitUntil = (globalThis as any).EdgeRuntime?.waitUntil;
+    if (typeof waitUntil === "function") waitUntil.call((globalThis as any).EdgeRuntime, writeLog);
+    else await writeLog;
 
     return new Response(
       JSON.stringify({ success: true, phone, stage, response: smsResult }),

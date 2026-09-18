@@ -1,3 +1,4 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { normalizeImg } from '../_shared/normalize-img.ts';
 
 const corsHeaders = {
@@ -6,6 +7,9 @@ const corsHeaders = {
 };
 
 const TMAPI_BASE = 'https://api.tmapi.top/1688';
+// Uncached, this walks up to three TMAPI endpoints in sequence before answering. Same
+// search_cache-with-a-key-prefix approach as the other cached endpoints.
+const CACHE_TTL_HOURS = 12;
 
 function mapItems(rawItems: any[]) {
   return rawItems.map((it: any) => {
@@ -49,6 +53,30 @@ Deno.serve(async (req) => {
     const raw = String(vendorId).trim();
     const ps = Math.min(Math.max(pageSize, 1), 40);
     const tokenQ = encodeURIComponent(apiToken);
+
+    const cacheKey = `seller:${raw.toLowerCase()}:${ps}`;
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
+    const cutoff = new Date(Date.now() - CACHE_TTL_HOURS * 60 * 60 * 1000).toISOString();
+    const { data: cachedRow, error: cacheReadError } = await supabase
+      .from('search_cache')
+      .select('items, total_results')
+      .eq('query_key', cacheKey)
+      .eq('page', page)
+      .gte('updated_at', cutoff)
+      .maybeSingle();
+    if (cacheReadError) console.error('seller cache read failed:', cacheReadError.message);
+    // `items` holds { items, vendorInfo } here rather than a bare array — this key space is
+    // private to this function, and vendorInfo comes from the same upstream call.
+    if (cachedRow?.items?.items?.length) {
+      return new Response(JSON.stringify({
+        success: true,
+        data: { items: cachedRow.items.items, total: cachedRow.total_results, vendorInfo: cachedRow.items.vendorInfo || { name: '', score: 0, location: '' } },
+        cached: true,
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
 
     // A "member id" is either numeric or already prefixed with b2b-.
     const isMemberId = /^b2b-/i.test(raw) || /^\d+$/.test(raw);
@@ -134,7 +162,18 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ success: true, data: { items: [], total: 0, vendorInfo }, meta: { lastError } }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    return new Response(JSON.stringify({ success: true, data: { items, total: totalCount, vendorInfo } }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    const writeCache = supabase.from('search_cache').upsert(
+      { query_key: cacheKey, page, total_results: totalCount, items: { items, vendorInfo }, translated: true },
+      { onConflict: 'query_key,page' }
+    ).then(
+      ({ error }) => { if (error) console.error('seller cache write failed:', error.message); },
+      (err) => { console.error('seller cache write threw:', err?.message ?? err); },
+    );
+    const waitUntil = (globalThis as any).EdgeRuntime?.waitUntil;
+    if (typeof waitUntil === 'function') waitUntil.call((globalThis as any).EdgeRuntime, writeCache);
+    else await writeCache;
+
+    return new Response(JSON.stringify({ success: true, data: { items, total: totalCount, vendorInfo }, cached: false }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error) {
     return new Response(JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Failed' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }

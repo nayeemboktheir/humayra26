@@ -131,7 +131,7 @@ serve(async (req) => {
     let sent = 0, failed = 0;
     const logRows: any[] = [];
 
-    for (const r of recipients) {
+    const sendOne = async (r: Recipient) => {
       const personalized = message
         .replace(/\{name\}/gi, r.name || "")
         .replace(/\{phone\}/gi, r.phone);
@@ -160,7 +160,24 @@ serve(async (req) => {
         user_id: r.user_id || null,
         sent_by: senderId,
       });
-    }
+    };
+
+    // A "send to all" broadcast can address up to 2000 recipients. One-at-a-time that is
+    // 2000 sequential HTTP round trips in a single invocation, which runs for many minutes
+    // and can hit the function timeout part-way through a send. A small fixed pool keeps
+    // wall time proportional while staying far below anything the gateway would treat as a
+    // flood. The response contract is unchanged — sent/failed counts are still returned
+    // synchronously once every recipient has been attempted.
+    const CONCURRENCY = 5;
+    const queue = [...recipients];
+    const workers = Array.from({ length: Math.min(CONCURRENCY, queue.length) }, async () => {
+      for (;;) {
+        const next = queue.shift();
+        if (!next) return;
+        await sendOne(next);
+      }
+    });
+    await Promise.all(workers);
 
     if (logRows.length > 0) {
       await admin.from("sms_logs").insert(logRows);

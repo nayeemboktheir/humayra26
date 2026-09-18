@@ -128,16 +128,22 @@ serve(async (req) => {
 
     console.log("BulkSMS BD response:", smsResult);
 
-    // Log to sms_logs (best-effort, do not fail the OTP request if logging fails)
-    try {
-      await supabase.from("sms_logs").insert({
-        phone: normalizedPhone,
-        message: "Your login OTP is: ****** (redacted)",
-        sms_type: "otp",
-        status: smsResponse.ok ? "sent" : "failed",
-        response: smsResult.slice(0, 500),
-      });
-    } catch (_) { /* ignore */ }
+    // Log to sms_logs (best-effort, do not fail the OTP request if logging fails). The user
+    // is waiting on an SMS that has already been dispatched, so this write is deferred off
+    // the response path where the runtime supports it.
+    const writeLog = supabase.from("sms_logs").insert({
+      phone: normalizedPhone,
+      message: "Your login OTP is: ****** (redacted)",
+      sms_type: "otp",
+      status: smsResponse.ok ? "sent" : "failed",
+      response: smsResult.slice(0, 500),
+    }).then(
+      ({ error }: any) => { if (error) console.error("sms_logs write failed:", error.message); },
+      (err: any) => { console.error("sms_logs write threw:", err?.message ?? err); },
+    );
+    const waitUntil = (globalThis as any).EdgeRuntime?.waitUntil;
+    if (typeof waitUntil === "function") waitUntil.call((globalThis as any).EdgeRuntime, writeLog);
+    else { try { await writeLog; } catch (_) { /* ignore */ } }
 
     return new Response(
       JSON.stringify({ success: true, message: "OTP sent successfully" }),

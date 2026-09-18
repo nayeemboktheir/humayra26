@@ -99,8 +99,37 @@ Deno.serve(async (req) => {
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
+    // Image search. This used to return an empty result set unconditionally, without
+    // calling anything — a leftover stub from the OTAPI removal. The frontend's
+    // searchByImageOtapi() fallback (Index.tsx, used when the primary image search finds
+    // nothing) therefore always came back empty, so the fallback never once worked.
     if (isImageSearch) {
-      return new Response(JSON.stringify({ success: true, data: { items: [], total: 0 } }),
+      const imgSearchUrl = `${TMAPI_BASE}/global/search/image?apiToken=${encodeURIComponent(apiToken)}&img_url=${encodeURIComponent(String(imageUrl))}&language=en&page=${page}&page_size=${effectivePageSize}&sort=default`;
+      const imgResp = await fetchWithTimeout(imgSearchUrl, { headers: { Accept: 'application/json' } }, TMAPI_TIMEOUT_MS);
+      const imgData = await imgResp.json();
+      if (!imgResp.ok || (imgData?.code && imgData.code !== 200)) {
+        return new Response(JSON.stringify({ success: true, data: { items: [], total: 0 } }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      const imgResult = imgData?.data || {};
+      const imgRaw: any[] = Array.isArray(imgResult?.items) ? imgResult.items : [];
+      const imgItems = imgRaw.map(mapTmapiItem).filter((i: any) => i.num_iid > 0);
+      const imgTotal = imgResult?.total_count || imgResult?.total || imgItems.length;
+
+      if (imgItems.length > 0) {
+        const writeImgCache = supabase.from('search_cache').upsert(
+          { query_key: queryKey, page, total_results: imgTotal, items: imgItems, translated: true },
+          { onConflict: 'query_key,page' }
+        ).then(
+          ({ error }) => { if (error) console.error('search_cache write failed:', error.message); },
+          (err) => { console.error('search_cache write threw:', err?.message ?? err); },
+        );
+        const wu = (globalThis as any).EdgeRuntime?.waitUntil;
+        if (typeof wu === 'function') wu.call((globalThis as any).EdgeRuntime, writeImgCache);
+        else await writeImgCache;
+      }
+
+      return new Response(JSON.stringify({ success: true, data: { items: imgItems, total: imgTotal }, cached: false, translated: true }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 

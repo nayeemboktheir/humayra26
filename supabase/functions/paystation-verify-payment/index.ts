@@ -123,8 +123,12 @@ Deno.serve(async (req) => {
           .eq('user_id', firstOrder.user_id)
           .maybeSingle();
 
+        // Same reasoning as paystation-init-payment: the order/transaction/notification
+        // writes above are the part that must complete before responding. The Meta CAPI
+        // Purchase ping is analytics only — don't make the customer's "payment confirmed"
+        // response wait on Facebook's API.
         const nameParts = String(profile?.full_name || '').trim().split(/\s+/);
-        await sendMetaCapiEvent(supabase, req, {
+        const sendEvent = sendMetaCapiEvent(supabase, req, {
           eventName: 'Purchase',
           eventId: meta_event_id || `purchase_${invoice_number}`,
           eventSourceUrl: event_source_url,
@@ -139,6 +143,9 @@ Deno.serve(async (req) => {
           fbp: meta_browser_ids?.fbp,
           fbc: meta_browser_ids?.fbc,
         });
+        const waitUntil = (globalThis as any).EdgeRuntime?.waitUntil;
+        if (typeof waitUntil === 'function') waitUntil.call((globalThis as any).EdgeRuntime, sendEvent);
+        else await sendEvent;
       }
     } else if (isCanceled) {
       await supabase
