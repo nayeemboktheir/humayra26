@@ -174,11 +174,21 @@ async function doImageSearchV2(
   const result = await fetchAndParse(searchUrl, 'v2', pageSize, apiToken, startTime, convertedUrl, originalUrl, page, saveCache);
   if (result) return result;
 
-  // V2 failed, try standard endpoints with full URL if it looks like a path
+  // V2 failed — retry the other image endpoints with the SAME token.
+  //
+  // This used to prepend https://cbu01.alicdn.com to the path first, on the assumption that
+  // the converted value is a hosted image. It is not: convert_url ingests the image into
+  // Alibaba's visual-search index and returns an internal reference, which 404s on every
+  // alicdn host. The constructed URL therefore pointed at nothing and the retry returned
+  // `code: 200, items: 0` every single time — a fallback that could never fire.
+  //
+  // The token itself is accepted by all three image endpoints regardless of which one
+  // `search_api_endpoint` named when it was minted (verified: a /global/search/image/v2
+  // token returns 20 items on v2, 40 on /global/search/image and 20 on /search/image), so
+  // it is passed through unchanged.
   if (imgPath.startsWith('/')) {
-    const fullUrl = `https://cbu01.alicdn.com${imgPath}`;
-    console.log('V2 failed, trying standard with full URL...');
-    return await doImageSearch(fullUrl, page, pageSize, apiToken, startTime, convertedUrl, originalUrl, saveCache);
+    console.log('V2 failed, retrying other image endpoints with the same converted token...');
+    return await doImageSearch(imgPath, page, pageSize, apiToken, startTime, convertedUrl, originalUrl, saveCache);
   }
 
   return emptyResponse(convertedUrl, originalUrl);
