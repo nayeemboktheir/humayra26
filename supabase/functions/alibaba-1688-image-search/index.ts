@@ -292,13 +292,32 @@ async function uploadToTempBucket(imageBase64: string): Promise<string> {
   if (error) throw new Error(`Image upload failed: ${error.message}`);
   const { data: pub } = supabase.storage.from('temp-images').getPublicUrl(fileName);
 
+  // getPublicUrl derives the origin from SUPABASE_URL, which inside the container is the
+  // internal gateway (http://supabase-kong:8000). TMAPI fetches this URL from the public
+  // internet in order to convert the image, so an internal hostname simply fails to
+  // resolve — the convert step then returns the input unchanged and the search falls
+  // through to an empty result. That is why uploaded-image search returned nothing while
+  // searching by an existing alicdn URL worked: only this path goes through storage.
+  const externalBase = (Deno.env.get('SUPABASE_PUBLIC_URL') || '').replace(/\/+$/, '');
+  const publicUrl = externalBase
+    ? pub.publicUrl.replace(/^https?:\/\/[^/]+/, externalBase)
+    : pub.publicUrl;
+  // A host with no dot in it cannot be a public domain, so say so plainly rather than
+  // letting the search quietly return zero results.
+  if (!/^https?:\/\/[^/]*\.[^/]+/.test(publicUrl)) {
+    console.error(
+      `uploaded image is not reachable from outside the stack (${publicUrl}) — ` +
+      'set SUPABASE_PUBLIC_URL on the edge-functions service to the public API origin',
+    );
+  }
+
   // The cleanup used to be a `setTimeout(..., 900000)` registered here. An edge isolate is
   // recycled once its response is done, so a timer 15 minutes out was never reliably
   // reached and uploads accumulated in the bucket indefinitely. Sweeping on the way in
   // needs nothing to stay alive after the response.
   sweepStaleTempImages(supabase);
 
-  return pub.publicUrl;
+  return publicUrl;
 }
 
 // Best-effort removal of temp uploads older than TEMP_IMAGE_TTL_MS. Fire-and-forget: a
