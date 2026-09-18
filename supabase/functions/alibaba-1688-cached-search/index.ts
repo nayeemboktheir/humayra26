@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { normalizeImg } from '../_shared/normalize-img.ts';
+import { upsertCatalogListings } from '../_shared/catalog.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -151,13 +152,21 @@ Deno.serve(async (req) => {
 
     // Persist after responding. The upsert used to sit between the upstream result and
     // the reply, adding a full database round trip to every cache-miss search.
-    const writeCache = supabase.from('search_cache').upsert(
-      { query_key: queryKey, page, total_results: totalCount, items, translated: true },
-      { onConflict: 'query_key,page' }
-    ).then(
-      ({ error }) => { if (error) console.error('search_cache write failed:', error.message); },
-      (err) => { console.error('search_cache write threw:', err?.message ?? err); },
-    );
+    //
+    // The catalog upsert rides along here: every result already carries the listing fields,
+    // so recording them costs no upstream call and lets the catalog grow from ordinary
+    // traffic. Both writes go out together — one is not allowed to delay the other, and the
+    // search cache stays first in line because it is the one that makes repeat searches fast.
+    const writeCache = Promise.all([
+      supabase.from('search_cache').upsert(
+        { query_key: queryKey, page, total_results: totalCount, items, translated: true },
+        { onConflict: 'query_key,page' }
+      ).then(
+        ({ error }) => { if (error) console.error('search_cache write failed:', error.message); },
+        (err) => { console.error('search_cache write threw:', err?.message ?? err); },
+      ),
+      upsertCatalogListings(supabase, items),
+    ]);
     const waitUntil = (globalThis as any).EdgeRuntime?.waitUntil;
     if (typeof waitUntil === 'function') waitUntil.call((globalThis as any).EdgeRuntime, writeCache);
     else await writeCache;

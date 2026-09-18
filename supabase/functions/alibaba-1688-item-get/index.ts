@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { normalizeImg } from '../_shared/normalize-img.ts';
+import { upsertCatalogDetail } from '../_shared/catalog.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -281,10 +282,16 @@ Deno.serve(async (req) => {
     // Writing the usable fast-path result first means a killed isolate still leaves a valid
     // cache entry; the enrichment pass then upgrades it if it gets the chance.
     const enrichAndCache = (async () => {
+      // product_cache is the 12h serving cache; products is the durable catalog. Both are
+      // written from the same payload — the catalog is what will outlive the TTL, and it
+      // records when the price was last verified so it can later be refreshed on its own.
       const writeCache = async (detail: unknown, label: string) => {
-        const { error } = await supabase
-          .from('product_cache')
-          .upsert({ item_id: cleanId, detail, updated_at: new Date().toISOString() }, { onConflict: 'item_id' });
+        const [{ error }] = await Promise.all([
+          supabase
+            .from('product_cache')
+            .upsert({ item_id: cleanId, detail, updated_at: new Date().toISOString() }, { onConflict: 'item_id' }),
+          upsertCatalogDetail(supabase, cleanId, detail),
+        ]);
         if (error) console.error(`product_cache ${label} write failed:`, error.message);
       };
 
