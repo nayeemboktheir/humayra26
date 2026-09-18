@@ -509,7 +509,11 @@ const Index = () => {
     imageSearchDerivedKeywordRef.current = '';
 
     try {
-      // Fast compress for image search (400x400, 50% quality)
+      // Compressed to 640x640 q0.72 by compressImageForSearch. Do not shrink this further
+      // to chase speed: measured against 400x400 q0.5, the smaller image did not reliably
+      // reduce TMAPI's convert_url time (its run-to-run variance on identical input, 1.7s
+      // to 13.3s, is far larger than any size effect in this range) and only 15-16 of the
+      // top 20 results still matched.
       const { compressImageForSearch } = await import('@/lib/compressImage');
       const imageBase64 = await compressImageForSearch(file);
       toast.info("Searching...");
