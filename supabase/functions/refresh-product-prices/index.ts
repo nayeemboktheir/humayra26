@@ -65,7 +65,12 @@ Deno.serve(async (req) => {
     let body: any = {};
     try { body = await req.json(); } catch { /* cron posts an empty-ish body */ }
     const limit = Math.min(Math.max(parseInt(String(body?.limit ?? DEFAULT_BATCH), 10) || DEFAULT_BATCH, 1), MAX_BATCH);
-    const maxAgeDays = Number(body?.maxAgeDays) > 0 ? Number(body.maxAgeDays) : PRICE_MAX_AGE_DAYS;
+    // `>= 0`, not `> 0`: maxAgeDays:0 means "treat everything as stale", which is the
+    // override you actually want when verifying this by hand. Testing for `> 0` silently
+    // swallowed it and fell back to the 7-day window, so a forced run reported
+    // "no stale prices" and looked like the job was broken.
+    const rawMaxAge = Number(body?.maxAgeDays);
+    const maxAgeDays = Number.isFinite(rawMaxAge) && rawMaxAge >= 0 ? rawMaxAge : PRICE_MAX_AGE_DAYS;
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
