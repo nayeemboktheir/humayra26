@@ -114,7 +114,32 @@ Deno.serve(async (req) => {
       return await doImageSearchV2(imgUrl, page, effectivePageSize, apiToken, startTime, imgUrl, originalUrl, saveCache);
     }
 
-    // PATH 3: User-uploaded image (base64 or external URL) → convert first, then search with V2
+    // PATH 3: User-uploaded image → convert first, then search with V2.
+    //
+    // convert_url is by far the most expensive step here (measured 1.7-13.3s; it ingests the
+    // image into Alibaba's visual-search index rather than rewriting a URL, so the cost is
+    // their indexing queue and does not shrink with the payload). Its output is durable and
+    // reusable though — tokens minted over an hour earlier still return results — so the
+    // same image searched twice should only ever pay for ingestion once.
+    //
+    // A cache hit skips the upload as well as the conversion: the only reason to put the
+    // image in storage is to give TMAPI a URL to ingest from, and that has already happened.
+    let cacheKeyHash: string | null = null;
+    if (imageBase64 && !imgUrl) {
+      cacheKeyHash = await sha256Hex(imageBase64);
+      const cachedToken = await getCachedConvertToken(supabase, cacheKeyHash);
+      if (cachedToken) {
+        console.log(`convert cache hit (${cacheKeyHash.slice(0, 12)}) — skipping upload and convert`);
+        const hit = await doImageSearchV2(cachedToken, page, effectivePageSize, apiToken, startTime, cachedToken, originalUrl || cachedToken, saveCache);
+        // A token can outlive its usefulness upstream. doImageSearchV2 answers with an empty
+        // result rather than throwing, so treat "nothing found" as a stale token and fall
+        // through to a full re-ingest instead of handing back an empty page.
+        const body = await hit.clone().json().catch(() => null);
+        if (body?.data?.items?.length) return hit;
+        console.log('cached token returned nothing — re-converting');
+      }
+    }
+
     if (imageBase64 && !imgUrl) {
       console.log('Uploading base64...');
       imgUrl = await uploadToTempBucket(imageBase64);
@@ -128,6 +153,7 @@ Deno.serve(async (req) => {
     console.log('Convert result:', convertedPath?.slice(0, 100), 'in', Date.now() - startTime, 'ms');
 
     if (convertedPath && convertedPath !== imgUrl) {
+      if (cacheKeyHash) putCachedConvertToken(supabase, cacheKeyHash, convertedPath);
       // Use V2 endpoint with the converted path
       return await doImageSearchV2(convertedPath, page, effectivePageSize, apiToken, startTime, convertedPath, originalUrl, saveCache);
     }
@@ -245,6 +271,48 @@ async function fetchAndParse(
     data: { items, total },
     meta: { method: 'tmapi_image', page, pageSize, convertedImageUrl: convertedUrl, originalImageUrl: originalUrl || convertedUrl },
   }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+}
+
+/** Content hash of the uploaded image, so the same photo maps to the same cached token. */
+async function sha256Hex(base64: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(base64));
+  return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Tokens were verified still valid over an hour after minting, but there is no documented
+// lifetime, so this is deliberately short of anything assumed. A stale token costs one
+// wasted search and is then re-minted.
+const CONVERT_TOKEN_TTL_HOURS = 12;
+
+async function getCachedConvertToken(supabase: any, hash: string): Promise<string | null> {
+  try {
+    const cutoff = new Date(Date.now() - CONVERT_TOKEN_TTL_HOURS * 60 * 60 * 1000).toISOString();
+    const { data } = await supabase
+      .from('search_cache')
+      .select('items')
+      .eq('query_key', `imgtok:${hash}`)
+      .eq('page', 1)
+      .gte('updated_at', cutoff)
+      .maybeSingle();
+    const token = data?.items?.token;
+    return typeof token === 'string' && token ? token : null;
+  } catch (err) {
+    console.error('convert token read failed:', err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
+/** Fire-and-forget: failing to remember a token must not fail the search that produced it. */
+function putCachedConvertToken(supabase: any, hash: string, token: string) {
+  const write = supabase
+    .from('search_cache')
+    .upsert({ query_key: `imgtok:${hash}`, page: 1, total_results: 0, items: { token }, translated: true }, { onConflict: 'query_key,page' })
+    .then(
+      ({ error }: any) => { if (error) console.error('convert token write failed:', error.message); },
+      (err: any) => { console.error('convert token write threw:', err?.message ?? err); },
+    );
+  const waitUntil = (globalThis as any).EdgeRuntime?.waitUntil;
+  if (typeof waitUntil === 'function') waitUntil.call((globalThis as any).EdgeRuntime, write);
 }
 
 function emptyResponse(convertedUrl: string, originalUrl: string): Response {
