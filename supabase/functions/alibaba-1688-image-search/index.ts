@@ -322,30 +322,54 @@ function emptyResponse(convertedUrl: string, originalUrl: string): Response {
   }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 }
 
-// Convert URL via TMAPI — returns image path for V2 endpoint
+// Convert URL via TMAPI — returns image path for V2 endpoint.
+//
+// Returning `imgUrl` unchanged is how this signals failure, and the caller turns that into
+// an empty result set — which the customer cannot tell apart from "nothing matched your
+// photo". Measured over six first-time searches, one conversion failed outright, so roughly
+// one upload in six was silently answering "no results" for a perfectly good image.
+// Failures are transient (the same image converted fine on a second attempt), hence the
+// retry, and they are now logged with the upstream code rather than swallowed.
+const CONVERT_TIMEOUT_MS = 20000;
+const CONVERT_ATTEMPTS = 2;
+
 async function convertImageUrl(imgUrl: string, apiToken: string): Promise<string> {
-  try {
-    const convertResp = await fetch(
-      `${TMAPI_BASE}/tools/image/convert_url?apiToken=${encodeURIComponent(apiToken)}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: imgUrl, search_api_endpoint: '/global/search/image/v2' }),
+  for (let attempt = 1; attempt <= CONVERT_ATTEMPTS; attempt++) {
+    // Successful conversions have been observed taking up to ~18s, so the bound is generous;
+    // it exists to stop a stalled connection consuming the whole invocation.
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), CONVERT_TIMEOUT_MS);
+    try {
+      const convertResp = await fetch(
+        `${TMAPI_BASE}/tools/image/convert_url?apiToken=${encodeURIComponent(apiToken)}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: imgUrl, search_api_endpoint: '/global/search/image/v2' }),
+          signal: controller.signal,
+        }
+      );
+      const rawText = await convertResp.text();
+      if (rawText && rawText.length >= 2) {
+        let convertData: any = null;
+        try { convertData = JSON.parse(rawText); } catch { /* handled below */ }
+        if (convertData?.code === 200 && convertData?.data) {
+          const d = convertData.data;
+          const result = d.image_url || d.img_url || d.url || (typeof d === 'string' ? d : '') || '';
+          if (result) return result;
+        }
+        console.error(`convert_url attempt ${attempt}/${CONVERT_ATTEMPTS} rejected: code=${convertData?.code} msg=${String(convertData?.msg ?? '').slice(0, 120)}`);
+      } else {
+        console.error(`convert_url attempt ${attempt}/${CONVERT_ATTEMPTS} returned an empty body`);
       }
-    );
-    const rawText = await convertResp.text();
-    console.log('Convert raw:', rawText.slice(0, 300));
-    if (!rawText || rawText.length < 2) return imgUrl;
-    let convertData: any;
-    try { convertData = JSON.parse(rawText); } catch { return imgUrl; }
-    if (convertData?.code === 200 && convertData?.data) {
-      const d = convertData.data;
-      const result = d.image_url || d.img_url || d.url || (typeof d === 'string' ? d : '') || '';
-      if (result) return result;
+    } catch (e) {
+      console.error(`convert_url attempt ${attempt}/${CONVERT_ATTEMPTS} threw:`, e instanceof Error ? e.message : e);
+    } finally {
+      clearTimeout(timer);
     }
-  } catch (e) {
-    console.log('Convert error:', e);
+    if (attempt < CONVERT_ATTEMPTS) await new Promise((r) => setTimeout(r, 400));
   }
+  console.error('convert_url failed after all attempts — image search will return no results');
   return imgUrl;
 }
 
