@@ -5,4 +5,4 @@
 - [x] Prevent more than one shipment record per linked order
 - [x] Make shipment and order status updates atomic
 - [x] Route single and bulk admin stage changes through the atomic update
-- [ ] Verify saved data and customer/admin displays
+- [x] Verify saved data and customer/admin displays

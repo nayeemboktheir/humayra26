@@ -73,12 +73,6 @@ const ORDER_STATUS_OPTIONS = [
   { value: "cancelled", label: "Cancelled" },
 ];
 
-const getOrderStatusForShipmentStage = (stage: string) => {
-  if (stage === "Delivered") return "delivered";
-  if (stage === "Ordered") return "pending";
-  return "processing";
-};
-
 export default function AdminOrders() {
   const [data, setData] = useState<OrderWithProfile[]>([]);
   const [loading, setLoading] = useState(true);
