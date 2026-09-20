@@ -82,6 +82,15 @@ There is no CLI path and no CI for this — everything is applied by hand on the
   Cron jobs live in [supabase/selfhost/04_cron.sql](supabase/selfhost/04_cron.sql) and
   `05_cron_price_refresh.sql`, which take `base_url`/`anon_key` as psql variables so no key
   is committed.
+- **SQL lives in three places, and only two of them are obvious.** Besides
+  `supabase/selfhost/*.sql` (the numbered setup files) and `supabase/migrations/*.sql` (the
+  Lovable history), there is now `drizzle/migrations/*.sql`, added by a merge from the
+  Lovable-connected repo. `drizzle-kit` is only a devDependency and there is no `db:migrate`
+  script, so **nothing applies those automatically** — they have to be run by hand like the
+  others. This is not theoretical: `set_order_shipment_stage` shipped to the frontend
+  (`ShipmentTimeline.tsx`, `AdminOrders.tsx`) while the function did not exist on the
+  self-hosted database, so changing an order's shipment stage failed. When checking whether
+  a database is up to date, check all three directories.
 - **Storage buckets are not in any migration applied to this stack.** `temp-images` (public)
   must exist or uploaded-image search fails with `Bucket not found`;
   [supabase/selfhost/02_functions_rls.sql](supabase/selfhost/02_functions_rls.sql) creates
