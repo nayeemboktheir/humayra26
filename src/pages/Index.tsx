@@ -1572,12 +1572,12 @@ const SiteHeader = ({ query, setQuery, handleSearch, isLoading, handleImageButto
   <header className="sticky top-0 z-50">
     {/* Mobile header */}
     <div className="lg:hidden bg-card border-b">
-      {/* Top row: Logo + action icons */}
-      <div className="flex items-center justify-between px-3 pt-2 pb-1">
-        <button onClick={() => { setQuery(""); window.location.href = "/"; }} className="shrink-0" aria-label="TradeOn Global — go to homepage">
-          <img src={logoFull} alt="TradeOn Global" width={662} height={208} className="h-14 object-contain" />
+      {/* The logo is positioned independently, so utility buttons cannot shift it off centre. */}
+      <div className="relative flex h-14 items-center justify-center px-3">
+        <button onClick={() => { setQuery(""); window.location.href = "/"; }} className="absolute left-1/2 -translate-x-1/2" aria-label="TradeOn Global — go to homepage">
+          <img src={logoFull} alt="TradeOn Global" width={662} height={208} className="h-10 w-auto object-contain" />
         </button>
-        <div className="flex items-center gap-1">
+        <div className="absolute right-2 flex items-center gap-1">
           <Button variant="ghost" size="icon" className="h-9 w-9 relative" onClick={() => navigate(user ? "/dashboard/cart" : "/auth")} title="Cart">
             <ShoppingCart className="h-5 w-5 text-foreground" />
             {cartCount > 0 && (
@@ -1587,10 +1587,10 @@ const SiteHeader = ({ query, setQuery, handleSearch, isLoading, handleImageButto
           <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => navigate("/dashboard/wishlist")} title="Wishlist">
             <Heart className="h-5 w-5 text-foreground" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-9 w-9" onClick={handleImageButtonClick} title="Image Search">
+          <Button variant="ghost" size="icon" className="hidden h-9 w-9 sm:inline-flex" onClick={handleImageButtonClick} title="Image Search">
             <Camera className="h-5 w-5 text-foreground" />
           </Button>
-          <CopyLinkButton className="h-9 w-9" />
+          <CopyLinkButton className="hidden h-9 w-9 sm:inline-flex" />
         </div>
       </div>
       {/* Search bar */}
