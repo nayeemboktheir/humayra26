@@ -1,6 +1,13 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { sendMetaCapiEvent } from '../_shared/meta-capi.ts';
 
+// See paystation-init-payment for why this is configurable and why it defaults to live.
+// Both functions must resolve to the same environment: a session created in the sandbox is
+// unknown to the live host, and its status would come back as "not found".
+const PAYSTATION_LIVE_URL = 'https://api.paystation.com.bd';
+const paystationBaseUrl = () =>
+  (Deno.env.get('PAYSTATION_BASE_URL') || PAYSTATION_LIVE_URL).replace(/\/+$/, '');
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
@@ -41,7 +48,7 @@ Deno.serve(async (req) => {
     const formData = new FormData();
     formData.append('invoice_number', invoice_number);
 
-    const response = await fetch('https://api.paystation.com.bd/transaction-status', {
+    const response = await fetch(`${paystationBaseUrl()}/transaction-status`, {
       method: 'POST',
       headers: { 'merchantId': merchantId },
       body: formData,
