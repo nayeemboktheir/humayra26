@@ -37,7 +37,7 @@ const ProductCardSkeleton = () => (
 );
 
 const ProductGridSkeleton = ({ count = 12 }: { count?: number }) => (
-  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 animate-fade-in">
+  <div className="grid grid-cols-2 lg:grid-cols-5 xl:grid-cols-6 gap-3 animate-fade-in">
     {Array.from({ length: count }).map((_, i) => (
       <ProductCardSkeleton key={i} />
     ))}
@@ -1113,7 +1113,7 @@ const Index = () => {
   // Product detail view
   if (selectedProduct || isLoadingProduct) {
     return (
-      <div className="min-h-screen bg-background pb-20 md:pb-0">
+      <div className="min-h-screen bg-background pb-20 lg:pb-0">
         {imageSearchDialog}
         <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} settings={settings} cartCount={cartCount} />
         <ProductDetail product={selectedProduct || undefined} isLoading={isLoadingProduct} onBack={handleBackToSearch} />
@@ -1129,7 +1129,7 @@ const Index = () => {
     const showPagination = categoryTotalPages > 1 || categoryPage === 1; // Always show nav since there are more pages on 1688
 
     return (
-      <div className="min-h-screen bg-background pb-20 md:pb-0">
+      <div className="min-h-screen bg-background pb-20 lg:pb-0">
         {imageSearchDialog}
         <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} settings={settings} cartCount={cartCount} />
         <div className="px-3 sm:px-6">
@@ -1192,7 +1192,7 @@ const Index = () => {
                 <ProductGridSkeleton count={18} />
               ) : displayProducts.length > 0 ? (
                 <>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                  <div className="grid grid-cols-2 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                     {displayProducts.slice(0, visibleCategoryCount).map((product) => (
                       <Card
                         key={product.num_iid}
@@ -1282,7 +1282,7 @@ const Index = () => {
     const filteredProducts = applyFilters(products, filters, convertToBDT);
 
     return (
-      <div className="min-h-screen bg-background relative pb-20 md:pb-0" onDragEnter={handleDragEnter} onDragLeave={handleDragLeave} onDragOver={handleDragOver} onDrop={handleDrop}>
+      <div className="min-h-screen bg-background relative pb-20 lg:pb-0" onDragEnter={handleDragEnter} onDragLeave={handleDragLeave} onDragOver={handleDragOver} onDrop={handleDrop}>
         {isDragging && <DragOverlay />}
         {imageSearchDialog}
         <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} cartCount={cartCount} />
@@ -1296,7 +1296,7 @@ const Index = () => {
             />
 
             {/* Mobile filter toggle */}
-            <div className="lg:hidden fixed bottom-20 md:bottom-4 right-4 z-40">
+            <div className="lg:hidden fixed bottom-20 lg:bottom-4 right-4 z-40">
               <Button size="sm" className="rounded-full shadow-lg gap-1.5" onClick={() => setMobileFiltersOpen(true)}>
                 <SlidersHorizontal className="h-4 w-4" /> Filters
               </Button>
@@ -1339,7 +1339,7 @@ const Index = () => {
                     </h2>
                     {totalPages > 1 && <span className="text-sm text-muted-foreground">Page {currentPage} of {totalPages}</span>}
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                  <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                     {filteredProducts.map((product) => <ProductCard key={product.num_iid} product={product} onClick={() => handleProductClick(product)} />)}
                   </div>
                   {totalPages > 1 && (
@@ -1383,7 +1383,7 @@ const Index = () => {
 
   // Homepage - mobile-first like chinaonlinebd.com
   return (
-    <div className="min-h-screen bg-background relative pb-20 md:pb-0" onDragEnter={handleDragEnter} onDragLeave={handleDragLeave} onDragOver={handleDragOver} onDrop={handleDrop}>
+    <div className="min-h-screen bg-background relative pb-20 lg:pb-0" onDragEnter={handleDragEnter} onDragLeave={handleDragLeave} onDragOver={handleDragOver} onDrop={handleDrop}>
       {isDragging && <DragOverlay />}
       {imageSearchDialog}
       <SiteHeader query={query} setQuery={setQuery} handleSearch={handleSearch} isLoading={isLoading} handleImageButtonClick={handleImageButtonClick} fileInputRef={fileInputRef} handleFileChange={handleFileChange} user={user} navigate={navigate} handleInstallClick={handleInstallClick} settings={settings} cartCount={cartCount} />
@@ -1418,9 +1418,9 @@ const Index = () => {
         {/* Main area */}
         <main className="flex-1 min-w-0 px-3 sm:px-6">
           {/* Hero Banner - desktop only */}
-          <div className="hidden md:block mt-4 mb-5 rounded-2xl overflow-hidden header-gradient p-6 sm:p-8 md:p-10 relative">
+          <div className="mt-3 mb-4 rounded-xl overflow-hidden header-gradient p-5 sm:p-6 lg:mt-4 lg:mb-5 lg:rounded-2xl lg:p-10 relative">
             <div className="relative z-10">
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-primary-foreground mb-2 leading-tight">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-primary-foreground mb-2 leading-tight">
                 {settings.hero_title || "Wholesale from China"}
               </h1>
               <p className="text-primary-foreground/80 text-sm sm:text-base mb-4 max-w-md">
@@ -1461,7 +1461,7 @@ const Index = () => {
                 <Skeleton className="h-6 w-48" />
               </div>
               <div className="border-b border-primary/20 mb-4" />
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+              <div className="grid grid-cols-2 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                 {Array.from({ length: 6 }).map((_, i) => <ProductCardSkeleton key={i} />)}
               </div>
             </section>
@@ -1472,7 +1472,7 @@ const Index = () => {
                 <h2 className="text-lg font-bold text-foreground">Trending Products</h2>
               </div>
               <div className="border-b border-primary/20 mb-4" />
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+              <div className="grid grid-cols-2 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                 {trendingProducts.map((product, i) => (
                   <Card
                     key={product.id}
@@ -1571,7 +1571,7 @@ const Index = () => {
 const SiteHeader = ({ query, setQuery, handleSearch, isLoading, handleImageButtonClick, fileInputRef, handleFileChange, user, navigate, handleInstallClick, settings = {}, cartCount = 0 }: any) => (
   <header className="sticky top-0 z-50">
     {/* Mobile header */}
-    <div className="md:hidden bg-card border-b">
+    <div className="lg:hidden bg-card border-b">
       {/* Top row: Logo + action icons */}
       <div className="flex items-center justify-between px-3 pt-2 pb-1">
         <button onClick={() => { setQuery(""); window.location.href = "/"; }} className="shrink-0" aria-label="TradeOn Global — go to homepage">
@@ -1611,7 +1611,7 @@ const SiteHeader = ({ query, setQuery, handleSearch, isLoading, handleImageButto
     </div>
 
     {/* Desktop header */}
-    <div className="hidden md:block bg-card border-b shadow-sm">
+    <div className="hidden lg:block bg-card border-b shadow-sm">
       <div className="px-3 sm:px-6">
         <div className="flex items-center gap-4 h-16">
           <button onClick={() => { setQuery(""); window.location.href = "/"; }} className="shrink-0" aria-label="TradeOn Global — go to homepage">

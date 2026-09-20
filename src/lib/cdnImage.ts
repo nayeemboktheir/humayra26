@@ -146,12 +146,12 @@ export function cdnImageFallback(
 export const PRODUCT_THUMB_WIDTHS: readonly ThumbSize[] = [200, 250, 400, 640];
 
 /**
- * Rendered width of one cell in the product grids (2 / 3 / 4 / 5 / 6 columns across the
- * Tailwind breakpoints). Deliberately rounded up a little: over-stating the box costs one
+ * Rendered width of one cell in the product grids (2 / 5 / 6 columns across the
+ * storefront breakpoints). Deliberately rounded up a little: over-stating the box costs one
  * candidate step, under-stating it ships a blurry thumbnail.
  */
 export const PRODUCT_GRID_SIZES =
-  "(min-width: 1280px) 224px, (min-width: 1024px) 20vw, (min-width: 768px) 25vw, (min-width: 640px) 33vw, 50vw";
+  "(min-width: 1280px) 224px, (min-width: 1024px) 20vw, 50vw";
 
 /** The horizontal category carousels use fixed-width cards rather than a fluid grid. */
 export const PRODUCT_CAROUSEL_SIZES = "(min-width: 640px) 180px, 160px";

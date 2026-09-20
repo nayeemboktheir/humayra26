@@ -66,7 +66,7 @@ export default function CategorySection({ name, icon, query, cachedProducts, onP
         <Button
           variant="ghost"
           size="icon"
-          className="absolute -left-3 top-1/2 -translate-y-1/2 z-10 bg-card shadow-md border h-8 w-8 hidden md:flex"
+          className="absolute -left-3 top-1/2 -translate-y-1/2 z-10 bg-card shadow-md border h-8 w-8 hidden lg:flex"
           onClick={() => scroll("left")}
           aria-label={`Scroll ${name} products left`}
         >
@@ -115,7 +115,7 @@ export default function CategorySection({ name, icon, query, cachedProducts, onP
         <Button
           variant="ghost"
           size="icon"
-          className="absolute -right-3 top-1/2 -translate-y-1/2 z-10 bg-card shadow-md border h-8 w-8 hidden md:flex"
+          className="absolute -right-3 top-1/2 -translate-y-1/2 z-10 bg-card shadow-md border h-8 w-8 hidden lg:flex"
           onClick={() => scroll("right")}
           aria-label={`Scroll ${name} products right`}
         >
