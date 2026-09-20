@@ -139,11 +139,13 @@ const Orders = () => {
     (async () => {
       const [{ data: ord }, { data: ship }] = await Promise.all([
         supabase.from("orders").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
-        supabase.from("shipments").select("order_id, status").eq("user_id", user.id),
+        supabase.from("shipments").select("order_id, status, updated_at").eq("user_id", user.id).order("updated_at", { ascending: false }),
       ]);
       setOrders(ord || []);
       const map: Record<string, string> = {};
-      (ship || []).forEach((s: any) => { if (s.order_id) map[s.order_id] = s.status; });
+      (ship || []).forEach((s: any) => {
+        if (s.order_id && !map[s.order_id]) map[s.order_id] = s.status;
+      });
       setShipments(map);
       setLoading(false);
     })();

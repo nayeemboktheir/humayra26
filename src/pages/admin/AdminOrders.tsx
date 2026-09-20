@@ -74,12 +74,6 @@ const ORDER_STATUS_OPTIONS = [
   { value: "cancelled", label: "Cancelled" },
 ];
 
-const getOrderStatusForShipmentStage = (stage: string) => {
-  if (stage === "Delivered") return "delivered";
-  if (stage === "Ordered") return "pending";
-  return "processing";
-};
-
 export default function AdminOrders() {
   const [data, setData] = useState<OrderWithProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -110,7 +104,7 @@ export default function AdminOrders() {
     const [ordersRes, profilesRes, shipmentsRes, emailsRes] = await Promise.all([
       supabase.from("orders").select("*").order("created_at", { ascending: false }),
       supabase.from("profiles").select("user_id, full_name, phone, address, avatar_url"),
-      supabase.from("shipments").select("*"),
+      supabase.from("shipments").select("*").order("updated_at", { ascending: false }),
       supabase.rpc("get_user_emails"),
     ]);
     const orders = ordersRes.data || [];
@@ -118,7 +112,9 @@ export default function AdminOrders() {
     const shipments = shipmentsRes.data || [];
     const profileMap = new Map(profiles.map((p: any) => [p.user_id, p]));
     const sMap: Record<string, any> = {};
-    shipments.forEach((s: any) => { if (s.order_id) sMap[s.order_id] = s; });
+    shipments.forEach((s: any) => {
+      if (s.order_id && !sMap[s.order_id]) sMap[s.order_id] = s;
+    });
     setShipmentMap(sMap);
     const eMap = new Map<string, string>();
     (emailsRes.data || []).forEach((e: any) => eMap.set(e.user_id, e.email));
@@ -193,7 +189,6 @@ export default function AdminOrders() {
     setEditValues({
       product_name: order.product_name,
       quantity: order.quantity,
-      status: order.status,
       tracking_number: order.tracking_number || "",
       shipping_charges: order.shipping_charges || 0,
       commission: order.commission || 0,
@@ -312,27 +307,17 @@ export default function AdminOrders() {
       const isShipmentStage = SHIPMENT_STAGES.includes(bulkStatus);
 
       if (isShipmentStage) {
-        const existingShipmentIds = selectedOrders
-          .map((order) => shipmentMap[order.id]?.id)
-          .filter(Boolean);
-        const missingShipments = selectedOrders
-          .filter((order) => !shipmentMap[order.id]?.id)
-          .map((order) => ({ order_id: order.id, user_id: order.user_id, status: bulkStatus }));
-
-        if (existingShipmentIds.length > 0) {
-          const { error } = await supabase.from("shipments").update({ status: bulkStatus }).in("id", existingShipmentIds);
-          if (error) throw error;
-        }
-        if (missingShipments.length > 0) {
-          const { error } = await supabase.from("shipments").insert(missingShipments as any);
-          if (error) throw error;
-        }
-
-        const { error: orderError } = await supabase
-          .from("orders")
-          .update({ status: getOrderStatusForShipmentStage(bulkStatus) })
-          .in("id", ids);
-        if (orderError) throw orderError;
+        const stageResults = await Promise.all(
+          selectedOrders.map((order) =>
+            supabase.rpc("set_order_shipment_stage", {
+              _order_id: order.id,
+              _stage: bulkStatus,
+            })
+          )
+        );
+        const failedStage = stageResults.find((result) => result.error || !result.data);
+        if (failedStage?.error) throw failedStage.error;
+        if (failedStage) throw new Error("One or more shipment stages were not saved");
 
         const smsResults = await Promise.allSettled(
           selectedOrders.map((order) =>
@@ -868,7 +853,6 @@ export default function AdminOrders() {
             {[
               { key: "product_name", label: "Product Name", type: "text" },
               { key: "quantity", label: "Quantity", type: "number" },
-              { key: "status", label: "Status", type: "text" },
               { key: "tracking_number", label: "Tracking Number", type: "text" },
               { key: "shipping_charges", label: "Shipping Charges (৳)", type: "number" },
               { key: "commission", label: "Commission (৳)", type: "number" },

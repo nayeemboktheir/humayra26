@@ -39,25 +39,12 @@ export default function ShipmentTimeline({ orderId, userId, shipment, onUpdate }
     setSaving(true);
     const newStatus = STAGES[stageIndex];
     try {
-      // Map shipment stage to order status
-      const orderStatus = newStatus === "Delivered" ? "delivered" 
-        : newStatus === "Ordered" ? "pending" 
-        : "processing";
-
-      if (shipment) {
-        const { error } = await supabase
-          .from("shipments")
-          .update({ status: newStatus })
-          .eq("id", shipment.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("shipments")
-          .insert({ order_id: orderId, user_id: userId, status: newStatus });
-        if (error) throw error;
-      }
-      // Sync order status
-      await supabase.from("orders").update({ status: orderStatus }).eq("id", orderId);
+      const { data: savedShipment, error } = await supabase.rpc("set_order_shipment_stage", {
+        _order_id: orderId,
+        _stage: newStatus,
+      });
+      if (error) throw error;
+      if (!savedShipment) throw new Error("Shipment stage was not saved");
 
       // Fire-and-await SMS notification (non-blocking errors)
       try {

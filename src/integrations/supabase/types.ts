@@ -752,6 +752,28 @@ export type Database = {
         Returns: boolean
       }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
+      set_order_shipment_stage: {
+        Args: { _order_id: string; _stage: string }
+        Returns: {
+          carrier: string | null
+          created_at: string
+          estimated_delivery: string | null
+          external_tracking_url: string | null
+          id: string
+          order_id: string | null
+          stage_notes: string | null
+          status: string
+          tracking_number: string | null
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "shipments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user" | "employee"
