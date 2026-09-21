@@ -96,6 +96,26 @@ serve(async (req) => {
     if (orderNumber) message = message.replace(/\{order\}/gi, orderNumber);
     if (profile?.full_name) message = message.replace(/\{name\}/gi, profile.full_name);
 
+    // Refuse to send a message with a leftover {token} rather than silently texting a
+    // customer a broken placeholder at real SMS cost. This is exactly what happened on
+    // 2026-09-21: an admin edited a template to read "{order no}" instead of "{order}",
+    // and 13 messages went out reading "অর্ডার নম্বর: {order no}" before anyone noticed —
+    // nothing surfaced the mismatch until a customer complained. A stray placeholder from
+    // any future typo (in this or any other key) is caught here before the gateway call.
+    const unresolvedPlaceholder = message.match(/\{[^{}]+\}/);
+    if (unresolvedPlaceholder) {
+      const err = `Template ${templateKey} has an unresolved placeholder ${unresolvedPlaceholder[0]} — refusing to send`;
+      console.error(`[send-shipment-sms] ${err}`);
+      await supabase.from("sms_logs").insert({
+        phone, message, sms_type: "shipment", status: "template_error",
+        response: err, user_id: userId,
+      }).then(({ error }) => { if (error) console.error("sms_logs write failed:", error.message); });
+      return new Response(
+        JSON.stringify({ skipped: true, reason: err }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const smsUrl = `https://bulksmsbd.net/api/smsapi?api_key=${apiKey}&type=text&number=${phone}&senderid=${senderId}&message=${encodeURIComponent(message)}`;
     const smsResponse = await fetch(smsUrl);
     const smsResult = await smsResponse.text();
