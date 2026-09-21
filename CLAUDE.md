@@ -81,12 +81,24 @@ There is no CLI path and no CI for this — everything is applied by hand on the
 used to be the "staging" deploy process; since the cutover it is how you change production.
 Treat every step here as live-traffic-affecting.
 
-- **Edge functions**: `tar czf functions.tgz -C supabase functions`, `scp` it up, then
-  `sudo ANON_KEY=<selfhost anon key> ./deploy-functions.sh ~/functions`
-  ([supabase/selfhost/deploy-functions.sh](supabase/selfhost/deploy-functions.sh)). It
-  copies into a bind mount and restarts the runtime — no build step. Check the
-  `functions: N` count in its preflight; it deploys whatever is in the directory you point
-  it at, so a stale tarball produces a clean-looking run that is missing your new function.
+- **Edge functions — two ways, pick one per situation.**
+  - **From an unpushed local branch, or if the VPS can't reach GitHub**:
+    `tar czf functions.tgz -C supabase functions`, `scp` it up, then
+    `sudo ANON_KEY=<selfhost anon key> ./deploy-functions.sh ~/functions`
+    ([supabase/selfhost/deploy-functions.sh](supabase/selfhost/deploy-functions.sh)). Check
+    the `functions: N` count in its preflight — it deploys whatever is in the directory you
+    point it at, so a stale tarball produces a clean-looking run missing your new function.
+  - **From `origin/optimization`, run entirely on the VPS**: in the Coolify terminal (pick
+    the **server**, not a container),
+    `curl -fsSL https://raw.githubusercontent.com/nayeemboktheir/humayra26/optimization/supabase/selfhost/deploy-live.sh | bash`
+    ([supabase/selfhost/deploy-live.sh](supabase/selfhost/deploy-live.sh)). Diffs every
+    function against the host by content fingerprint and deploys only what's changed —
+    removes the guesswork in "what's actually pending." **This VPS runs a second, unrelated
+    Supabase stack** (`modessi`) whose edge-functions container matches a bare
+    `docker ps --filter name=edge-functions`; `deploy-live.sh`'s container discovery is
+    anchored to TradeOn's specific service UUID for exactly this reason — do not loosen it.
+  - Both restart the container after copying and require `git push` first if you're
+    deploying from local commits — neither reads uncommitted changes.
 - **SQL**: `docker exec -i supabase-db-<uuid> psql -U postgres -d postgres < file.sql`.
   Cron jobs live in [supabase/selfhost/04_cron.sql](supabase/selfhost/04_cron.sql) and
   `05_cron_price_refresh.sql`, which take `base_url`/`anon_key` as psql variables so no key
