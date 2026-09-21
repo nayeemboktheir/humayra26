@@ -1,7 +1,12 @@
 # Self-hosted Supabase migration — rehearsal report
 
 **Date:** 2026-09-18
-**Status:** rehearsal complete and passing; production cutover not started
+**Status:** rehearsal complete and passing; production cutover **executed 2026-09-21** —
+see [supabase/selfhost/CUTOVER-RUNBOOK.md](supabase/selfhost/CUTOVER-RUNBOOK.md), whose
+"What actually happened" section documents two bugs the rehearsal below did not surface
+(a total loss of table-level database grants on `--force` restore, and an unrelated
+lockfile corruption that silently broke every deploy). This document remains an accurate
+record of the rehearsal itself.
 **Scope:** move TradeOn's backend off Lovable Cloud onto a self-hosted Supabase
 stack, and measure the performance work that was blocked by not owning it.
 

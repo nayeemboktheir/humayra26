@@ -626,6 +626,14 @@ redeploying several functions for no behavioural gain.
 
 ## Still open
 
+> **Update 2026-09-21:** production cutover is done — see
+> [supabase/selfhost/CUTOVER-RUNBOOK.md](supabase/selfhost/CUTOVER-RUNBOOK.md). Every item
+> below that was blocking it has since been resolved (a separate `bun.lock` corruption bug,
+> unrelated to this benchmark work, was the actual reason `trade.botbhai.net` kept serving
+> a stale build — see the runbook's "What actually happened"). `tradeon.global` now runs
+> the same backend and frontend this document benchmarks. Left as a historical record of
+> what was outstanding at the time.
+
 - **Frontend commits are not deployed.** `f036903` (instant hero), `3e6e138` (location fix,
   dead code) and `3953d92` run only locally; `trade.botbhai.net` serves the old build.
   Everything backend is live.
@@ -635,8 +643,10 @@ redeploying several functions for no behavioural gain.
   a hard blocker for the production cutover.
 - `maxAgeDays: 0` fix for `refresh-product-prices` (`725d408`) is committed but not deployed.
   It only affects the manual override, not the hourly cron.
-- Image-search token caching (`image hash → converted token`) and prefetching
-  upload+convert during the crop dialog — both scoped, neither built.
+- Image-search token caching (`image hash → converted token`) was built and deployed
+  (`419fd34`, Part 8 above). Prefetching upload+convert during the crop dialog — hiding
+  the ~2–13s conversion behind the user's own dwell time on a *first-ever* search of an
+  image — remains scoped but not built.
 - Production `tradeon.global` still runs the Lovable-managed backend and has received none
   of this.
 

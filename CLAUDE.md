@@ -9,9 +9,16 @@ Alibaba wholesale products into Bangladesh. Vite + React 18 + TypeScript SPA, sh
 Tailwind, Supabase for auth/data/edge functions, TMAPI (`api.tmapi.top/1688`) as the
 upstream product source.
 
-The site has real users, orders and payments. Treat `main` and the Supabase project as
-production: `DEPLOY-STAGING.md` notes that even the staging instance shares the same
-Supabase project and hits PayStation live.
+The site has real users, orders and payments and hits PayStation live.
+
+**Production cutover completed 2026-09-21.** `tradeon.global` now runs on the self-hosted
+stack — same Coolify app, same self-hosted Supabase project, as what this file used to call
+"staging." The Lovable-managed project is retired: no longer written to, DNS no longer
+points at it, kept running only as a rollback fallback. `DEPLOY-STAGING.md`,
+`LOVABLE-MIGRATION-PLAN.md` and `SELFHOST-MIGRATION-REPORT.md` describe the state and plan
+*before* this — read `supabase/selfhost/CUTOVER-RUNBOOK.md` for what actually happened,
+including two bugs the rehearsal didn't catch that would otherwise have re-broken
+production at cutover.
 
 ## Commands
 
@@ -40,37 +47,39 @@ TypeScript is deliberately loose (`strict: false`, `noImplicitAny: false`,
 `strictNullChecks: false`) and `@typescript-eslint/no-unused-vars` is off. There is no
 typecheck script; `bun run build` is the type-adjacent gate.
 
-## Two deployments, one codebase
+## One deployment, one codebase (post-cutover)
 
-| | Production | Staging |
-|---|---|---|
-| Branch | `main` | `optimization` (current branch) |
-| Path | GitHub Actions → Hostinger FTP ([.github/workflows/deploy.yml](.github/workflows/deploy.yml)) | Coolify `dockercompose` ([docker-compose.yml](docker-compose.yml), [Dockerfile](Dockerfile), [Caddyfile](Caddyfile)) |
-| Host | `tradeon.global`, static Apache + [public/.htaccess](public/.htaccess) | `trade.botbhai.net`, Caddy behind Coolify's Traefik |
-| Search/detail API | Supabase edge functions | Supabase edge functions (self-hosted) |
+| | `tradeon.global` + `trade.botbhai.net` |
+|---|---|
+| Branch | `optimization` |
+| Path | Coolify `dockercompose` ([docker-compose.yml](docker-compose.yml), [Dockerfile](Dockerfile), [Caddyfile](Caddyfile)), auto-deploys on push |
+| Host | Both domains registered on the same Coolify app (`tradeon`, uuid `tsdgr9lbnkhiupfuv97tmofp`), Traefik in front |
+| Backend | Self-hosted Supabase at `api.tradeon.global` |
 
-Both deployments now take the same path: every API call goes to Supabase edge functions.
-Staging once ran a Node `cache-api` + Redis in front of search and product detail, selected
-by `VITE_API_BASE`; that is gone. The edge functions already cache in Postgres
-(`search_cache`, `product_cache`, 12h TTL — measured 3.03s cold vs 0.23s warm), and
-maintaining a second copy of the TMAPI mapping had already shipped a production bug.
-Staging differs from production only in host, branch and Supabase project.
+Both domains are Traefik routes on the **same running container** — there is only one
+build to reason about now, not two. `trade.botbhai.net` was the staging domain during the
+migration and still resolves; `tradeon.global` is what real customers use.
+
+The edge functions cache in Postgres (`search_cache`, `product_cache`, 12h TTL — measured
+3.03s cold vs 0.23s warm) plus the durable `products` catalogue described below.
+Maintaining a second copy of the TMAPI mapping had already shipped one production bug
+(`_shared/normalize-img.ts` exists because of it) — do not reintroduce that pattern.
 
 `server.cjs` is a standalone Node static server + OG-tag injector for product links; it is
-not part of either build pipeline above.
+not part of the build pipeline above and its status post-cutover has not been re-verified.
 
-`DEPLOY-STAGING.md` is the staging runbook and explains why the compose/Caddy files look
-unusual (Traefik owns :80/:443, so no `ports:` and no hostname site block).
+`DEPLOY-STAGING.md` and `LOVABLE-MIGRATION-PLAN.md` describe the *pre-cutover* state (two
+separate deployments, Lovable as production) and the plan to get from there to here — keep
+them for history, but do not follow their setup instructions as current. The GitHub
+Actions → Hostinger FTP pipeline (`.github/workflows/deploy.yml`) that used to deploy
+production is no longer what serves live traffic; nobody has decided yet whether to keep
+it as an emergency fallback or remove it.
 
-Staging no longer shares production's backend. It runs its **own self-hosted Supabase**
-at `api.tradeon.global` (`SELFHOST_*` keys in `.env`), so the two stacks have separate
-data, storage and edge functions. Production is still the Lovable project below and has
-received none of the edge-function work described here; the cutover is planned but not
-done.
+## Deploying edge functions and SQL — this is production now
 
-## Deploying to the self-hosted stack
-
-There is no CLI path and no CI for this — everything is applied by hand on the VPS:
+There is no CLI path and no CI for this — everything is applied by hand on the VPS. This
+used to be the "staging" deploy process; since the cutover it is how you change production.
+Treat every step here as live-traffic-affecting.
 
 - **Edge functions**: `tar czf functions.tgz -C supabase functions`, `scp` it up, then
   `sudo ANON_KEY=<selfhost anon key> ./deploy-functions.sh ~/functions`
@@ -95,6 +104,17 @@ There is no CLI path and no CI for this — everything is applied by hand on the
   must exist or uploaded-image search fails with `Bucket not found`;
   [supabase/selfhost/02_functions_rls.sql](supabase/selfhost/02_functions_rls.sql) creates
   it, but it has gone missing at least once.
+- **A `--force` restore (`restore.sh`) drops `service_role`'s access to every table.**
+  `drop schema public cascade; create schema public;` gives the schema a new identity,
+  which silently orphans the `ALTER DEFAULT PRIVILEGES` wiring that let tables inherit
+  `anon`/`authenticated`/`service_role` grants automatically — the reason neither
+  `01_schema.sql` nor `02_functions_rls.sql` ever needed an explicit `GRANT`. `pg_restore`
+  runs with `--no-privileges` on top of that (correctly — the dump's own grants target the
+  source project's roles, which do not exist here). Net effect: every table returns `403
+  permission denied` through PostgREST, for every role, and nothing about RLS or the
+  restore's own verification block catches it, because that runs as the `postgres`
+  superuser. Run [supabase/selfhost/06_regrant_after_restore.sql](supabase/selfhost/06_regrant_after_restore.sql)
+  after **any** `--force` restore; its last query must return 0 rows.
 
 **The runtime terminates isolates shortly after the response is sent** — the log says
 `early termination has been triggered`. `EdgeRuntime.waitUntil` work only survives if it is
@@ -103,15 +123,29 @@ persist has to be written *first*, with enrichment layered on afterwards, and lo
 refresh work belongs in a cron rather than deferred on a request. This silently broke the
 `product_cache` write once, making every product view look like a cache miss.
 
-## Backend: Lovable-managed Supabase
+**A merged `bun.lock` is not trustworthy until proven otherwise.** A branch merge once
+landed a `bun.lock` with a half-written dependency entry (`@img/sharp-wasm32` referencing
+`@emnapi/runtime`, which the lockfile never actually recorded) — `git`-level merges on a
+lockfile do not validate that the result resolves. `bun install --frozen-lockfile` (what the
+Dockerfile runs) failed with `InvalidPackageInfo: failed to parse lockfile`, so **every
+deploy failed at build time for four pushes in a row**, each looking like a normal failed
+build in Coolify — nothing suggested the previous three commits' worth of work had never
+gone live. After any merge that touches `bun.lock` or `package.json`, run
+`bun install --frozen-lockfile` locally before trusting that a push will actually deploy.
 
-The Supabase project (`kcihftfgmsrpcljsbjdj`) is **Lovable Cloud managed** — no dashboard,
-no service-role key, no direct connection string. Consequences you will hit:
+## Backend: former Lovable-managed Supabase (retired 2026-09-21)
 
-- `supabase/migrations/*.sql` and `supabase/functions/*` cannot be deployed from this repo
-  with the Supabase CLI. Some migrations in the tree are not applied in production.
-- `LOVABLE-MIGRATION-PLAN.md` is the plan to move off Lovable onto a self-owned project;
-  read it before changing anything about migrations, cron jobs, or edge-function deploys.
+The Supabase project (`kcihftfgmsrpcljsbjdj`) was **Lovable Cloud managed** — no dashboard,
+no service-role key, no direct connection string — and was production until the cutover.
+It is kept running, untouched, as a rollback fallback only; nothing writes to it and DNS no
+longer points at it. `LOVABLE-MIGRATION-PLAN.md` is the plan that got it here and
+`supabase/selfhost/CUTOVER-RUNBOOK.md` is what actually happened. The points below are
+historical — they explain *why* the self-hosted stack is shaped the way it is, not a
+description of anything still live:
+
+- `supabase/migrations/*.sql` and `supabase/functions/*` could not be deployed from this
+  repo with the Supabase CLI while Lovable managed the project. The self-hosted stack has
+  no such restriction — see "Deploying edge functions and SQL" above.
 - TMAPI mapping lives in the edge functions only. It used to be duplicated in
   `cache-api/src/tmapiMap.js`, the copies drifted, and production search shipped broken
   thumbnails (AUDIT.md §8.1). `supabase/functions/_shared/normalize-img.ts` and
@@ -253,16 +287,21 @@ dark mode is class-based.
 ## Environment
 
 `.env` (gitignored) needs `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`,
-`VITE_SUPABASE_PROJECT_ID` — the same three for both deployments. `TMAPI_TOKEN` and the
-other upstream secrets belong on the Supabase project (edge-function environment), not in
-the frontend build. `TMAPI_TOKEN` is billed per token — reuse the existing one, never
-provision a second.
+`VITE_SUPABASE_PROJECT_ID`. `TMAPI_TOKEN` and the other upstream secrets belong on the
+Supabase project (edge-function environment in Coolify), not in the frontend build.
+`TMAPI_TOKEN` is billed per token — reuse the existing one, never provision a second.
 
 `.env.selfhost` (gitignored) points a local build at the self-hosted stack:
-`bun run dev:selfhost` / `bun run build:selfhost`.
+`bun run dev:selfhost` / `bun run build:selfhost`. Since the cutover this is the *only*
+backend there is — `.env`'s `VITE_SUPABASE_*` values and `.env.selfhost`'s should now
+point at the same project; there is no longer a separate Lovable-backed local mode.
 
 ## Lovable
 
-This repo is still connected to Lovable; `lovable-tagger` runs in dev mode and edits made
-in Lovable commit back to the repo. `README.md` is the Lovable boilerplate and describes
-that workflow, not the deployment pipelines above.
+This repo is still connected to Lovable, and `lovable-tagger` still runs in dev mode —
+that is a Vite plugin dependency, unrelated to which Supabase project is live, and needs
+no change. What it no longer does: edits made in the Lovable web editor used to commit
+back to this repo *and* run against the Lovable-managed database that was production;
+that database is now the retired rollback fallback, so any such edit would not reach the
+live site. `README.md` is the Lovable boilerplate and describes that original workflow,
+not the deployment pipeline above.

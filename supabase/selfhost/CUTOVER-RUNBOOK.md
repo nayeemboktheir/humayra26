@@ -1,5 +1,13 @@
 # Production cutover runbook
 
+> **✅ STATUS: EXECUTED — 2026-09-21.** `tradeon.global` is live on the self-hosted stack.
+> This document is kept as the record of what the cutover actually involved, not a plan
+> for a future run. See "What actually happened" at the bottom for the two bugs found
+> during execution that neither this runbook nor the rehearsal anticipated, and the data
+> delta that had to be manually reconciled. If this stack is ever restored again
+> (disaster recovery, a second environment, etc.), read that section first — both bugs
+> will recur otherwise.
+
 Moving `tradeon.global` from the Lovable-managed Supabase project onto the self-hosted
 stack at `api.tradeon.global`.
 
@@ -288,3 +296,70 @@ sudo docker exec -i supabase-db-emhbzh3hwap5rmq6ysysloil \
 
 That returns you to pre-cutover state, at which point production is still live on Lovable
 and nothing has been lost.
+
+---
+
+## What actually happened (2026-09-21)
+
+Steps 1–9 ran as written and the restore itself (step 5) matched its expected verification
+exactly on the first attempt: 0 orphans, 0 duplicate profiles, 0 duplicate wallets,
+725/725 bcrypt hashes. Step 8's login gate passed on the first real account tested. None of
+that is why this section exists — two problems surfaced that this runbook did not
+anticipate, both silent, both would have gone unnoticed without deliberate checking.
+
+### Bug 1 — the restore leaves the site completely broken, and nothing here would have caught it
+
+After step 5's `--force` restore, **every table returned `403 permission denied` through
+PostgREST, for every role, including `service_role`.** Not an RLS problem — no privilege to
+attempt the operation at all. Root cause: `drop schema public cascade; create schema
+public;` gives the schema a new identity, which orphans the `ALTER DEFAULT PRIVILEGES`
+wiring that let `01_schema.sql`/`02_functions_rls.sql`'s tables inherit
+`anon`/`authenticated`/`service_role` access automatically — the reason neither file ever
+needed an explicit `GRANT`. `pg_restore --no-privileges` (correct, on its own — the dump's
+grants target Lovable's roles, which don't exist here) means nothing puts it back.
+
+**This went undetected through steps 6–8 of this exact runbook.** Every check performed —
+the migration re-applies, the cron recreation, `set_order_shipment_stage`'s existence, even
+step 8's login test — either ran as the `postgres` superuser via `psql` or went through
+GoTrue directly, none of which touch the PostgREST grant path. It was only caught by
+accident, checking Lovable for new orders during the delta-reconciliation step below, when
+a `select` against the self-hosted `orders` table returned `42501` instead of the expected
+empty/populated result.
+
+**Fix, run immediately after any `--force` restore:**
+[06_regrant_after_restore.sql](06_regrant_after_restore.sql). Its last query must return 0
+rows — that is the actual proof the site works, not the restore's own verification block.
+**Step 5 above should be read as incomplete without it.**
+
+### Bug 2 — an unrelated merge had silently broken every deploy for days
+
+Separately, `trade.botbhai.net`'s auto-deploy had been failing on **every push since a
+branch merge landed several days earlier** — 4 consecutive failed builds, each looking like
+an ordinary failed build in Coolify. Root cause: the merge introduced `vite-imagetools`
+(pulling in `sharp`'s platform binaries) but its `bun.lock` was hand-merged rather than
+regenerated, leaving `@img/sharp-wasm32`'s dependency on `@emnapi/runtime` half-written.
+`bun install --frozen-lockfile` — what the Dockerfile runs — failed with
+`InvalidPackageInfo: failed to parse lockfile`.
+
+Consequence: the site had been serving a pre-merge build the entire time, meaning several
+days of edge-function and frontend work never reached the running site despite every push
+succeeding at the git level. This was only caught because step 9 of this runbook required
+a real, current deploy to test against — a stale build would have made step 8's login gate
+meaningless (testing old code, not what was about to go live) without anyone realizing it.
+
+Fixed by deleting and regenerating `bun.lock` from `package.json`, verified against the
+exact command the Dockerfile runs before pushing.
+
+### Data delta at the freeze boundary
+
+Step 1's write-freeze was not instantaneous — one order (`HT-MUA319UA`, unpaid) and its
+trigger-created shipment landed on Lovable in the few minutes between the dump export and
+the freeze taking effect. Found by diffing every user-data table's row count between
+Lovable and the restored self-hosted database (not just `orders` — all nine tables were
+checked individually, since a combined query timed out against Lovable's query tool).
+Every other table matched exactly. Reconciled with a single manual `INSERT` into `orders`
+(the customer's profile already existed from before the dump, so no cascading data was
+needed) — the `auto_create_shipment` trigger created the matching shipment automatically.
+
+**Lesson for a future run:** budget time to diff every table individually post-restore,
+not just spot-check `orders`. It's what caught both the delta and, indirectly, Bug 1.

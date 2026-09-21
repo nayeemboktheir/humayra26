@@ -1,5 +1,12 @@
 # Migrate TradeOn off Lovable Cloud to a self-owned Supabase
 
+> **✅ Executed 2026-09-21.** This is the plan as written *before* the cutover — kept for
+> the reasoning behind each phase. For what actually happened, including two bugs found
+> during execution that this plan didn't anticipate, see
+> [supabase/selfhost/CUTOVER-RUNBOOK.md](supabase/selfhost/CUTOVER-RUNBOOK.md)'s "What
+> actually happened" section. `tradeon.global` now runs on the self-hosted stack; the
+> Lovable-managed project is retired and kept only as a rollback fallback.
+
 ## Context
 
 `tradeon.global` is a live store (771 orders, 597 users) whose backend is a **Lovable Cloud**

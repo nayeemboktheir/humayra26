@@ -1,5 +1,14 @@
 # Staging deploy — trade.botbhai.net (Coolify)
 
+> **⚠️ Superseded 2026-09-21.** This describes the pre-cutover world, where this was a
+> parallel staging instance and production was Hostinger/Lovable. That's no longer true:
+> `tradeon.global` and `trade.botbhai.net` are now the **same Coolify app**, same
+> self-hosted backend — this document describes production, and the "independent instance"
+> / "nothing affects production" framing below is stale. The setup instructions (Coolify
+> compose config, Traefik/Caddy shape) are still accurate. See
+> [supabase/selfhost/CUTOVER-RUNBOOK.md](supabase/selfhost/CUTOVER-RUNBOOK.md) for what
+> changed and why.
+
 A parallel, independent instance for testing performance work before it touches
 `tradeon.global`. Nothing in this document affects the production Hostinger/Lovable
 deployment — that still runs through `.github/workflows/deploy.yml` exactly as before.
