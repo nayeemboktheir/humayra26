@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { normalizeBangladeshPhone } from "../_shared/phone.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -25,12 +26,9 @@ serve(async (req) => {
       return json({ error: "মোবাইল নাম্বার ও পাসওয়ার্ড দিন" });
     }
 
-    let normalizedPhone = String(phone).replace(/[^0-9]/g, "");
-    if (normalizedPhone.startsWith("0")) {
-      normalizedPhone = "880" + normalizedPhone.substring(1);
-    }
-    if (!normalizedPhone.startsWith("880")) {
-      normalizedPhone = "880" + normalizedPhone;
+    const normalizedPhone = normalizeBangladeshPhone(phone);
+    if (!normalizedPhone) {
+      return json({ error: "মোবাইল নাম্বার অথবা পাসওয়ার্ড সঠিক নয়", code: "invalid_credentials" }, 401);
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -46,12 +44,12 @@ serve(async (req) => {
       .maybeSingle();
 
     if (!profile) {
-      return json({ error: "এই নাম্বারে কোনো একাউন্ট নেই" });
+      return json({ error: "মোবাইল নাম্বার অথবা পাসওয়ার্ড সঠিক নয়", code: "invalid_credentials" }, 401);
     }
 
     const { data: userData, error: userError } = await admin.auth.admin.getUserById(profile.user_id);
     if (userError || !userData.user?.email) {
-      return json({ error: "একাউন্ট পাওয়া যায়নি" });
+      return json({ error: "মোবাইল নাম্বার অথবা পাসওয়ার্ড সঠিক নয়", code: "invalid_credentials" }, 401);
     }
 
     // Verify the password using a normal (anon) client so no privileged bypass happens.
@@ -65,7 +63,7 @@ serve(async (req) => {
     });
 
     if (signInError || !signInData.session) {
-      return json({ error: "পাসওয়ার্ড সঠিক নয়" });
+      return json({ error: "মোবাইল নাম্বার অথবা পাসওয়ার্ড সঠিক নয়", code: "invalid_credentials" }, 401);
     }
 
     return json({
@@ -74,8 +72,7 @@ serve(async (req) => {
       refresh_token: signInData.session.refresh_token,
     });
   } catch (error: unknown) {
-    console.error("phone-password-login error", error);
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return json({ error: message }, 500);
+    console.error("phone-password-login failed", error instanceof Error ? error.message : "unknown error");
+    return json({ error: "Unable to sign in. Please try again.", code: "login_failed" }, 500);
   }
 });

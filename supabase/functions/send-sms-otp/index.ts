@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { clientIp, consumeRateLimit, tooManyRequests } from "../_shared/rate-limit.ts";
+import { normalizeBangladeshPhone } from "../_shared/phone.ts";
 
 // Audit §3.2 — this endpoint sends a real, billed SMS per call with no auth and no
 // throttle. Two budgets: one per destination number (stops SMS-bombing a specific
@@ -45,13 +46,12 @@ serve(async (req) => {
       );
     }
 
-    // Normalize phone: ensure it starts with 880
-    let normalizedPhone = phone.replace(/[^0-9]/g, "");
-    if (normalizedPhone.startsWith("0")) {
-      normalizedPhone = "880" + normalizedPhone.substring(1);
-    }
-    if (!normalizedPhone.startsWith("880")) {
-      normalizedPhone = "880" + normalizedPhone;
+    const normalizedPhone = normalizeBangladeshPhone(phone);
+    if (!normalizedPhone) {
+      return new Response(
+        JSON.stringify({ error: "A valid Bangladesh phone number is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;

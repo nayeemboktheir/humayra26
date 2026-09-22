@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { clientIp, consumeRateLimit, tooManyRequests } from "../_shared/rate-limit.ts";
+import { normalizeBangladeshPhone } from "../_shared/phone.ts";
 
 // Audit §3.1 — a correct OTP here mints a magic link for the matching account, so this
 // endpoint is the account-takeover surface. It previously had no attempt cap, no
@@ -37,13 +38,12 @@ serve(async (req) => {
       );
     }
 
-    // Normalize phone
-    let normalizedPhone = phone.replace(/[^0-9]/g, "");
-    if (normalizedPhone.startsWith("0")) {
-      normalizedPhone = "880" + normalizedPhone.substring(1);
-    }
-    if (!normalizedPhone.startsWith("880")) {
-      normalizedPhone = "880" + normalizedPhone;
+    const normalizedPhone = normalizeBangladeshPhone(phone);
+    if (!normalizedPhone) {
+      return new Response(
+        JSON.stringify({ error: "A valid Bangladesh phone number is required", code: "invalid_phone" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -148,14 +148,12 @@ serve(async (req) => {
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     } else {
-      // New user - return flag so frontend can show registration form
       return new Response(
         JSON.stringify({
-          success: true,
-          isNewUser: true,
-          verifiedPhone: normalizedPhone,
+          error: "No account exists for this phone. Please sign up first.",
+          code: "account_not_found",
         }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
   } catch (error: unknown) {

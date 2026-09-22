@@ -52,3 +52,6 @@ lovable db/
 
 # Tarball produced when shipping functions to the VPS (see supabase/selfhost/deploy-functions.sh).
 functions.tgz
+
+# Supabase CLI local version/cache markers.
+supabase/.temp/

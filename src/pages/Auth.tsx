@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { Loader2, Mail, Lock, User, Phone } from "lucide-react";
 import { isStaffRole, resolveUserRole } from "@/lib/roles";
 import { markSignupNoticePending } from "@/components/SignupImportantNotice";
+import { errorMessage, getFunctionErrorMessage } from "@/lib/authErrors";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -26,18 +27,10 @@ const Auth = () => {
   const [phoneLoading, setPhoneLoading] = useState(false);
   const [phoneLoginPassword, setPhoneLoginPassword] = useState("");
 
-  // Phone registration after OTP verify
-  const [isNewPhoneUser, setIsNewPhoneUser] = useState(false);
-  const [verifiedPhone, setVerifiedPhone] = useState("");
-  const [phoneFullName, setPhoneFullName] = useState("");
-  const [phoneEmail, setPhoneEmail] = useState("");
-  const [phonePassword, setPhonePassword] = useState("");
-
   // Signup phone verification states
   const [signupPhone, setSignupPhone] = useState("");
   const [signupOtpSent, setSignupOtpSent] = useState(false);
   const [signupOtp, setSignupOtp] = useState("");
-  const [signupPhoneVerified, setSignupPhoneVerified] = useState(false);
   const [signupLoading, setSignupLoading] = useState(false);
 
   // Resend cooldown timers (seconds)
@@ -56,17 +49,6 @@ const Auth = () => {
     return () => clearTimeout(t);
   }, [signupOtpCooldown]);
 
-  const normalizePhone = (value: string) => {
-    let normalizedPhone = value.replace(/[^0-9]/g, "");
-    if (normalizedPhone.startsWith("0")) {
-      normalizedPhone = "880" + normalizedPhone.substring(1);
-    }
-    if (normalizedPhone && !normalizedPhone.startsWith("880")) {
-      normalizedPhone = "880" + normalizedPhone;
-    }
-    return normalizedPhone;
-  };
-
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -80,36 +62,32 @@ const Auth = () => {
           const role = await resolveUserRole(data.user.id);
           navigate(isStaffRole(role) ? "/admin" : "/dashboard");
       } else {
-        if (!signupPhoneVerified || !signupPhone) {
+        if (!signupOtpSent || !signupPhone || signupOtp.length !== 6) {
           toast.error("সাইন আপ করতে মোবাইল নাম্বার ভেরিফাই করুন");
-          setLoading(false);
           return;
         }
-        const normalizedPhone = normalizePhone(signupPhone);
 
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: { full_name: fullName, phone: normalizedPhone || null },
-            emailRedirectTo: window.location.origin,
-          },
+        const { data, error } = await supabase.functions.invoke("register-with-phone", {
+          body: { fullName, email, password, phone: signupPhone, otp: signupOtp },
         });
-        if (error) throw error;
+        if (error || data?.error) {
+          throw new Error(await getFunctionErrorMessage(error, data, "একাউন্ট তৈরি করা যায়নি"));
+        }
+
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: data.access_token,
+          refresh_token: data.refresh_token,
+        });
+        if (sessionError) throw sessionError;
 
         markSignupNoticePending();
-
-        if (data.session) {
-          toast.success("একাউন্ট তৈরি হয়েছে! আপনি এখন লগইন আছেন।");
-          const role = data.user?.id ? await resolveUserRole(data.user.id) : null;
-          navigate(isStaffRole(role) ? "/admin" : "/dashboard");
-          return;
-        }
-
-        toast.success("একাউন্ট তৈরি হয়েছে! এখন লগইন করুন।");
+        toast.success("একাউন্ট তৈরি হয়েছে! আপনি এখন লগইন আছেন।");
+        const { data: { user } } = await supabase.auth.getUser();
+        const role = user ? await resolveUserRole(user.id) : null;
+        navigate(isStaffRole(role) ? "/admin" : "/dashboard");
       }
-    } catch (error: any) {
-      toast.error(error.message);
+    } catch (error: unknown) {
+      toast.error(errorMessage(error, "সাইন ইন করা যায়নি"));
     } finally {
       setLoading(false);
     }
@@ -125,34 +103,14 @@ const Auth = () => {
       const { data, error } = await supabase.functions.invoke("send-sms-otp", {
         body: { phone: signupPhone },
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (error || data?.error) {
+        throw new Error(await getFunctionErrorMessage(error, data, "OTP পাঠানো যায়নি"));
+      }
       setSignupOtpSent(true);
       setSignupOtpCooldown(60);
       toast.success("OTP পাঠানো হয়েছে!");
-    } catch (error: any) {
-      toast.error(error.message || "OTP পাঠাতে সমস্যা হয়েছে");
-    } finally {
-      setSignupLoading(false);
-    }
-  };
-
-  const handleSignupVerifyOtp = async () => {
-    if (signupOtp.length !== 6) {
-      toast.error("৬ সংখ্যার OTP দিন");
-      return;
-    }
-    setSignupLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("verify-sms-otp", {
-        body: { phone: signupPhone, otp: signupOtp },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      setSignupPhoneVerified(true);
-      toast.success("মোবাইল নাম্বার ভেরিফাই হয়েছে!");
-    } catch (error: any) {
-      toast.error(error.message || "OTP ভেরিফাই করতে সমস্যা হয়েছে");
+    } catch (error: unknown) {
+      toast.error(errorMessage(error, "OTP পাঠাতে সমস্যা হয়েছে"));
     } finally {
       setSignupLoading(false);
     }
@@ -173,8 +131,9 @@ const Auth = () => {
       const { data, error } = await supabase.functions.invoke("phone-password-login", {
         body: { phone, password: phoneLoginPassword },
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (error || data?.error) {
+        throw new Error(await getFunctionErrorMessage(error, data, "মোবাইল নাম্বার বা পাসওয়ার্ড সঠিক নয়"));
+      }
 
       const { error: sessionError } = await supabase.auth.setSession({
         access_token: data.access_token,
@@ -186,8 +145,8 @@ const Auth = () => {
       const { data: { user: loggedInUser } } = await supabase.auth.getUser();
       const role = loggedInUser ? await resolveUserRole(loggedInUser.id) : null;
       navigate(isStaffRole(role) ? "/admin" : "/dashboard");
-    } catch (error: any) {
-      toast.error(error.message || "লগইন করতে সমস্যা হয়েছে");
+    } catch (error: unknown) {
+      toast.error(errorMessage(error, "লগইন করতে সমস্যা হয়েছে"));
     } finally {
       setPhoneLoading(false);
     }
@@ -203,13 +162,14 @@ const Auth = () => {
       const { data, error } = await supabase.functions.invoke("send-sms-otp", {
         body: { phone },
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (error || data?.error) {
+        throw new Error(await getFunctionErrorMessage(error, data, "OTP পাঠানো যায়নি"));
+      }
       setOtpSent(true);
       setOtpCooldown(60);
       toast.success("OTP পাঠানো হয়েছে!");
-    } catch (error: any) {
-      toast.error(error.message || "OTP পাঠাতে সমস্যা হয়েছে");
+    } catch (error: unknown) {
+      toast.error(errorMessage(error, "OTP পাঠাতে সমস্যা হয়েছে"));
     } finally {
       setPhoneLoading(false);
     }
@@ -225,67 +185,29 @@ const Auth = () => {
       const { data, error } = await supabase.functions.invoke("verify-sms-otp", {
         body: { phone, otp },
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-
-      if (data.isNewUser) {
-        // New user - show registration form
-        setIsNewPhoneUser(true);
-        setVerifiedPhone(data.verifiedPhone);
-        toast.info("নতুন একাউন্ট তৈরি করতে তথ্য দিন");
-      } else {
-        // Existing user - verify with magic link token
-        if (data.token_hash && data.email) {
-          const { error: verifyError } = await supabase.auth.verifyOtp({
-            token_hash: data.token_hash,
-            type: "magiclink",
-          });
-          if (verifyError) throw verifyError;
-          toast.success("সফলভাবে লগইন হয়েছে!");
-          // Check role to redirect admin/staff to admin panel
-          const { data: { user: loggedInUser } } = await supabase.auth.getUser();
-          if (loggedInUser) {
-            const role = await resolveUserRole(loggedInUser.id);
-            navigate(isStaffRole(role) ? "/admin" : "/dashboard");
-          } else {
-            navigate("/dashboard");
-          }
-        }
+      if (error || data?.error) {
+        throw new Error(await getFunctionErrorMessage(error, data, "OTP ভেরিফাই করা যায়নি"));
       }
-    } catch (error: any) {
-      toast.error(error.message || "OTP ভেরিফাই করতে সমস্যা হয়েছে");
-    } finally {
-      setPhoneLoading(false);
-    }
-  };
 
-  const handlePhoneRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setPhoneLoading(true);
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email: phoneEmail,
-        password: phonePassword,
-        options: {
-          data: { full_name: phoneFullName, phone: verifiedPhone },
-          emailRedirectTo: window.location.origin,
-        },
+      if (!data.token_hash || !data.email) {
+        throw new Error("এই নাম্বারে কোনো একাউন্ট নেই। সাইন আপ করুন।");
+      }
+
+      const { error: verifyError } = await supabase.auth.verifyOtp({
+        token_hash: data.token_hash,
+        type: "magiclink",
       });
-      if (error) throw error;
-
-      markSignupNoticePending();
-
-      toast.success("একাউন্ট তৈরি হয়েছে! এখনই লগইন হয়েছে।");
-      // Reset states
-      setIsNewPhoneUser(false);
-      setOtpSent(false);
-      setOtp("");
-      setPhone("");
-
-      const role = data.user?.id ? await resolveUserRole(data.user.id) : null;
-      navigate(isStaffRole(role) ? "/admin" : "/dashboard");
-    } catch (error: any) {
-      toast.error(error.message);
+      if (verifyError) throw verifyError;
+      toast.success("সফলভাবে লগইন হয়েছে!");
+      const { data: { user: loggedInUser } } = await supabase.auth.getUser();
+      if (loggedInUser) {
+        const role = await resolveUserRole(loggedInUser.id);
+        navigate(isStaffRole(role) ? "/admin" : "/dashboard");
+      } else {
+        navigate("/dashboard");
+      }
+    } catch (error: unknown) {
+      toast.error(errorMessage(error, "OTP ভেরিফাই করতে সমস্যা হয়েছে"));
     } finally {
       setPhoneLoading(false);
     }
@@ -294,8 +216,6 @@ const Auth = () => {
   const resetPhoneFlow = () => {
     setOtpSent(false);
     setOtp("");
-    setIsNewPhoneUser(false);
-    setVerifiedPhone("");
   };
 
   return (
@@ -356,53 +276,7 @@ const Auth = () => {
               </TabsContent>
 
               <TabsContent value="phone">
-                {isNewPhoneUser ? (
-                  <form onSubmit={handlePhoneRegister} className="space-y-4">
-                    <p className="text-sm text-muted-foreground text-center mb-2">
-                      নতুন একাউন্ট তৈরি করুন
-                    </p>
-                    <div className="relative">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="পুরো নাম"
-                        value={phoneFullName}
-                        onChange={(e) => setPhoneFullName(e.target.value)}
-                        className="pl-10"
-                        required
-                      />
-                    </div>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        type="email"
-                        placeholder="ইমেইল"
-                        value={phoneEmail}
-                        onChange={(e) => setPhoneEmail(e.target.value)}
-                        className="pl-10"
-                        required
-                      />
-                    </div>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        type="password"
-                        placeholder="পাসওয়ার্ড"
-                        value={phonePassword}
-                        onChange={(e) => setPhonePassword(e.target.value)}
-                        className="pl-10"
-                        required
-                        minLength={6}
-                      />
-                    </div>
-                    <Button type="submit" className="w-full" disabled={phoneLoading}>
-                      {phoneLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                      একাউন্ট তৈরি করুন
-                    </Button>
-                    <Button type="button" variant="ghost" className="w-full" onClick={resetPhoneFlow}>
-                      বাতিল করুন
-                    </Button>
-                  </form>
-                ) : !otpSent ? (
+                {!otpSent ? (
                   <form onSubmit={handlePhonePasswordLogin} className="space-y-4">
                     <div className="relative">
                       <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -519,11 +393,8 @@ const Auth = () => {
                 <p className="text-sm font-medium flex items-center gap-1">
                   <Phone className="h-4 w-4" />
                   মোবাইল নাম্বার ভেরিফাই করুন <span className="text-destructive">*</span>
-                  {signupPhoneVerified && <span className="text-green-600 text-xs ml-auto">✓ ভেরিফাইড</span>}
                 </p>
-                {signupPhoneVerified ? (
-                  <p className="text-sm text-muted-foreground">{signupPhone}</p>
-                ) : !signupOtpSent ? (
+                {!signupOtpSent ? (
                   <div className="flex gap-2">
                     <div className="relative flex-1">
                       <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -556,13 +427,11 @@ const Auth = () => {
                       </InputOTP>
                     </div>
                     <div className="flex gap-2">
-                      <Button type="button" onClick={handleSignupVerifyOtp} disabled={signupLoading} size="sm" className="flex-1">
-                        {signupLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "ভেরিফাই"}
-                      </Button>
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
+                        className="flex-1"
                         onClick={handleSignupSendOtp}
                         disabled={signupLoading || signupOtpCooldown > 0}
                       >
@@ -576,9 +445,9 @@ const Auth = () => {
                 )}
               </div>
 
-              <Button type="submit" className="w-full" disabled={loading}>
+              <Button type="submit" className="w-full" disabled={loading || signupLoading}>
                 {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                সাইন আপ
+                মোবাইল যাচাই করে একাউন্ট তৈরি করুন
               </Button>
             </form>
           )}
