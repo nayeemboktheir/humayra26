@@ -15,6 +15,10 @@
     "auth:repair:dry-run": "node --env-file=.env scripts/repair-unconfirmed-users.mjs",
     "auth:repair:summary": "node --env-file=.env scripts/repair-unconfirmed-users.mjs --summary-only",
     "auth:repair:apply": "node --env-file=.env scripts/repair-unconfirmed-users.mjs --apply",
+    "auth:merge:dry-run": "node --env-file=.env scripts/merge-duplicate-users.mjs",
+    "auth:merge:apply": "node --env-file=.env scripts/merge-duplicate-users.mjs --apply --confirm=merge-duplicate-users",
+    "auth:email-only:dry-run": "node --env-file=.env scripts/make-duplicate-account-email-only.mjs",
+    "auth:email-only:apply": "node --env-file=.env scripts/make-duplicate-account-email-only.mjs --apply --confirm=make-account-email-only",
     "dev:selfhost": "vite --mode selfhost",
     "build:selfhost": "vite build --mode selfhost"
   },
