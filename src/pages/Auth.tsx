@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { toast } from "sonner";
-import { Loader2, Mail, Lock, User, Phone } from "lucide-react";
+import { Eye, EyeOff, Loader2, Mail, Lock, User, Phone } from "lucide-react";
 import { isStaffRole, resolveUserRole } from "@/lib/roles";
 import { markSignupNoticePending } from "@/components/SignupImportantNotice";
 import { errorMessage, getFunctionErrorMessage } from "@/lib/authErrors";
@@ -16,6 +16,7 @@ const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -26,6 +27,7 @@ const Auth = () => {
   const [otp, setOtp] = useState("");
   const [phoneLoading, setPhoneLoading] = useState(false);
   const [phoneLoginPassword, setPhoneLoginPassword] = useState("");
+  const [showPhoneLoginPassword, setShowPhoneLoginPassword] = useState(false);
 
   // Signup phone verification states
   const [signupPhone, setSignupPhone] = useState("");
@@ -259,14 +261,22 @@ const Auth = () => {
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
-                      type="password"
+                      type={showPassword ? "text" : "password"}
                       placeholder="পাসওয়ার্ড"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="pl-10"
+                      className="pl-10 pr-10"
                       required
                       minLength={6}
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((visible) => !visible)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      aria-label={showPassword ? "পাসওয়ার্ড লুকান" : "পাসওয়ার্ড দেখুন"}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
                   </div>
                   <Button type="submit" className="w-full" disabled={loading}>
                     {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
@@ -299,13 +309,21 @@ const Auth = () => {
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
-                        type="password"
+                        type={showPhoneLoginPassword ? "text" : "password"}
                         placeholder="পাসওয়ার্ড"
                         value={phoneLoginPassword}
                         onChange={(e) => setPhoneLoginPassword(e.target.value)}
-                        className="pl-10"
+                        className="pl-10 pr-10"
                         minLength={6}
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowPhoneLoginPassword((visible) => !visible)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        aria-label={showPhoneLoginPassword ? "পাসওয়ার্ড লুকান" : "পাসওয়ার্ড দেখুন"}
+                      >
+                        {showPhoneLoginPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
                     </div>
                     <Button type="submit" className="w-full" disabled={phoneLoading}>
                       {phoneLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
@@ -385,14 +403,22 @@ const Auth = () => {
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   placeholder="পাসওয়ার্ড"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 pr-10"
                   required
                   minLength={6}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((visible) => !visible)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  aria-label={showPassword ? "পাসওয়ার্ড লুকান" : "পাসওয়ার্ড দেখুন"}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
 
               {/* Phone verification section */}
