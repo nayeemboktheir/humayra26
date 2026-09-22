@@ -1,0 +1,33 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": { "title": "TradeOn Authentication Overview", "locale": "en", "quality_profile": "showcase" },
+  "lanes": [
+    { "id": "flow", "label": "Login, signup and authorization" }
+  ],
+  "phases": [
+    { "id": "entry", "label": "Entry", "fromCol": 0, "toCol": 0 },
+    { "id": "proof", "label": "Identity verification", "fromCol": 1, "toCol": 3, "variant": "security" },
+    { "id": "access", "label": "Authorized application access", "fromCol": 4, "toCol": 5, "variant": "emphasis" }
+  ],
+  "nodes": [
+    { "id": "auth", "lane": "flow", "col": 0, "type": "frontend", "label": "Open /auth", "width": 112 },
+    { "id": "method", "lane": "flow", "col": 1, "type": "frontend", "label": "Choose method", "sublabel": "login or sign up", "width": 122 },
+    { "id": "proof", "lane": "flow", "col": 2, "type": "security", "label": "Prove identity", "sublabel": "password or SMS OTP", "width": 132 },
+    { "id": "supabase", "lane": "flow", "col": 3, "type": "security", "label": "Create session", "sublabel": "Supabase Auth", "width": 122 },
+    { "id": "role", "lane": "flow", "col": 4, "type": "database", "label": "Resolve role", "sublabel": "get_my_role()", "width": 114 },
+    { "id": "guard", "lane": "flow", "col": 5, "type": "frontend", "label": "Guard routes", "sublabel": "/dashboard or /admin", "width": 132 }
+  ],
+  "mainPath": ["auth", "method", "proof", "supabase", "role", "guard"],
+  "edges": [
+    { "from": "auth", "to": "method", "label": "render authentication page", "role": "main" },
+    { "from": "method", "to": "proof", "label": "select email, phone/password, or SMS OTP", "role": "main", "variant": "security" },
+    { "from": "proof", "to": "supabase", "label": "signInWithPassword, signUp, setSession, or verifyOtp", "role": "main", "variant": "security" },
+    { "from": "supabase", "to": "role", "label": "AuthContext loads and observes the session", "role": "main", "variant": "security" },
+    { "from": "role", "to": "guard", "label": "staff to /admin; every other user to /dashboard", "role": "main" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Login methods", "items": ["Email/password calls Supabase Auth directly.", "Phone/password uses phone-password-login, then setSession with returned tokens.", "Existing-phone OTP verifies a generated magic-link token."] },
+    { "dot": "emerald", "title": "Signup and session", "items": ["Email signup requires a verified phone number; phone-first signup collects email, password and name after verification.", "SMS OTPs are six digits, expire after 10 minutes, and are rate-limited by phone and IP.", "AuthContext refreshes identity state; role resolution is cached for five minutes per user."] }
+  ]
+}

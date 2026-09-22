@@ -1,0 +1,51 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": { "title": "TradeOn Login, Signup & Authorization", "quality_profile": "showcase" },
+  "lanes": [
+    { "id": "visitor", "label": "Visitor" },
+    { "id": "client", "label": "React client" },
+    { "id": "edge", "label": "Supabase Edge Functions" },
+    { "id": "auth", "label": "Supabase Auth & database" }
+  ],
+  "phases": [
+    { "id": "start", "label": "Entry", "fromCol": 0, "toCol": 0 },
+    { "id": "prove", "label": "Identity proof", "fromCol": 1, "toCol": 3, "variant": "security" },
+    { "id": "authorize", "label": "Session & access", "fromCol": 4, "toCol": 5, "variant": "emphasis" }
+  ],
+  "nodes": [
+    { "id": "authPage", "lane": "visitor", "col": 0, "type": "frontend", "label": "Open /auth" },
+    { "id": "choose", "lane": "client", "col": 1, "type": "frontend", "label": "Choose login or sign up" },
+    { "id": "emailLogin", "lane": "visitor", "col": 2, "type": "frontend", "label": "Email + password login" },
+    { "id": "phonePassword", "lane": "visitor", "col": 2, "type": "frontend", "label": "Phone + password login", "yOffset": 105 },
+    { "id": "requestOtp", "lane": "visitor", "col": 2, "type": "frontend", "label": "Request SMS OTP", "yOffset": 210 },
+    { "id": "sendOtp", "lane": "edge", "col": 3, "type": "security", "label": "send-sms-otp", "sublabel": "normalizes phone; applies phone/IP limits" },
+    { "id": "verifyOtp", "lane": "edge", "col": 4, "type": "security", "label": "verify-sms-otp", "sublabel": "validates code; detects existing phone" },
+    { "id": "signup", "lane": "client", "col": 4, "type": "frontend", "label": "Complete sign up", "sublabel": "email, password, name, verified phone", "yOffset": 105 },
+    { "id": "supabaseAuth", "lane": "auth", "col": 3, "type": "security", "label": "Supabase Auth", "sublabel": "signInWithPassword, signUp, or verifyOtp" },
+    { "id": "session", "lane": "client", "col": 4, "type": "security", "label": "Set / observe session", "sublabel": "AuthContext getSession + onAuthStateChange", "yOffset": -105 },
+    { "id": "resolveRole", "lane": "auth", "col": 5, "type": "database", "label": "Resolve current role", "sublabel": "get_my_role() from auth.uid()" },
+    { "id": "route", "lane": "client", "col": 5, "type": "frontend", "label": "Apply route guard", "sublabel": "staff → /admin; other users → /dashboard", "yOffset": -105 }
+  ],
+  "mainPath": ["authPage", "choose", "emailLogin", "supabaseAuth", "session", "resolveRole", "route"],
+  "edges": [
+    { "from": "authPage", "to": "choose", "label": "renders Auth page", "role": "main" },
+    { "from": "choose", "to": "emailLogin", "label": "email login", "role": "main" },
+    { "from": "emailLogin", "to": "supabaseAuth", "label": "signInWithPassword", "role": "main", "variant": "security" },
+    { "from": "choose", "to": "phonePassword", "label": "phone/password login", "role": "branch" },
+    { "from": "phonePassword", "to": "supabaseAuth", "label": "phone-password-login returns tokens", "role": "branch", "variant": "security" },
+    { "from": "choose", "to": "requestOtp", "label": "OTP login or signup verification", "role": "branch" },
+    { "from": "requestOtp", "to": "sendOtp", "label": "request six-digit SMS code", "role": "branch", "variant": "security" },
+    { "from": "sendOtp", "to": "verifyOtp", "label": "submit OTP", "role": "main", "variant": "security" },
+    { "from": "verifyOtp", "to": "supabaseAuth", "label": "existing phone: magic-link token → verifyOtp", "role": "branch", "variant": "security" },
+    { "from": "verifyOtp", "to": "signup", "label": "new phone: mark verified", "role": "branch" },
+    { "from": "signup", "to": "supabaseAuth", "label": "signUp with verified-phone metadata", "role": "branch", "variant": "security" },
+    { "from": "supabaseAuth", "to": "session", "label": "authenticated session or stored tokens", "role": "main", "variant": "security" },
+    { "from": "session", "to": "resolveRole", "label": "RPC resolves caller's role", "role": "main" },
+    { "from": "resolveRole", "to": "route", "label": "dashboard or admin route", "role": "main" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "Session continuity", "items": ["AuthContext loads the stored session at startup.", "Auth-state events update user/session and clear the role cache.", "Role values are cached for five minutes per signed-in user."] },
+    { "dot": "amber", "title": "OTP controls", "items": ["Codes are six digits and expire after ten minutes.", "SMS send and OTP verification apply per-phone and per-IP rate limits.", "Five failed OTP attempts invalidate outstanding codes for that phone."] }
+  ]
+}

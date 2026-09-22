@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "TradeOn Login, Signup & Authorization",
+    "locale": "en",
+    "viewBox": [1080, 1060],
+    "column_fit": "spread",
+    "quality_profile": "showcase"
+  },
+  "participants": [
+    { "id": "visitor", "type": "external", "label": "Visitor", "sublabel": "browser" },
+    { "id": "react", "type": "frontend", "label": "React app", "sublabel": "/auth + AuthContext" },
+    { "id": "edge", "type": "backend", "label": "Edge functions", "sublabel": "phone + OTP paths" },
+    { "id": "otpData", "type": "database", "label": "OTP / profiles", "sublabel": "service-role access" },
+    { "id": "supabaseAuth", "type": "security", "label": "Supabase Auth", "sublabel": "accounts & sessions" },
+    { "id": "roles", "type": "database", "label": "Role RPC", "sublabel": "get_my_role()" },
+    { "id": "routes", "type": "frontend", "label": "Route guards", "sublabel": "/dashboard or /admin" }
+  ],
+  "segments": [
+    { "from": 150, "to": 350, "label": "Email and phone/password login" },
+    { "from": 372, "to": 650, "label": "SMS OTP login and signup verification" },
+    { "from": 672, "to": 950, "label": "Session, role lookup and guarded routing" }
+  ],
+  "messages": [
+    { "from": "visitor", "to": "react", "y": 190, "label": "open /auth and submit email + password", "variant": "default" },
+    { "from": "react", "to": "supabaseAuth", "y": 232, "label": "signInWithPassword", "variant": "security" },
+    { "from": "supabaseAuth", "to": "react", "y": 274, "label": "authenticated session", "variant": "return" },
+    { "from": "visitor", "to": "react", "y": 320, "label": "submit phone + password", "variant": "default" },
+    { "from": "react", "to": "edge", "y": 362, "label": "phone-password-login", "variant": "security" },
+    { "from": "edge", "to": "otpData", "y": 404, "label": "look up profile by normalized phone", "variant": "security" },
+    { "from": "edge", "to": "supabaseAuth", "y": 446, "label": "verify password with non-persistent client", "variant": "security" },
+    { "from": "edge", "to": "react", "y": 488, "label": "access + refresh tokens", "variant": "return" },
+    { "from": "react", "to": "supabaseAuth", "y": 530, "label": "setSession", "variant": "security" },
+    { "from": "visitor", "to": "react", "y": 578, "label": "request or submit six-digit SMS OTP", "variant": "default" },
+    { "from": "react", "to": "edge", "y": 620, "label": "send-sms-otp / verify-sms-otp", "variant": "security", "note": "Send and verification are rate-limited by phone and IP. OTPs expire after 10 minutes; five failed attempts burn outstanding codes." },
+    { "from": "edge", "to": "otpData", "y": 662, "label": "store / validate OTP and check profile", "variant": "security" },
+    { "from": "edge", "to": "supabaseAuth", "y": 704, "label": "existing phone: create magic link", "variant": "security" },
+    { "from": "react", "to": "supabaseAuth", "y": 746, "label": "verifyOtp with returned token hash", "variant": "security" },
+    { "from": "edge", "to": "react", "y": 788, "label": "new phone: verified-phone flag", "variant": "return" },
+    { "from": "react", "to": "supabaseAuth", "y": 830, "label": "signUp with name + verified phone metadata", "variant": "security" },
+    { "from": "supabaseAuth", "to": "react", "y": 872, "label": "session change / restored session", "variant": "return" },
+    { "from": "react", "to": "roles", "y": 914, "label": "get_my_role() derived from auth.uid()", "variant": "security" },
+    { "from": "react", "to": "routes", "y": 956, "label": "staff → /admin; all other users → /dashboard", "variant": "emphasis" }
+  ],
+  "activations": [
+    { "participant": "react", "from": 184, "to": 970, "type": "frontend" },
+    { "participant": "edge", "from": 356, "to": 794, "type": "backend" },
+    { "participant": "supabaseAuth", "from": 226, "to": 878, "type": "security" },
+    { "participant": "otpData", "from": 398, "to": 710, "type": "database" },
+    { "participant": "roles", "from": 908, "to": 920, "type": "database" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "Auth state", "items": ["AuthContext calls getSession at startup and subscribes to onAuthStateChange.", "SIGNED_IN, SIGNED_OUT and USER_UPDATED clear the per-user role cache.", "The role cache has a five-minute TTL."] },
+    { "dot": "violet", "title": "Route enforcement", "items": ["Protected routes redirect unauthenticated visitors to /auth.", "DashboardRoute redirects staff to /admin.", "AdminRoute redirects non-staff users to /dashboard."] }
+  ]
+}
