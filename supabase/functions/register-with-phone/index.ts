@@ -70,6 +70,7 @@ serve(async (req) => {
       .from("phone_otps")
       .select("id")
       .eq("phone", normalizedPhone)
+      .eq("purpose", "signup")
       .eq("otp_code", otp)
       .eq("verified", false)
       .gte("expires_at", new Date().toISOString())

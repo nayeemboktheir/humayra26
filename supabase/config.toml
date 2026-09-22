@@ -27,5 +27,7 @@ project_id = "kcihftfgmsrpcljsbjdj"
     verify_jwt = false
   [functions.phone-password-login]
     verify_jwt = false
+  [functions.reset-password-with-phone]
+    verify_jwt = false
   [functions.register-with-phone]
     verify_jwt = false

@@ -103,7 +103,7 @@ const Auth = () => {
     setSignupLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("send-sms-otp", {
-        body: { phone: signupPhone },
+        body: { phone: signupPhone, purpose: "signup" },
       });
       if (error || data?.error) {
         throw new Error(await getFunctionErrorMessage(error, data, "OTP পাঠানো যায়নি"));

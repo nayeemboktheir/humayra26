@@ -29,6 +29,7 @@ serve(async (req) => {
 
   try {
     const { phone, otp: rawOtp } = await req.json();
+    const purpose = "login";
     const otp = String(rawOtp || "").replace(/[^0-9]/g, "");
 
     if (!phone || !otp) {
@@ -92,6 +93,7 @@ serve(async (req) => {
       .from("phone_otps")
       .select("*")
       .eq("phone", normalizedPhone)
+      .eq("purpose", purpose)
       .eq("otp_code", otp)
       .eq("verified", false)
       .gte("expires_at", new Date().toISOString())
@@ -111,6 +113,7 @@ serve(async (req) => {
       .from("phone_otps")
       .update({ verified: true })
       .eq("phone", normalizedPhone)
+      .eq("purpose", purpose)
       .eq("verified", false);
 
     // Check if user with this phone exists in profiles

@@ -37,7 +37,8 @@ serve(async (req) => {
   }
 
   try {
-    const { phone } = await req.json();
+    const { phone, purpose: rawPurpose } = await req.json();
+    const purpose = rawPurpose ?? "login";
 
     if (!phone) {
       return new Response(
@@ -53,20 +54,30 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
+    if (!["login", "signup", "password_reset"].includes(purpose)) {
+      return new Response(JSON.stringify({ error: "Invalid OTP purpose" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Do not send a billed reset SMS for unknown numbers, but respond identically
+    // so this endpoint cannot be used to enumerate accounts.
+    if (purpose === "password_reset") {
+      const { data: profile } = await supabase.from("profiles").select("user_id").eq("phone", normalizedPhone).maybeSingle();
+      if (!profile) return new Response(JSON.stringify({ success: true, message: "If an account exists, an OTP has been sent." }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     const withinPhoneBudget = await consumeRateLimit(
       supabase,
-      `otp_send:phone:${normalizedPhone}`,
+      `otp_send:${purpose}:phone:${normalizedPhone}`,
       MAX_SENDS_PER_PHONE,
       SEND_PHONE_WINDOW_SECONDS,
     );
     const withinIpBudget = await consumeRateLimit(
       supabase,
-      `otp_send:ip:${clientIp(req)}`,
+      `otp_send:${purpose}:ip:${clientIp(req)}`,
       MAX_SENDS_PER_IP,
       SEND_IP_WINDOW_SECONDS,
     );
@@ -106,11 +117,13 @@ serve(async (req) => {
       .from("phone_otps")
       .delete()
       .eq("phone", normalizedPhone)
+      .eq("purpose", purpose)
       .lt("expires_at", new Date().toISOString());
 
     // Store OTP
     const { error: insertError } = await supabase.from("phone_otps").insert({
       phone: normalizedPhone,
+      purpose,
       otp_code: otp,
       expires_at: expiresAt,
     });
