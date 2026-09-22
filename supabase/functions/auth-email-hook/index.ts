@@ -31,6 +31,17 @@ const EMAIL_TEMPLATES: Record<string, React.ComponentType<any>> = {
   reauthentication: ReauthenticationEmail,
 }
 
+// GoTrue only accepts hook errors shaped { error: { http_code, message } } — anything
+// else (including a bare string, which every path below used to send) fails to parse
+// on GoTrue's side and gets replaced with a generic, unhelpful "Invalid payload sent
+// to hook" shown to the end user, discarding the real reason entirely.
+function hookError(httpCode: number, message: string) {
+  return new Response(JSON.stringify({ error: { http_code: httpCode, message } }), {
+    status: httpCode,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  })
+}
+
 const SITE_NAME = "TradeOn Global"
 const ROOT_DOMAIN = "tradeon.global"
 const FROM_EMAIL = `noreply@${ROOT_DOMAIN}`
@@ -214,20 +225,14 @@ async function handleWebhook(req: Request): Promise<Response> {
 
   if (!(await isAuthorizedWebhook(req, rawBody))) {
     console.warn('auth-email-hook: rejected unauthenticated webhook call')
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    return hookError(401, 'Unauthorized')
   }
 
   let payload: any
   try {
     payload = JSON.parse(rawBody)
   } catch {
-    return new Response(JSON.stringify({ error: 'Invalid JSON' }), {
-      status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    return hookError(400, 'Invalid JSON')
   }
 
   // Support both direct calls and Lovable webhook format
@@ -240,18 +245,12 @@ async function handleWebhook(req: Request): Promise<Response> {
   console.log('Received auth event', { emailType, email: recipientEmail })
 
   if (!emailType || !recipientEmail) {
-    return new Response(JSON.stringify({ error: 'Missing emailType or email' }), {
-      status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    return hookError(400, 'Missing emailType or email')
   }
 
   const EmailTemplate = EMAIL_TEMPLATES[emailType]
   if (!EmailTemplate) {
-    return new Response(JSON.stringify({ error: `Unknown email type: ${emailType}` }), {
-      status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    return hookError(400, `Unknown email type: ${emailType}`)
   }
 
   const templateProps = {
@@ -282,10 +281,7 @@ async function handleWebhook(req: Request): Promise<Response> {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to send email'
     console.error('Resend error', { error: message })
-    return new Response(JSON.stringify({ error: message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    return hookError(500, message)
   }
 }
 
@@ -305,9 +301,6 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Handler error:', error)
     const message = error instanceof Error ? error.message : 'Unknown error'
-    return new Response(JSON.stringify({ error: message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    return hookError(500, message)
   }
 })
