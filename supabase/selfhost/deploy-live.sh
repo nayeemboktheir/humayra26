@@ -138,7 +138,17 @@ cat <<'MENU'
   1 3 7 ...  deploy these numbers
   q  quit
 MENU
-printf 'choice: '; read -r choice
+# When this script is run as `curl ... | bash`, fd 0 is the same pipe that fed bash the
+# script text itself — already drained by the time execution reaches here, so a plain
+# `read` hits EOF instantly and silently falls through to the quit case. Reading from
+# /dev/tty instead reaches the real terminal regardless of how the script was invoked.
+# Falls back to plain stdin for the rare case where there is no controlling tty at all
+# (e.g. piped from another script) rather than hard-failing.
+if [ -r /dev/tty ]; then
+  printf 'choice: '; read -r choice < /dev/tty
+else
+  printf 'choice: '; read -r choice
+fi
 
 selected=()
 case "${choice:-q}" in
