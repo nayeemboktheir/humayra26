@@ -13,6 +13,10 @@ const nonBlockingCss = (): Plugin => ({
       (_m: string, href: string) =>
         `<link rel="preload" as="style" href="${href}" onload="this.onload=null;this.rel='stylesheet'">` +
         `<noscript><link rel="stylesheet" href="${href}"></noscript>`,
+    ).replace(
+      /<script type="module" crossorigin src="([^"]+)"><\/script>/g,
+      (_m: string, src: string) =>
+        `<script data-cfasync="false" type="module" crossorigin src="${src}"></script>`,
     );
   },
 });

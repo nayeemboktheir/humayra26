@@ -48,6 +48,7 @@
 
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <!-- Cloudflare Rocket Loader must not rewrite Vite's ES-module entry point. -->
+    <script data-cfasync="false" type="module" src="/src/main.tsx"></script>
   </body>
 </html>
