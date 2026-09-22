@@ -121,15 +121,15 @@ serve(async (req) => {
       .lt("expires_at", new Date().toISOString());
 
     // Store OTP
-    const { error: insertError } = await supabase.from("phone_otps").insert({
+    const { data: insertedOtp, error: insertError } = await supabase.from("phone_otps").insert({
       phone: normalizedPhone,
       purpose,
       otp_code: otp,
       expires_at: expiresAt,
-    });
+    }).select("id").single();
 
-    if (insertError) {
-      throw new Error(`Failed to store OTP: ${insertError.message}`);
+    if (insertError || !insertedOtp) {
+      throw new Error(`Failed to store OTP: ${insertError?.message ?? "no row returned"}`);
     }
 
     // Send SMS via BulkSMS BD
@@ -138,8 +138,16 @@ serve(async (req) => {
 
     const smsResponse = await fetch(smsUrl);
     const smsResult = await smsResponse.text();
+    let smsCode: number | null = null;
+    try {
+      const parsed = JSON.parse(smsResult);
+      smsCode = Number(parsed?.response_code);
+    } catch {
+      // An unparseable provider response is a failed submission, even with HTTP 200.
+    }
+    const smsAccepted = smsResponse.ok && smsCode === 202;
 
-    console.log("BulkSMS BD response:", smsResult);
+    console.log("BulkSMS BD response code:", smsCode ?? "invalid_response");
 
     // Log to sms_logs (best-effort, do not fail the OTP request if logging fails). The user
     // is waiting on an SMS that has already been dispatched, so this write is deferred off
@@ -148,7 +156,7 @@ serve(async (req) => {
       phone: normalizedPhone,
       message: "Your login OTP is: ****** (redacted)",
       sms_type: "otp",
-      status: smsResponse.ok ? "sent" : "failed",
+      status: smsAccepted ? "sent" : "failed",
       response: smsResult.slice(0, 500),
     }).then(
       ({ error }: any) => { if (error) console.error("sms_logs write failed:", error.message); },
@@ -157,6 +165,15 @@ serve(async (req) => {
     const waitUntil = (globalThis as any).EdgeRuntime?.waitUntil;
     if (typeof waitUntil === "function") waitUntil.call((globalThis as any).EdgeRuntime, writeLog);
     else { try { await writeLog; } catch (_) { /* ignore */ } }
+
+    if (!smsAccepted) {
+      // Never leave a code active when the SMS provider rejected the message.
+      await supabase.from("phone_otps").update({ verified: true }).eq("id", insertedOtp.id);
+      return new Response(
+        JSON.stringify({ error: "SMS could not be delivered. Please try again later.", code: "sms_delivery_failed" }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     return new Response(
       JSON.stringify({ success: true, message: "OTP sent successfully" }),

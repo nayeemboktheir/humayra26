@@ -75,6 +75,7 @@ $$;
 REVOKE ALL ON FUNCTION public.consume_rate_limit(text, integer, integer) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.consume_rate_limit(text, integer, integer) FROM anon;
 REVOKE ALL ON FUNCTION public.consume_rate_limit(text, integer, integer) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.consume_rate_limit(text, integer, integer) TO service_role;
 
 -- Housekeeping: buckets are only meaningful inside their window, so anything untouched
 -- for a day is dead weight. Safe to call from a cron job or ad hoc.
@@ -90,3 +91,7 @@ $$;
 REVOKE ALL ON FUNCTION public.prune_rate_limits() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.prune_rate_limits() FROM anon;
 REVOKE ALL ON FUNCTION public.prune_rate_limits() FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.prune_rate_limits() TO service_role;
+
+-- Make newly-created RPCs visible to PostgREST immediately on self-hosted Supabase.
+NOTIFY pgrst, 'reload schema';
