@@ -31,13 +31,18 @@ const EMAIL_TEMPLATES: Record<string, React.ComponentType<any>> = {
   reauthentication: ReauthenticationEmail,
 }
 
-// GoTrue only accepts hook errors shaped { error: { http_code, message } } — anything
-// else (including a bare string, which every path below used to send) fails to parse
-// on GoTrue's side and gets replaced with a generic, unhelpful "Invalid payload sent
-// to hook" shown to the end user, discarding the real reason entirely.
+// GoTrue's hook client (hookshttp.go) never reads the body of a non-2xx response —
+// it hard-codes the message by HTTP status: 400 always becomes "Invalid payload sent
+// to hook", 401 always becomes "Hook requires authorization token", anything else
+// becomes "Unexpected status code returned from hook: %d". The *only* way to surface
+// a real message is to respond 200 with a JSON body shaped
+// { error: { http_code, message } } — GoTrue unwraps that itself (hookserrors.Check)
+// and uses http_code/message for the error it raises. So every failure path here must
+// return HTTP 200 with the real status carried inside the body, never as the actual
+// HTTP status, or GoTrue discards it.
 function hookError(httpCode: number, message: string) {
   return new Response(JSON.stringify({ error: { http_code: httpCode, message } }), {
-    status: httpCode,
+    status: 200,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   })
 }
