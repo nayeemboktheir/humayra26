@@ -12,9 +12,9 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "auth:repair:dry-run": "node scripts/repair-unconfirmed-users.mjs",
-    "auth:repair:summary": "node scripts/repair-unconfirmed-users.mjs --summary-only",
-    "auth:repair:apply": "node scripts/repair-unconfirmed-users.mjs --apply",
+    "auth:repair:dry-run": "node --env-file=.env scripts/repair-unconfirmed-users.mjs",
+    "auth:repair:summary": "node --env-file=.env scripts/repair-unconfirmed-users.mjs --summary-only",
+    "auth:repair:apply": "node --env-file=.env scripts/repair-unconfirmed-users.mjs --apply",
     "dev:selfhost": "vite --mode selfhost",
     "build:selfhost": "vite build --mode selfhost"
   },

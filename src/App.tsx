@@ -16,6 +16,7 @@ import { subscribeCurrency, getCurrencyVersion } from "@/lib/currency";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import ResetPassword from "./pages/ResetPassword";
 
 // Route-level code splitting. Admin and dashboard screens (and the heavy libraries
 // they pull in — recharts, jspdf, html2canvas) are no longer part of the bundle a
@@ -152,6 +153,7 @@ const App = () => {
                 <Route path="/install" element={<Install />} />
                 <Route path="/seller/:vendorId" element={<SellerStore />} />
                 <Route path="/auth" element={<Auth />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/payment/callback" element={<PaymentCallback />} />
                 <Route path="/dashboard" element={<DashboardRoute><Overview /></DashboardRoute>} />
                 <Route path="/dashboard/orders" element={<DashboardRoute><Orders /></DashboardRoute>} />

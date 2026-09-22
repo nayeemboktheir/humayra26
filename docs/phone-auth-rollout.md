@@ -15,6 +15,8 @@ Studio/`psql`, and deploy Edge Function files with the existing self-host deploy
 5. Deploy the frontend and smoke-test email/password, phone/password, phone OTP, and a
    fresh phone-verified signup. Verify staff routes to `/admin` and customers to
    `/dashboard`.
+   Add `https://YOUR-STOREFRONT-DOMAIN/reset-password` to Coolify's
+   `ADDITIONAL_REDIRECT_URLS` before testing password reset.
 6. Set the Coolify service variable `DISABLE_SIGNUP=true` (the template maps it to
    `GOTRUE_DISABLE_SIGNUP` in the Auth container) and redeploy that service. Confirm a
    direct public `auth.signUp` request is rejected, while

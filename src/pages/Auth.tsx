@@ -272,6 +272,13 @@ const Auth = () => {
                     {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                     সাইন ইন
                   </Button>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/reset-password")}
+                    className="w-full text-sm text-primary hover:underline"
+                  >
+                    পাসওয়ার্ড ভুলে গেছেন?
+                  </button>
                 </form>
               </TabsContent>
 

@@ -34,6 +34,14 @@ vi.mock("@/components/SignupImportantNotice", () => ({
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 
+vi.mock("@/components/ui/input-otp", () => ({
+  InputOTP: ({ value, onChange }: { value: string; onChange: (value: string) => void }) => (
+    <input data-input-otp value={value} onChange={(event) => onChange(event.target.value)} />
+  ),
+  InputOTPGroup: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  InputOTPSlot: () => null,
+}));
+
 vi.mock("react-router-dom", async () => {
   const actual = await vi.importActual<typeof import("react-router-dom")>("react-router-dom");
   return { ...actual, useNavigate: () => mocks.navigate };
@@ -96,4 +104,3 @@ describe("phone-verified signup", () => {
     await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith("/dashboard"));
   });
 });
-

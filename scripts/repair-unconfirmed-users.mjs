@@ -2,11 +2,11 @@ import { createClient } from "@supabase/supabase-js";
 
 const apply = process.argv.includes("--apply");
 const summaryOnly = process.argv.includes("--summary-only");
-const supabaseUrl = process.env.SUPABASE_URL;
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseUrl = process.env.SUPABASE_URL || process.env.SELFHOST_SUPABASE_URL;
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SELFHOST_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl || !serviceRoleKey) {
-  console.error("Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY before running this script.");
+  console.error("Set SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY or SELFHOST_SUPABASE_URL/SELFHOST_SERVICE_ROLE_KEY before running this script.");
   process.exit(1);
 }
 
