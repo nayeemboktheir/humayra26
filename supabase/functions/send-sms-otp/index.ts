@@ -171,7 +171,9 @@ serve(async (req) => {
       await supabase.from("phone_otps").update({ verified: true }).eq("id", insertedOtp.id);
       return new Response(
         JSON.stringify({ error: "SMS could not be delivered. Please try again later.", code: "sms_delivery_failed" }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        // Cloudflare replaces upstream 502 responses with its own CORS-less error
+        // page. 422 preserves the JSON body and CORS headers for the browser.
+        { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
