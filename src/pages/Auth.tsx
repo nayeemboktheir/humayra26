@@ -67,34 +67,6 @@ const Auth = () => {
     return normalizedPhone;
   };
 
-  const syncProfileDetails = async (userId: string, payload: { full_name?: string; phone?: string }) => {
-    const updates = Object.fromEntries(
-      Object.entries(payload).filter(([, value]) => value && value.trim() !== "")
-    );
-
-    if (Object.keys(updates).length === 0) return;
-
-    const { data: existingProfile, error: profileLookupError } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    if (profileLookupError) {
-      console.error("Failed to check profile details", profileLookupError);
-      return;
-    }
-
-    const query = existingProfile
-      ? supabase.from("profiles").update(updates).eq("user_id", userId)
-      : supabase.from("profiles").insert({ user_id: userId, ...updates });
-
-    const { error } = await query;
-    if (error) {
-      console.error("Failed to sync profile details", error);
-    }
-  };
-
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -124,13 +96,6 @@ const Auth = () => {
           },
         });
         if (error) throw error;
-
-        if (data.user?.id) {
-          await syncProfileDetails(data.user.id, {
-            full_name: fullName,
-            phone: normalizedPhone,
-          });
-        }
 
         markSignupNoticePending();
 
@@ -307,13 +272,6 @@ const Auth = () => {
         },
       });
       if (error) throw error;
-
-      if (data.user?.id) {
-        await syncProfileDetails(data.user.id, {
-          full_name: phoneFullName,
-          phone: verifiedPhone,
-        });
-      }
 
       markSignupNoticePending();
 
